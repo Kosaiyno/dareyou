@@ -1,0 +1,19 @@
+{
+  "name": "dareyou-webmcp-server",
+  "version": "1.0.0",
+  "description": "Autonomous AI Agent WebMCP server for DareYou Decentralised Football Intelligence Competition",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  }
+}
