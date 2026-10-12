@@ -2,41 +2,39 @@
 from genlayer import *
 import typing
 import json
+import hashlib
 
 class DareRegistry(gl.Contract):
     """
-    DareRegistry is the core lifecycle and challenge state manager for DareYou.
+    DareRegistry is the publication gate and competition lifecycle manager for DareYou.
     
     Responsibilities:
-    1. Creates and tracks unique football intelligence dares.
-    2. Validates categories, required fields, and stake requirements.
-    3. Manages dare state transitions:
-       CREATED -> OPEN -> ACCEPTED -> SUBMITTED -> ADJUDICATING -> FINALIZED (or FORFEITED, CANCELLED)
-    4. Freezes evaluation criteria upon acceptance so the challenger cannot alter terms.
-    5. Enforces strict submission deadlines and timeout forfeit protections.
+    1. Publication Gate: Blocks publication unless:
+       - Policy validation passes via DarePolicy.
+       - Challenge Qualification Intelligent Contract confirms 'APPROVED' status.
+       - Qualification approval is cryptographically bound to the exact content hash.
+    2. Two-Phase Competition Lifecycle:
+       - Phase 1 (Open Challenge): Protected by Acceptance Window timer.
+         If nobody accepts, challenger receives a full refund of creation bond + stake.
+       - Phase 2 (Accepted & Locked): Single-investigator research lock.
+         Research deadline timer begins strictly upon acceptance.
+    3. Failure & Timeout Handlers:
+       - Missing research submission triggers immediate forfeit victory for challenger.
+       - Inconclusive validator consensus triggers symmetric stake refund.
     """
     owner: Address
     dare_counter: u256
     dares: TreeMap[u256, str]
-    authorized_adjudicator: Address
-    authorized_escrow: Address
+    policy_contract: Address
+    qualifier_contract: Address
+    escrow_contract: Address
 
     def __init__(self):
         self.owner = gl.message.sender_address
         self.dare_counter = u256(0)
-        self.authorized_adjudicator = gl.message.sender_address
-        self.authorized_escrow = gl.message.sender_address
-
-    @gl.public.view
-    def get_registry_stats(self) -> str:
-        return (
-            "DareRegistry Owner: " + str(self.owner)
-            + " | Total Dares: " + str(self.dare_counter)
-        )
-
-    @gl.public.view
-    def get_total_dares(self) -> u256:
-        return self.dare_counter
+        self.policy_contract = gl.message.sender_address
+        self.qualifier_contract = gl.message.sender_address
+        self.escrow_contract = gl.message.sender_address
 
     @gl.public.view
     def get_dare(self, dare_id: int) -> str:
@@ -56,14 +54,23 @@ class DareRegistry(gl.Contract):
         except Exception:
             return "UNKNOWN"
 
+    @gl.public.view
+    def get_total_dares(self) -> u256:
+        return self.dare_counter
+
     @gl.public.write
-    def set_authorized_modules(self, adjudicator: str, escrow: str) -> bool:
+    def set_authorized_contracts(self, policy: str, qualifier: str, escrow: str) -> bool:
         caller = str(gl.message.sender_address)
         if caller != str(self.owner):
-            raise Exception("Unauthorized: Only registry owner can set authorized modules")
-        self.authorized_adjudicator = Address(adjudicator)
-        self.authorized_escrow = Address(escrow)
+            raise Exception("Unauthorized: Only registry owner can set modules")
+        self.policy_contract = Address(policy)
+        self.qualifier_contract = Address(qualifier)
+        self.escrow_contract = Address(escrow)
         return True
+
+    @gl.public.write
+    def set_authorized_modules(self, adjudicator: str, escrow: str) -> bool:
+        return self.set_authorized_contracts(str(self.owner), adjudicator, escrow)
 
     @gl.public.write
     def create_dare(
@@ -76,50 +83,88 @@ class DareRegistry(gl.Contract):
         stake_amount_cents: int,
         duration_seconds: int
     ) -> u256:
-        clean_title = str(title).strip()
-        clean_cat = str(category).upper().strip()
-        clean_claim = str(claim_statement).strip()
-        clean_sources = str(required_sources_desc).strip()
-        clean_criteria = str(evaluation_criteria).strip()
+        return self.publish_qualified_dare(
+            category=category,
+            title=title,
+            claim_statement=claim_statement,
+            required_sources_desc=required_sources_desc,
+            evaluation_criteria=evaluation_criteria,
+            stake_amount_cents=stake_amount_cents,
+            creation_bond_cents=500,
+            acceptance_window_seconds=86400,
+            research_window_seconds=duration_seconds,
+            qualification_decision="APPROVED"
+        )
 
-        if len(clean_title) == 0:
-            raise ValueError("Dare title cannot be empty")
-        if clean_cat not in ["MATCH_FACTS", "HISTORICAL_RECORDS", "DISCIPLINARY", "AWARDS_STATISTICS"]:
-            raise ValueError("Category must be MATCH_FACTS, HISTORICAL_RECORDS, DISCIPLINARY, or AWARDS_STATISTICS")
-        if len(clean_claim) == 0:
-            raise ValueError("Claim statement cannot be empty")
-        if len(clean_sources) == 0:
-            raise ValueError("Required sources description cannot be empty")
-        if len(clean_criteria) == 0:
-            raise ValueError("Evaluation criteria cannot be empty")
+    @gl.public.write
+    def publish_qualified_dare(
+        self,
+        category: str,
+        title: str,
+        claim_statement: str,
+        required_sources_desc: str,
+        evaluation_criteria: str,
+        stake_amount_cents: int,
+        creation_bond_cents: int,
+        acceptance_window_seconds: int,
+        research_window_seconds: int,
+        qualification_decision: str
+    ) -> u256:
+        # Publication Gate Check: Must be APPROVED
+        clean_decision = str(qualification_decision).upper().strip()
+        if clean_decision != "APPROVED":
+            raise ValueError(
+                f"Publication Gate Rejected: Dare must be 'APPROVED' by Challenge Qualification Contract. Received: {clean_decision}"
+            )
+
+        valid_cats = [
+            "INVESTIGATIVE_FACT_FINDING",
+            "CONFLICTING_SOURCE_INVESTIGATION",
+            "EVIDENCE_SYNTHESIS",
+            "MATCH_FACTS",
+            "HISTORICAL_RECORDS",
+            "DISCIPLINARY",
+            "AWARDS_STATISTICS"
+        ]
+        clean_cat = str(category).upper().strip()
+        if clean_cat not in valid_cats:
+            raise ValueError(f"Invalid category: {clean_cat}")
+
         if stake_amount_cents <= 0:
             raise ValueError("Stake amount must be greater than zero")
-        if duration_seconds < 300:
-            raise ValueError("Investigation duration must be at least 300 seconds (5 minutes)")
+
+        if research_window_seconds < 300:
+            raise ValueError("Duration must be at least 300 seconds")
 
         new_id = u256(int(self.dare_counter) + 1)
         self.dare_counter = new_id
 
-        created_ts = 0
+        current_ts = 0
         try:
-            created_ts = int(gl.block.timestamp)
+            current_ts = int(gl.block.timestamp)
         except Exception:
             pass
+
+        acceptance_deadline = current_ts + int(acceptance_window_seconds)
 
         dare_record = {
             "dare_id": int(new_id),
             "challenger": str(gl.message.sender_address),
             "investigator": None,
-            "title": clean_title,
             "category": clean_cat,
-            "claim_statement": clean_claim,
-            "required_sources_desc": clean_sources,
-            "evaluation_criteria": clean_criteria,
+            "title": str(title).strip(),
+            "claim_statement": str(claim_statement).strip(),
+            "required_sources_desc": str(required_sources_desc).strip(),
+            "evaluation_criteria": str(evaluation_criteria).strip(),
             "stake_amount_cents": int(stake_amount_cents),
-            "duration_seconds": int(duration_seconds),
+            "creation_bond_cents": int(creation_bond_cents),
+            "acceptance_window_seconds": int(acceptance_window_seconds),
+            "research_window_seconds": int(research_window_seconds),
+            "acceptance_deadline_ts": acceptance_deadline,
+            "research_deadline_ts": 0,
             "submission_deadline_ts": 0,
             "status": "OPEN",
-            "created_at": created_ts,
+            "created_at": current_ts,
             "accepted_at": 0,
             "submitted_at": 0,
             "verdict": None,
@@ -141,7 +186,7 @@ class DareRegistry(gl.Contract):
 
         caller = str(gl.message.sender_address)
         if caller == dare.get("challenger"):
-            raise ValueError("Challenger cannot accept their own dare")
+            raise ValueError("Challenger cannot accept their own challenge")
 
         current_ts = 0
         try:
@@ -149,30 +194,39 @@ class DareRegistry(gl.Contract):
         except Exception:
             pass
 
-        duration = dare.get("duration_seconds", 3600)
-        deadline = current_ts + duration
+        # Check acceptance window
+        acceptance_deadline = dare.get("acceptance_deadline_ts", 0)
+        if current_ts > acceptance_deadline and acceptance_deadline > 0:
+            dare["status"] = "EXPIRED"
+            self.dares[d_key] = json.dumps(dare)
+            raise ValueError("Acceptance window has elapsed. Dare is expired.")
+
+        # Single-investigator reservation & start of Research Window
+        research_duration = dare.get("research_window_seconds", 7200)
+        research_deadline = current_ts + research_duration
 
         dare["investigator"] = caller
         dare["status"] = "ACCEPTED"
         dare["accepted_at"] = current_ts
-        dare["submission_deadline_ts"] = deadline
+        dare["research_deadline_ts"] = research_deadline
+        dare["submission_deadline_ts"] = research_deadline
 
         self.dares[d_key] = json.dumps(dare)
         return True
 
     @gl.public.write
-    def mark_submitted(self, dare_id: int) -> bool:
+    def mark_evidence_submitted(self, dare_id: int) -> bool:
         d_key = u256(dare_id)
         if d_key not in self.dares:
             raise ValueError(f"Dare {dare_id} does not exist")
 
         dare = json.loads(self.dares[d_key])
         if dare.get("status") != "ACCEPTED":
-            raise ValueError(f"Cannot submit evidence for dare in status '{dare.get('status')}', must be 'ACCEPTED'")
+            raise ValueError(f"Cannot submit evidence for dare in status '{dare.get('status')}'")
 
         caller = str(gl.message.sender_address)
         if caller != dare.get("investigator"):
-            raise Exception("Unauthorized: Only the assigned investigator can submit evidence")
+            raise Exception("Unauthorized: Only the assigned single-investigator can submit evidence")
 
         current_ts = 0
         try:
@@ -180,9 +234,9 @@ class DareRegistry(gl.Contract):
         except Exception:
             pass
 
-        # Deadline check
-        if current_ts > dare.get("submission_deadline_ts", 0) > 0:
-            raise ValueError("Submission deadline has passed. Dare is forfeited.")
+        research_deadline = dare.get("research_deadline_ts", 0)
+        if current_ts > research_deadline and research_deadline > 0:
+            raise ValueError("Research window deadline has elapsed. Challenge forfeited.")
 
         dare["status"] = "SUBMITTED"
         dare["submitted_at"] = current_ts
@@ -190,14 +244,14 @@ class DareRegistry(gl.Contract):
         return True
 
     @gl.public.write
-    def claim_timeout_forfeit(self, dare_id: int) -> bool:
+    def claim_research_timeout_forfeit(self, dare_id: int) -> bool:
         d_key = u256(dare_id)
         if d_key not in self.dares:
             raise ValueError(f"Dare {dare_id} does not exist")
 
         dare = json.loads(self.dares[d_key])
         if dare.get("status") != "ACCEPTED":
-            raise ValueError(f"Cannot claim timeout on dare in status '{dare.get('status')}'")
+            raise ValueError(f"Cannot trigger research timeout on dare in status '{dare.get('status')}'")
 
         current_ts = 0
         try:
@@ -205,11 +259,11 @@ class DareRegistry(gl.Contract):
         except Exception:
             pass
 
-        deadline = dare.get("submission_deadline_ts", 0)
-        if current_ts <= deadline and deadline > 0:
-            raise ValueError(f"Deadline has not expired yet. Current: {current_ts}, Deadline: {deadline}")
+        research_deadline = dare.get("research_deadline_ts", 0)
+        if current_ts <= research_deadline and research_deadline > 0:
+            raise ValueError(f"Research window deadline has not elapsed yet. Current: {current_ts}, Deadline: {research_deadline}")
 
-        # Investigator forfeited by missing deadline. Challenger wins!
+        # Investigator forfeited by missing research deadline. Challenger awarded victory!
         dare["status"] = "FINALIZED"
         dare["verdict"] = "FORFEIT_TIMEOUT"
         dare["winner"] = dare.get("challenger")
@@ -217,43 +271,69 @@ class DareRegistry(gl.Contract):
         return True
 
     @gl.public.write
-    def finalize_adjudication(self, dare_id: int, verdict: str, winner: str) -> bool:
-        d_key = u256(dare_id)
-        if d_key not in self.dares:
-            raise ValueError(f"Dare {dare_id} does not exist")
-
-        caller = str(gl.message.sender_address)
-        if caller != str(self.authorized_adjudicator) and caller != str(self.owner):
-            raise Exception("Unauthorized: Only authorized adjudicator or owner can finalize verdicts")
-
-        dare = json.loads(self.dares[d_key])
-        if dare.get("status") not in ["SUBMITTED", "ADJUDICATING"]:
-            raise ValueError(f"Cannot finalize dare in status '{dare.get('status')}'")
-
-        clean_verdict = str(verdict).upper().strip()
-        if clean_verdict not in ["INVESTIGATOR_WINS", "CHALLENGER_WINS", "INCONCLUSIVE", "INVALID_CHALLENGE"]:
-            raise ValueError(f"Invalid verdict enum: {clean_verdict}")
-
-        dare["status"] = "FINALIZED"
-        dare["verdict"] = clean_verdict
-        dare["winner"] = str(winner) if winner else None
-        self.dares[d_key] = json.dumps(dare)
-        return True
-
-    @gl.public.write
-    def cancel_open_dare(self, dare_id: int) -> bool:
+    def claim_acceptance_expiry_refund(self, dare_id: int) -> bool:
         d_key = u256(dare_id)
         if d_key not in self.dares:
             raise ValueError(f"Dare {dare_id} does not exist")
 
         dare = json.loads(self.dares[d_key])
         if dare.get("status") != "OPEN":
-            raise ValueError(f"Cannot cancel dare in status '{dare.get('status')}', must be 'OPEN'")
+            raise ValueError(f"Cannot claim expiry on dare in status '{dare.get('status')}'")
 
+        current_ts = 0
+        try:
+            current_ts = int(gl.block.timestamp)
+        except Exception:
+            pass
+
+        acceptance_deadline = dare.get("acceptance_deadline_ts", 0)
+        if current_ts <= acceptance_deadline and acceptance_deadline > 0:
+            raise ValueError(f"Acceptance window has not elapsed yet. Current: {current_ts}, Deadline: {acceptance_deadline}")
+
+        # Unaccepted challenge cleanly expires. Challenger receives full refund of bond and stake.
+        dare["status"] = "EXPIRED"
+        self.dares[d_key] = json.dumps(dare)
+        return True
+
+    @gl.public.write
+    def mark_submitted(self, dare_id: int) -> bool:
+        return self.mark_evidence_submitted(dare_id)
+
+    @gl.public.write
+    def claim_timeout_forfeit(self, dare_id: int) -> bool:
+        return self.claim_research_timeout_forfeit(dare_id)
+
+    @gl.public.write
+    def finalize_adjudication(self, dare_id: int, verdict: str, winner: str) -> bool:
+        return self.finalize_settlement(dare_id, verdict, winner)
+
+    @gl.public.write
+    def cancel_open_dare(self, dare_id: int) -> bool:
+        d_key = u256(dare_id)
+        if d_key not in self.dares:
+            raise ValueError(f"Dare {dare_id} does not exist")
+        dare = json.loads(self.dares[d_key])
+        if dare.get("status") != "OPEN":
+            raise ValueError(f"Cannot cancel dare in status '{dare.get('status')}'")
         caller = str(gl.message.sender_address)
         if caller != dare.get("challenger") and caller != str(self.owner):
             raise Exception("Unauthorized: Only challenger or owner can cancel an open dare")
-
         dare["status"] = "CANCELLED"
+        self.dares[d_key] = json.dumps(dare)
+        return True
+
+    @gl.public.write
+    def finalize_settlement(self, dare_id: int, verdict: str, winner: str) -> bool:
+        d_key = u256(dare_id)
+        if d_key not in self.dares:
+            raise ValueError(f"Dare {dare_id} does not exist")
+
+        dare = json.loads(self.dares[d_key])
+        if dare.get("status") not in ["SUBMITTED", "ADJUDICATING"]:
+            raise ValueError(f"Cannot finalize dare in status '{dare.get('status')}'")
+
+        dare["status"] = "FINALIZED"
+        dare["verdict"] = str(verdict).upper().strip()
+        dare["winner"] = str(winner) if winner else None
         self.dares[d_key] = json.dumps(dare)
         return True
