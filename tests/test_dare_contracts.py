@@ -115,14 +115,18 @@ class MockGLModule:
 
 
 # Register mocks in sys.modules
-mock_gl = MockGLModule()
-genlayer_mock = type(sys)("genlayer")
-genlayer_mock.gl = mock_gl
-genlayer_mock.Address = Address
-genlayer_mock.u256 = u256
-genlayer_mock.TreeMap = TreeMap
-genlayer_mock.DynArray = DynArray
-sys.modules["genlayer"] = genlayer_mock
+if "genlayer" in sys.modules:
+    genlayer_mock = sys.modules["genlayer"]
+    mock_gl = genlayer_mock.gl
+else:
+    mock_gl = MockGLModule()
+    genlayer_mock = type(sys)("genlayer")
+    genlayer_mock.gl = mock_gl
+    genlayer_mock.Address = Address
+    genlayer_mock.u256 = u256
+    genlayer_mock.TreeMap = TreeMap
+    genlayer_mock.DynArray = DynArray
+    sys.modules["genlayer"] = genlayer_mock
 
 # Add contracts path to python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "contracts")))

@@ -55,10 +55,20 @@ class DarePolicy(gl.Contract):
     ) -> bool:
         clean_challenger = str(challenger).strip()
         clean_category = str(category).upper().strip()
-        clean_title = str(title).strip()
+        clean_dare = str(title).strip()
         clean_claim = str(claim_statement).strip()
         clean_sources = str(required_sources_desc).strip()
         clean_criteria = str(evaluation_criteria).strip()
+
+        # 1. Format Requirement: Must begin with 'Dare you to '
+        if not clean_dare.lower().startswith("dare you to "):
+            raise ValueError(
+                "Format Error: Every dare MUST begin with 'Dare you to...' as a single complete instruction."
+            )
+        if len(clean_dare) < 40:
+            raise ValueError(
+                "Format Error: Dare instruction must be a complete, substantive task of at least 40 characters."
+            )
 
         # 1. Supported Category Check
         valid_categories = [
@@ -72,8 +82,8 @@ class DarePolicy(gl.Contract):
             )
 
         # 2. Mandatory Field Completeness & Quality Floors
-        if len(clean_title) < 15:
-            raise ValueError("Challenge title must be at least 15 characters describing the specific inquiry")
+        if len(clean_dare) < 40:
+            raise ValueError("Challenge dare instruction must be at least 40 characters describing the specific inquiry")
         if len(clean_claim) < 25:
             raise ValueError("Claim statement must be at least 25 characters with verifiable detail")
         if len(clean_sources) < 20:

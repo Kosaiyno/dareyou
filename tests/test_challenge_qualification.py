@@ -56,6 +56,29 @@ class MockEqPrinciple:
 
         user_input = get_input_fn()
 
+        if "=== INVESTIGATOR SUBMITTED EVIDENCE DOSSIER ===" in user_input:
+            if "unverified social media" in user_input:
+                return json.dumps({
+                    "verdict": "CHALLENGER_WINS",
+                    "score": 25,
+                    "criteria_fulfillment": False,
+                    "rationale": "Evidence relies on unverified social media rather than required official sources."
+                })
+            elif "Conflicting official records" in user_input:
+                return json.dumps({
+                    "verdict": "INCONCLUSIVE",
+                    "score": 50,
+                    "criteria_fulfillment": False,
+                    "rationale": "UEFA and national federation match sheets directly contradict on goal attribution."
+                })
+            else:
+                return json.dumps({
+                    "verdict": "INVESTIGATOR_WINS",
+                    "score": 90,
+                    "criteria_fulfillment": True,
+                    "rationale": "Evidence satisfies required criteria."
+                })
+
         # Label 1: Trivial fact check
         if "Was Lionel Messi a player for FC Barcelona" in user_input:
             return json.dumps({
@@ -137,6 +160,10 @@ class MockContract:
         obj.qualification_records = TreeMap()
         obj.dares = TreeMap()
         obj.dare_counter = u256(0)
+        obj.dare_stakes = TreeMap()
+        obj.evidence_dossiers = TreeMap()
+        obj.adjudication_records = TreeMap()
+        obj.agent_profiles = TreeMap()
         return obj
 
 
@@ -253,7 +280,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_haaland_005",
             category="INVESTIGATIVE_FACT_FINDING",
-            title="Did Erling Haaland score with his right foot in the 2023 UCL semi-final 2nd leg?",
+            title="Dare you to uncover whether Erling Haaland scored with his right foot in the 2023 UCL semi-final 2nd leg within 30 minutes.",
             claim_statement="Erling Haaland scored with his right foot during the 4-0 second-leg win.",
             required_sources_desc="Official UEFA match sheet and at least 1 Tier-1 broadcast recap archive.",
             evaluation_criteria="Verify official goal minutes and accredited body part, or refute with official dispatch."
@@ -268,7 +295,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_sneijder_006",
             category="CONFLICTING_SOURCE_INVESTIGATION",
-            title="Was the 2010 quarter-final goal credited to Sneijder goal or a Felipe Melo own goal?",
+            title="Dare you to investigate whether the 2010 quarter-final goal was credited to Sneijder goal or a Felipe Melo own goal within 25 minutes.",
             claim_statement="FIFA originally recorded an own goal before formally reattributing to Sneijder.",
             required_sources_desc="Original FIFA match sheet vs amended Technical Study Group dispatch.",
             evaluation_criteria="Analyze discrepancies between match-day log and post-tournament technical report."
@@ -282,13 +309,27 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_zidane_007",
             category="EVIDENCE_SYNTHESIS",
-            title="Did fourth official notify referee about Zidane headbutt via Medina Cantalejo via electronic communication?",
+            title="Dare you to reconstruct if fourth official notified referee about Zidane headbutt via Medina Cantalejo via electronic communication within 30 minutes.",
             claim_statement="The fourth official alerted the referee using the internal headset system.",
             required_sources_desc="Official FIFA referee debriefing notes and published technical dispatches.",
             evaluation_criteria="Synthesize radio-communication timeline with official referee dismissal dispatches."
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "APPROVED")
+
+    # --- Test Format: Missing 'Dare you to ' prefix strictly rejected ---
+    def test_format_missing_prefix_rejected(self):
+        result_json = self.qualifier.evaluate_challenge_qualification(
+            content_hash="hash_no_prefix",
+            category="INVESTIGATIVE_FACT_FINDING",
+            title="Who scored in the 2023 UCL semi-final?",  # Missing 'Dare you to '
+            claim_statement="Valid claim statement length for testing.",
+            required_sources_desc="Official UEFA match archives.",
+            evaluation_criteria="Verify whether claim matches match report."
+        )
+        parsed = json.loads(result_json)
+        self.assertEqual(parsed["decision"], "REJECTED")
+        self.assertIn("Format Failure", parsed["rationale"])
 
     # --- Test 8: Deterministic Policy Enforcement ---
     def test_policy_bounds_and_rate_limits(self):
@@ -303,7 +344,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         # Low stake
         with self.assertRaises(ValueError):
             self.policy.validate_and_record_proposal(
-                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length for testing",
+                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic length within 30 mins.",
                 "Valid claim statement length for testing", "Valid required sources description",
                 "Valid evaluation criteria description", 500, 500, 3600, 3600
             )
@@ -311,24 +352,24 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         # Low creation bond
         with self.assertRaises(ValueError):
             self.policy.validate_and_record_proposal(
-                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length for testing",
+                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic length within 30 mins.",
                 "Valid claim statement length for testing", "Valid required sources description",
                 "Valid evaluation criteria description", 1000, 200, 3600, 3600
             )
 
         # Rate limit test: allow 3, reject 4th
         self.policy.validate_and_record_proposal(
-            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length 1",
+            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 1 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
             "Valid evaluation criteria description", 1000, 500, 3600, 3600
         )
         self.policy.validate_and_record_proposal(
-            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length 2",
+            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 2 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
             "Valid evaluation criteria description", 1000, 500, 3600, 3600
         )
         self.policy.validate_and_record_proposal(
-            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length 3",
+            self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 3 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
             "Valid evaluation criteria description", 1000, 500, 3600, 3600
         )
@@ -337,7 +378,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         # 4th should be blocked by rate limiter
         with self.assertRaises(ValueError):
             self.policy.validate_and_record_proposal(
-                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Valid title length 4",
+                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 4 within 30 minutes.",
                 "Valid claim statement length for testing", "Valid required sources description",
                 "Valid evaluation criteria description", 1000, 500, 3600, 3600
             )
@@ -348,7 +389,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.registry.publish_qualified_dare(
                 category="INVESTIGATIVE_FACT_FINDING",
-                title="Trivial question attempt",
+                title="Dare you to answer this trivial question attempt within 30 mins.",
                 claim_statement="Valid claim statement length for testing",
                 required_sources_desc="Valid required sources description",
                 evaluation_criteria="Valid evaluation criteria description",

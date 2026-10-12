@@ -53,31 +53,47 @@ class DareQualifier(gl.Contract):
         clean_sources = str(required_sources_desc).strip()
         clean_criteria = str(evaluation_criteria).strip()
 
+        # Format check: Must begin with 'Dare you to '
+        if not clean_title.lower().startswith("dare you to "):
+            auto_reject = json.dumps({
+                "decision": "REJECTED",
+                "depth_score": 0,
+                "non_obvious": False,
+                "verifiable": False,
+                "rationale": "Format Failure: Dares MUST begin with 'Dare you to...' as a single complete instruction."
+            })
+            self.qualification_records[clean_hash] = auto_reject
+            return auto_reject
+
         def get_input() -> str:
             return (
                 f"=== PROPOSED DAREYOU FOOTBALL CHALLENGE ===\n"
                 f"Content Hash: {clean_hash}\n"
                 f"Category: {clean_cat}\n"
-                f"Inquiry Title: {clean_title}\n"
+                f"Continuous Dare Instruction: {clean_title}\n"
                 f"Factual Claim to Investigate: {clean_claim}\n"
                 f"Required Sources Specification: {clean_sources}\n"
                 f"Success / Adjudication Criteria: {clean_criteria}\n\n"
-                f"=== QUALIFICATION EVALUATION DIRECTIVES ===\n"
-                f"1. Research Depth: Requires deep investigation or conflicting-source resolution, NOT a simple single-number lookup.\n"
-                f"2. Scope Exclusions: Immediately REJECT any prediction-market questions about future matches, subjective opinion polls ('who is the GOAT?'), or obvious trivia.\n"
-                f"3. Verifiability: Must have explicit, observable criteria that can be proven via official match sheets or historical archives.\n"
-                f"4. Anti-Gaming: Reject trivial or simple yes/no questions padded with verbose filler or irrelevant source requirements.\n"
-                f"5. Decision Rules:\n"
-                f"   - APPROVED: Genuine substantive football investigation requiring cross-source verification.\n"
-                f"   - REJECTED: Trivial fact, future prediction, subjective debate, impossible task, or disguised spam.\n"
-                f"   - NEEDS_REVISION: Good factual premise but success criteria are ambiguous or source instructions lack specificity."
+                f"=== MANDATORY ACCEPTANCE RUBRIC (ALL 8 MUST PASS) ===\n"
+                f"1. Concrete & Identifiable Subject: Real, specific football event, transfer, or controversy.\n"
+                f"2. Substantive Research Difficulty: Requires deep source comparison, methodology discrepancy, or evidence synthesis. REJECT trivia, basic lookups, obvious yes/no questions, or tasks answerable from 1 quick search.\n"
+                f"3. Factual Legitimacy: Based on real events, not invented controversies or false premises.\n"
+                f"4. Accessible Evidence: Verifiable via public archives or tools (no private/secret footage).\n"
+                f"5. Clear Deliverable: Explicitly states what responding agent must establish, reconstruct, compare, or explain.\n"
+                f"6. Verifiable Success Criteria: Objective outcome evaluable by an independent adjudicator (no subjective taste or 'best/underrated').\n"
+                f"7. Reasonable Time Constraint: Suitable for stated research window (typically 20-45 mins).\n"
+                f"8. Fair & Bounded Scope: Finite, constrained task.\n\n"
+                f"=== QUALIFICATION DECISIONS ===\n"
+                f"- APPROVED: All 8 mandatory criteria fully satisfied. Genuine substantive football investigation.\n"
+                f"- REJECTED: Fails any criterion: basic trivia, future prediction, subjective opinion, impossible task, or disguised spam.\n"
+                f"- NEEDS_REVISION: Meaningful inquiry but criteria are ambiguous or scope is unbounded."
             )
 
         raw_result = gl.eq_principle.prompt_non_comparative(
             get_input,
             task=(
                 f"Act as an elite academic peer-review arbiter for football intelligence challenges. "
-                f"Evaluate if proposed challenge '{clean_title}' qualifies as a research-intensive investigation. "
+                f"Evaluate if proposed dare '{clean_title}' satisfies all 8 mandatory acceptance criteria. "
                 f"Output a valid JSON object with keys: "
                 f"'decision' ('APPROVED', 'REJECTED', or 'NEEDS_REVISION'), "
                 f"'depth_score' (integer 0-100), "
@@ -88,9 +104,9 @@ class DareQualifier(gl.Contract):
             criteria="""
                 1. The output is a valid JSON object with keys: decision, depth_score, non_obvious, verifiable, and rationale.
                 2. The decision is exactly one of: APPROVED, REJECTED, or NEEDS_REVISION.
-                3. If the challenge is a future prediction, subjective opinion, or obvious single-statistic lookup, decision is REJECTED.
-                4. If the challenge requires cross-referencing multiple historical match reports, resolving conflicting sources, or synthesising disparate official facts, decision is APPROVED.
-                5. If the factual topic is worthwhile but the success criteria are vague or unobservable, decision is NEEDS_REVISION.
+                3. If the dare is basic trivia, simple lookup, future prediction, subjective debate, or obvious fact, decision is REJECTED.
+                4. If the dare is a difficult, verifiable, multi-source investigation with a clear deliverable and time limit, decision is APPROVED.
+                5. If the factual inquiry is worthwhile but criteria are vague or unobservable, decision is NEEDS_REVISION.
             """,
         )
 

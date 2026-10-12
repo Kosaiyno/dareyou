@@ -20,7 +20,7 @@ interface DareRecord {
   challenger: string;
   investigator: string | null;
   title: string;
-  category: "MATCH_FACTS" | "HISTORICAL_RECORDS" | "DISCIPLINARY" | "AWARDS_STATISTICS";
+  category: "INVESTIGATIVE_FACT_FINDING" | "CONFLICTING_SOURCE_INVESTIGATION" | "EVIDENCE_SYNTHESIS";
   claim_statement: string;
   required_sources_desc: string;
   evaluation_criteria: string;
@@ -57,7 +57,7 @@ interface AgentProfile {
   win_rate_percent: number;
 }
 
-// Seed Initial Platform Dares for Immediate Autonomous Discovery
+// Seed Initial Platform Dares for Immediate Autonomous Discovery (Standard Test Cases)
 const daresDb: Map<number, DareRecord> = new Map([
   [
     1,
@@ -65,13 +65,13 @@ const daresDb: Map<number, DareRecord> = new Map([
       dare_id: 1,
       challenger: "0xChallengerAlpha...81",
       investigator: null,
-      title: "Did Erling Haaland score with his right foot in the 2023 UCL Semi-Final 2nd Leg (Man City vs Real Madrid)?",
-      category: "MATCH_FACTS",
-      claim_statement: "Erling Haaland scored at least one goal with his right foot during the 4-0 second-leg win.",
-      required_sources_desc: "Official UEFA match sheet and at least one Tier-1 broadcast recap (BBC Sport, The Athletic).",
-      evaluation_criteria: "Prove whether Haaland scored in this match and the specific body part credited, or refute the claim with official goal logs.",
-      stake_amount_cents: 2000,
-      duration_seconds: 7200,
+      title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes.",
+      category: "CONFLICTING_SOURCE_INVESTIGATION",
+      claim_statement: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
+      required_sources_desc: "Official club annual audited financial reports and official federation registration filings.",
+      evaluation_criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
+      stake_amount_cents: 2500,
+      duration_seconds: 1800,
       submission_deadline_ts: 0,
       status: "OPEN",
       created_at: Date.now() - 3600000,
@@ -87,16 +87,38 @@ const daresDb: Map<number, DareRecord> = new Map([
       dare_id: 2,
       challenger: "0xTacticalOracle...94",
       investigator: null,
-      title: "Was Diego Maradona officially credited with an assist on Jorge Burruchaga's 1986 World Cup Final winner?",
-      category: "HISTORICAL_RECORDS",
-      claim_statement: "Diego Maradona provided the official direct pass assist for Argentina's 3rd goal against West Germany in 1986.",
-      required_sources_desc: "Official FIFA 1986 Technical Report / Match Log.",
-      evaluation_criteria: "Verify official match report notes and contemporary technical committee statistics regarding the 84th-minute goal.",
-      stake_amount_cents: 1500,
-      duration_seconds: 5400,
+      title: "Dare you to trace a widely repeated football story to its earliest verifiable source, compare the original account with later retellings, and expose which details were changed, exaggerated, or never supported by evidence within 25 minutes.",
+      category: "INVESTIGATIVE_FACT_FINDING",
+      claim_statement: "The widely repeated dressing room altercation narrative was embellished over decades and lacks support in contemporary reports.",
+      required_sources_desc: "Contemporary matchday newspaper archives (within 48 hours) versus modern retrospective memoirs.",
+      evaluation_criteria: "Identify earliest verifiable primary dispatch and document specific embellishments introduced in secondary retellings.",
+      stake_amount_cents: 2000,
+      duration_seconds: 1500,
       submission_deadline_ts: 0,
       status: "OPEN",
       created_at: Date.now() - 1800000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      winner: null
+    }
+  ],
+  [
+    3,
+    {
+      dare_id: 3,
+      challenger: "0xArchiveMaster...55",
+      investigator: null,
+      title: "Dare you to investigate why two established football statistics providers report different numbers for the same metric in a completed match, identify the methodological or factual source of the discrepancy, and support your conclusion with evidence within 20 minutes.",
+      category: "CONFLICTING_SOURCE_INVESTIGATION",
+      claim_statement: "Provider A logged 4 big chances created while Provider B logged 2 due to differing definitions of open-play vs set-piece pass sequences.",
+      required_sources_desc: "Official event definition documentation from Opta/StatsBomb and timestamped event logs for the match.",
+      evaluation_criteria: "Demonstrate exact event timestamp causing the divergence and map to published provider methodology rules.",
+      stake_amount_cents: 3000,
+      duration_seconds: 1200,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 900000,
       accepted_at: 0,
       submitted_at: 0,
       verdict: null,
@@ -204,12 +226,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             title: {
               type: "string",
-              description: "Concise, descriptive title of the dare question"
+              description: "Continuous dare instruction. MUST begin with 'Dare you to...' describing a single, coherent task with time constraint (e.g. 'Dare you to uncover the true transfer fee... within 30 minutes')"
             },
             category: {
               type: "string",
-              enum: ["MATCH_FACTS", "HISTORICAL_RECORDS", "DISCIPLINARY", "AWARDS_STATISTICS"],
-              description: "The domain of football knowledge"
+              enum: ["INVESTIGATIVE_FACT_FINDING", "CONFLICTING_SOURCE_INVESTIGATION", "EVIDENCE_SYNTHESIS"],
+              description: "Supported research category"
             },
             claim_statement: {
               type: "string",
@@ -459,18 +481,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "create_dare": {
+        const rawTitle = String(args?.title || "").trim();
+        const rawCategory = String(args?.category || "").trim();
+        const rawStake = Number(args?.stake_amount_cents || 0);
+        const rawDuration = Number(args?.duration_seconds || 0);
+
+        if (!rawTitle.toLowerCase().startsWith("dare you to ")) {
+          return {
+            isError: true,
+            content: [{
+              type: "text",
+              text: "Format Error: Every dare MUST begin with 'Dare you to...' as a single continuous instruction."
+            }]
+          };
+        }
+        if (rawTitle.length < 40) {
+          return {
+            isError: true,
+            content: [{
+              type: "text",
+              text: "Format Error: Dare instruction must be a substantive task of at least 40 characters."
+            }]
+          };
+        }
+        const validCategories = ["INVESTIGATIVE_FACT_FINDING", "CONFLICTING_SOURCE_INVESTIGATION", "EVIDENCE_SYNTHESIS"];
+        if (!validCategories.includes(rawCategory)) {
+          return {
+            isError: true,
+            content: [{
+              type: "text",
+              text: `Policy Error: Category '${rawCategory}' is not permitted. Allowed: ${validCategories.join(", ")}`
+            }]
+          };
+        }
+        if (rawStake < 1000) {
+          return {
+            isError: true,
+            content: [{
+              type: "text",
+              text: "Economic Policy Error: Minimum duel stake is 1000 cents ($10.00)."
+            }]
+          };
+        }
+
         dareCounter += 1;
         const newDare: DareRecord = {
           dare_id: dareCounter,
           challenger: String(args?.challenger_address),
           investigator: null,
-          title: String(args?.title),
-          category: args?.category as any,
+          title: rawTitle,
+          category: rawCategory as any,
           claim_statement: String(args?.claim_statement),
           required_sources_desc: String(args?.required_sources_desc),
           evaluation_criteria: String(args?.evaluation_criteria),
-          stake_amount_cents: Number(args?.stake_amount_cents),
-          duration_seconds: Number(args?.duration_seconds),
+          stake_amount_cents: rawStake,
+          duration_seconds: rawDuration,
           submission_deadline_ts: 0,
           status: "OPEN",
           created_at: Date.now(),
