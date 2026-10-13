@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /**
- * DareYou WebMCP Server
+ * DareYou WebMCP Server & Dual HTTP/STDIO Gateway
  * 
  * Exposes standardized Model Context Protocol (MCP) tools allowing autonomous AI agents
  * to discover football intelligence dares, analyze difficulty, accept challenges,
  * submit evidence dossiers, inspect verdicts, and track reputation on GenLayer.
+ *
+ * Transports:
+ * 1. STDIO Transport (Model Context Protocol standard)
+ * 2. HTTP REST & JSON-RPC Gateway on port 3001 (/tools, /api/tools, /mcp, /dares)
  */
 
+import http from "http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -15,7 +20,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 // --- In-Memory & Contract Synchronized State ---
-interface DareRecord {
+export interface DareRecord {
   dare_id: number;
   challenger: string;
   investigator: string | null;
@@ -25,17 +30,20 @@ interface DareRecord {
   required_sources_desc: string;
   evaluation_criteria: string;
   stake_amount_cents: number;
+  creation_bond_cents: number;
   duration_seconds: number;
+  acceptance_deadline_ts: number;
   submission_deadline_ts: number;
   status: "OPEN" | "ACCEPTED" | "SUBMITTED" | "FINALIZED" | "CANCELLED";
   created_at: number;
   accepted_at: number;
   submitted_at: number;
   verdict: string | null;
+  verdict_score: number | null;
   winner: string | null;
 }
 
-interface EvidenceDossier {
+export interface EvidenceDossier {
   dare_id: number;
   investigator: string;
   conclusion: string;
@@ -46,7 +54,7 @@ interface EvidenceDossier {
   submitted_at: number;
 }
 
-interface AgentProfile {
+export interface AgentProfile {
   agent_address: string;
   name: string;
   wins: number;
@@ -57,8 +65,8 @@ interface AgentProfile {
   win_rate_percent: number;
 }
 
-// Seed Initial Platform Dares for Immediate Autonomous Discovery (Standard Test Cases)
-const daresDb: Map<number, DareRecord> = new Map([
+// Seed the 10 Canonical Dare Acceptance Standard Dares for Immediate Autonomous Discovery
+export const daresDb: Map<number, DareRecord> = new Map([
   [
     1,
     {
@@ -71,13 +79,16 @@ const daresDb: Map<number, DareRecord> = new Map([
       required_sources_desc: "Official club annual audited financial reports and official federation registration filings.",
       evaluation_criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
       stake_amount_cents: 2500,
+      creation_bond_cents: 500,
       duration_seconds: 1800,
+      acceptance_deadline_ts: Date.now() + 86400000,
       submission_deadline_ts: 0,
       status: "OPEN",
       created_at: Date.now() - 3600000,
       accepted_at: 0,
       submitted_at: 0,
       verdict: null,
+      verdict_score: null,
       winner: null
     }
   ],
@@ -86,20 +97,23 @@ const daresDb: Map<number, DareRecord> = new Map([
     {
       dare_id: 2,
       challenger: "0xTacticalOracle...94",
-      investigator: null,
+      investigator: "0xInvestigatorBeta...42",
       title: "Dare you to trace a widely repeated football story to its earliest verifiable source, compare the original account with later retellings, and expose which details were changed, exaggerated, or never supported by evidence within 25 minutes.",
       category: "INVESTIGATIVE_FACT_FINDING",
       claim_statement: "The widely repeated dressing room altercation narrative was embellished over decades and lacks support in contemporary reports.",
-      required_sources_desc: "Contemporary matchday newspaper archives (within 48 hours) versus modern retrospective memoirs.",
+      required_sources_desc: "Contemporary matchday newspaper archives (within 48 hours of event) versus modern retrospective memoirs.",
       evaluation_criteria: "Identify earliest verifiable primary dispatch and document specific embellishments introduced in secondary retellings.",
       stake_amount_cents: 2000,
+      creation_bond_cents: 500,
       duration_seconds: 1500,
-      submission_deadline_ts: 0,
-      status: "OPEN",
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: Date.now() + 1200000,
+      status: "ACCEPTED",
       created_at: Date.now() - 1800000,
-      accepted_at: 0,
+      accepted_at: Date.now() - 300000,
       submitted_at: 0,
       verdict: null,
+      verdict_score: null,
       winner: null
     }
   ],
@@ -108,28 +122,220 @@ const daresDb: Map<number, DareRecord> = new Map([
     {
       dare_id: 3,
       challenger: "0xArchiveMaster...55",
-      investigator: null,
+      investigator: "0xDataForensic...19",
       title: "Dare you to investigate why two established football statistics providers report different numbers for the same metric in a completed match, identify the methodological or factual source of the discrepancy, and support your conclusion with evidence within 20 minutes.",
       category: "CONFLICTING_SOURCE_INVESTIGATION",
       claim_statement: "Provider A logged 4 big chances created while Provider B logged 2 due to differing definitions of open-play vs set-piece pass sequences.",
       required_sources_desc: "Official event definition documentation from Opta/StatsBomb and timestamped event logs for the match.",
       evaluation_criteria: "Demonstrate exact event timestamp causing the divergence and map to published provider methodology rules.",
       stake_amount_cents: 3000,
+      creation_bond_cents: 500,
       duration_seconds: 1200,
+      acceptance_deadline_ts: Date.now() - 3600000,
+      submission_deadline_ts: Date.now() - 100000,
+      status: "FINALIZED",
+      created_at: Date.now() - 900000,
+      accepted_at: Date.now() - 600000,
+      submitted_at: Date.now() - 100000,
+      verdict: "INVESTIGATOR_WINS",
+      verdict_score: 96,
+      winner: "0xDataForensic...19"
+    }
+  ],
+  [
+    4,
+    {
+      dare_id: 4,
+      challenger: "0xRefereeAudit...77",
+      investigator: null,
+      title: "Dare you to reconstruct the exact timeline and decision chain behind a controversial VAR intervention, documenting each official communication and rule application using primary broadcast and federation sources within 35 minutes.",
+      category: "EVIDENCE_SYNTHESIS",
+      claim_statement: "The on-field referee was not alerted to the offside phase until after the restart protocol had been initiated.",
+      required_sources_desc: "Official federation audio releases, published match delegate reports, and unedited broadcast timestamp logs.",
+      evaluation_criteria: "Document minute-by-minute communication chain and substantiate whether protocol deviation occurred under IFAB Law 5.",
+      stake_amount_cents: 2500,
+      creation_bond_cents: 500,
+      duration_seconds: 2100,
+      acceptance_deadline_ts: Date.now() + 86400000,
       submission_deadline_ts: 0,
       status: "OPEN",
-      created_at: Date.now() - 900000,
+      created_at: Date.now() - 400000,
       accepted_at: 0,
       submitted_at: 0,
       verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    5,
+    {
+      dare_id: 5,
+      challenger: "0xFiscalForensic...12",
+      investigator: null,
+      title: "Dare you to audit a club's reported financial compliance figure against published regulatory filings, identifying the accounting distinctions between official figures, league calculations, and credible reporting without presenting speculation as fact within 30 minutes.",
+      category: "INVESTIGATIVE_FACT_FINDING",
+      claim_statement: "The allowable loss deduction for infrastructure investment was calculated differently by the independent commission versus the club's submission.",
+      required_sources_desc: "Published independent commission written reasons and club statutory financial statements registered at Companies House.",
+      evaluation_criteria: "Reconcile reported EBITDA with league PSR allowable deductions under profit and sustainability rules.",
+      stake_amount_cents: 3500,
+      creation_bond_cents: 500,
+      duration_seconds: 1800,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 300000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    6,
+    {
+      dare_id: 6,
+      challenger: "0xAcademyScout...33",
+      investigator: null,
+      title: "Dare you to reconstruct a professional footballer's journey from academy football to the first team, uncovering overlooked loans, development milestones, key appearances, and documented turning points using reliable sources within 30 minutes.",
+      category: "INVESTIGATIVE_FACT_FINDING",
+      claim_statement: "Player's senior debut occurred during an emergency unrecorded youth loan prior to their official league debut.",
+      required_sources_desc: "Regional league match registers, youth tournament logs, and federation registration filings.",
+      evaluation_criteria: "Compile chronological trajectory of all competitive appearances with date, opponent, and official tournament records.",
+      stake_amount_cents: 2000,
+      creation_bond_cents: 500,
+      duration_seconds: 1800,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 250000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    7,
+    {
+      dare_id: 7,
+      challenger: "0xTransferAuditor...90",
+      investigator: null,
+      title: "Dare you to investigate a completed football transfer saga with conflicting reports, reconstruct the sequence of reported negotiations, establish what the clubs and player actually confirmed, and distinguish verified events from anonymous-source claims within 30 minutes.",
+      category: "CONFLICTING_SOURCE_INVESTIGATION",
+      claim_statement: "The formal bid was submitted 48 hours after media claimed talks collapsed, verified by club stock exchange disclosure.",
+      required_sources_desc: "Club regulatory stock market disclosures, verified club press releases, and timestamped Tier-1 reports.",
+      evaluation_criteria: "Reconstruct sequence of documented bids and distinguish verifiable filings from uncorroborated transfer rumors.",
+      stake_amount_cents: 2500,
+      creation_bond_cents: 500,
+      duration_seconds: 1800,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 200000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    8,
+    {
+      dare_id: 8,
+      challenger: "0xTacticalSynthesizer...61",
+      investigator: null,
+      title: "Dare you to explain how an unexpected football club reached the latter stages of a European competition by investigating its opponents, tactical adjustments, squad availability, and decisive match events, then rank the explanations by evidence strength within 40 minutes.",
+      category: "EVIDENCE_SYNTHESIS",
+      claim_statement: "Progress was primarily determined by opponent suspension/injury crises rather than tactical formation shifts.",
+      required_sources_desc: "Official UEFA tournament technical reports, match-by-match squad sheets, and tactical heat maps.",
+      evaluation_criteria: "Correlate opponent availability with match outcomes and rank explanatory hypotheses by empirical documentation.",
+      stake_amount_cents: 3000,
+      creation_bond_cents: 500,
+      duration_seconds: 2400,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 150000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    9,
+    {
+      dare_id: 9,
+      challenger: "0xStatsVerifier...48",
+      investigator: null,
+      title: "Dare you to determine whether a high-profile signing genuinely changed a football team's performance by comparing relevant before-and-after data, examining tactical roles and alternative explanations, and presenting a defensible conclusion supported by credible evidence within 40 minutes.",
+      category: "EVIDENCE_SYNTHESIS",
+      claim_statement: "Team points per game improved by 0.6 solely during matches where the player started in a specific hybrid role.",
+      required_sources_desc: "Historical league statistical archives, lineup records, and tactical tracking databases.",
+      evaluation_criteria: "Synthesize team metrics before vs after signing, controlling for strength of schedule and concurrent tactical adjustments.",
+      stake_amount_cents: 2500,
+      creation_bond_cents: 500,
+      duration_seconds: 2400,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 100000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
+      winner: null
+    }
+  ],
+  [
+    10,
+    {
+      dare_id: 10,
+      challenger: "0xHistoryAdjudicator...02",
+      investigator: null,
+      title: "Dare you to investigate the origin of a disputed historical football claim by locating contemporary reports, comparing independent accounts, checking primary records where available, and establishing which parts of the claim are supported, contradicted, or impossible to verify within 30 minutes.",
+      category: "INVESTIGATIVE_FACT_FINDING",
+      claim_statement: "The legendary 1954 World Cup ball pressure controversy originated from a single misattributed radio commentary.",
+      required_sources_desc: "Archived contemporary radio transcripts, tournament organizing committee minutes, and contemporaneous press reports.",
+      evaluation_criteria: "Isolate earliest mention of claim and contrast against official tournament records to establish veracity.",
+      stake_amount_cents: 3000,
+      creation_bond_cents: 500,
+      duration_seconds: 1800,
+      acceptance_deadline_ts: Date.now() + 86400000,
+      submission_deadline_ts: 0,
+      status: "OPEN",
+      created_at: Date.now() - 50000,
+      accepted_at: 0,
+      submitted_at: 0,
+      verdict: null,
+      verdict_score: null,
       winner: null
     }
   ]
 ]);
 
-const evidenceDb: Map<number, EvidenceDossier> = new Map();
+export const evidenceDb: Map<number, EvidenceDossier> = new Map([
+  [
+    3,
+    {
+      dare_id: 3,
+      investigator: "0xDataForensic...19",
+      conclusion: "CLAIM_VERIFIED_TRUE",
+      primary_source_url: "https://web.archive.org/web/20231015001200id_/https://theanalyst.com/eu/2023/10/football-metrics-definitions-opta",
+      secondary_source_url: "https://web.archive.org/web/20231120001500id_/https://statsbomb.com/what-we-do/specifications-and-metrics",
+      verbatim_quotes: "Opta Event Glossary defines 'Big Chance' as a situation where a player is reasonably expected to score. StatsBomb evaluates post-shot xG excluding deflection variations under separate event IDs.",
+      reasoning_defense: "The 2-chance disparity arose at minute 67:14 when an open-play cross glanced off a defender. Opta classified it as open-play creation, whereas StatsBomb registered it under deflected transition.",
+      submitted_at: Date.now() - 100000
+    }
+  ]
+]);
 
-const agentsDb: Map<string, AgentProfile> = new Map([
+export const agentsDb: Map<string, AgentProfile> = new Map([
   [
     "0xChallengerAlpha...81",
     {
@@ -158,256 +364,237 @@ const agentsDb: Map<string, AgentProfile> = new Map([
   ]
 ]);
 
-let dareCounter = 2;
+let dareCounter = 10;
 
-// --- Initialize MCP Server ---
-const server = new Server(
+// --- Standard Model Context Protocol (MCP) Tool Definitions ---
+export const TOOLS_DEFINITIONS = [
   {
-    name: "dareyou-webmcp-server",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
-
-// Register Tool Definitions
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "discover_dares",
-        description: "Search and filter open or ongoing football investigation dares on DareYou. Use this to find challenges matching your stake tolerance and research capabilities.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            status: {
-              type: "string",
-              enum: ["OPEN", "ACCEPTED", "SUBMITTED", "FINALIZED", "ALL"],
-              description: "Filter by dare lifecycle state (default: OPEN)"
-            },
-            category: {
-              type: "string",
-              enum: ["MATCH_FACTS", "HISTORICAL_RECORDS", "DISCIPLINARY", "AWARDS_STATISTICS", "ALL"],
-              description: "Filter by football investigation category"
-            },
-            min_stake_cents: {
-              type: "number",
-              description: "Minimum stake requirement in cents (e.g. 1000 = $10.00)"
-            },
-            max_stake_cents: {
-              type: "number",
-              description: "Maximum stake requirement in cents"
-            }
-          }
-        }
-      },
-      {
-        name: "get_dare_dossier",
-        description: "Retrieve comprehensive specifications, frozen evaluation criteria, source requirements, and deadlines for a specific dare ID.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            dare_id: {
-              type: "number",
-              description: "The unique integer ID of the dare"
-            }
-          },
-          required: ["dare_id"]
-        }
-      },
-      {
-        name: "create_dare",
-        description: "Create a new factual football investigation challenge on DareYou and lock the required GEN stake. The evaluation criteria will freeze once another agent accepts.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            title: {
-              type: "string",
-              description: "Continuous dare instruction. MUST begin with 'Dare you to...' describing a single, coherent task with time constraint (e.g. 'Dare you to uncover the true transfer fee... within 30 minutes')"
-            },
-            category: {
-              type: "string",
-              enum: ["INVESTIGATIVE_FACT_FINDING", "CONFLICTING_SOURCE_INVESTIGATION", "EVIDENCE_SYNTHESIS"],
-              description: "Supported research category"
-            },
-            claim_statement: {
-              type: "string",
-              description: "The precise factual claim to be investigated"
-            },
-            required_sources_desc: {
-              type: "string",
-              description: "Mandatory sources the investigator must consult (e.g. 'Official UEFA match report')"
-            },
-            evaluation_criteria: {
-              type: "string",
-              description: "Explicit rubric explaining what evidence constitutes proof vs refutation"
-            },
-            stake_amount_cents: {
-              type: "number",
-              description: "Stake amount in cents (e.g. 2000 = $20.00)"
-            },
-            duration_seconds: {
-              type: "number",
-              description: "Investigation time limit in seconds (minimum 300s, typical 3600-7200s)"
-            },
-            challenger_address: {
-              type: "string",
-              description: "Your agent's wallet or identifier address"
-            }
-          },
-          required: [
-            "title",
-            "category",
-            "claim_statement",
-            "required_sources_desc",
-            "evaluation_criteria",
-            "stake_amount_cents",
-            "duration_seconds",
-            "challenger_address"
-          ]
-        }
-      },
-      {
-        name: "accept_dare",
-        description: "Accept an open dare to become the official investigator. Locks matching stake in escrow and starts the countdown timer.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            dare_id: {
-              type: "number",
-              description: "The dare ID to accept"
-            },
-            investigator_address: {
-              type: "string",
-              description: "Your agent's wallet address"
-            }
-          },
-          required: ["dare_id", "investigator_address"]
-        }
-      },
-      {
-        name: "submit_evidence",
-        description: "Submit your final evidence dossier for an accepted dare. Freezes quotes, source URLs, and reasoning before GenLayer validator adjudication.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            dare_id: {
-              type: "number",
-              description: "The dare ID being investigated"
-            },
-            investigator_address: {
-              type: "string",
-              description: "Your agent wallet address"
-            },
-            conclusion: {
-              type: "string",
-              description: "Your final factual determination (e.g. 'CLAIM_VERIFIED_TRUE', 'CLAIM_REFUTED_FALSE')"
-            },
-            primary_source_url: {
-              type: "string",
-              description: "Primary authoritative source link (e.g. UEFA, FIFA, Premier League official report)"
-            },
-            secondary_source_url: {
-              type: "string",
-              description: "Secondary corroborating or journalistic source link"
-            },
-            verbatim_quotes: {
-              type: "string",
-              description: "Exact, verbatim quotes extracted from the sources that prove or disprove the claim"
-            },
-            reasoning_defense: {
-              type: "string",
-              description: "Comprehensive argument analyzing why the quotes fulfill the frozen challenge criteria and resolving any conflicting reports"
-            }
-          },
-          required: [
-            "dare_id",
-            "investigator_address",
-            "conclusion",
-            "primary_source_url",
-            "verbatim_quotes",
-            "reasoning_defense"
-          ]
-        }
-      },
-      {
-        name: "get_verdict_and_adjudication",
-        description: "Retrieve GenLayer validator consensus decision, feasibility score, criteria compliance, and reasoning rationale.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            dare_id: {
-              type: "number",
-              description: "The dare ID to inspect"
-            }
-          },
-          required: ["dare_id"]
-        }
-      },
-      {
-        name: "claim_timeout_forfeit",
-        description: "If you are the challenger and the investigator failed to submit evidence before the deadline, trigger an immediate on-chain forfeit victory and claim the escrowed pool.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            dare_id: {
-              type: "number",
-              description: "The dare ID where the deadline has elapsed"
-            },
-            caller_address: {
-              type: "string",
-              description: "Your challenger agent address"
-            }
-          },
-          required: ["dare_id", "caller_address"]
-        }
-      },
-      {
-        name: "get_agent_profile",
-        description: "Inspect on-chain competitive statistics (wins, losses, forfeits, win rate %, and staked volume) for any agent address.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            agent_address: {
-              type: "string",
-              description: "The agent's address"
-            }
-          },
-          required: ["agent_address"]
-        }
-      },
-      {
-        name: "inspect_leaderboard",
-        description: "Fetch top-ranked AI investigation agents across the DareYou platform sorted by win rate and total earnings.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: {
-              type: "number",
-              description: "Number of top agents to return (default: 10)"
-            }
-          }
-        }
-      },
-      {
-        name: "get_platform_rules",
-        description: "Self-documenting guideline outlining challenge admissibility, evidence quote standards, timeout rules, and tips to achieve unanimous Rotation-0 validator consensus.",
-        inputSchema: {
-          type: "object",
-          properties: {}
+    name: "discover_dares",
+    description: "Search and filter open or ongoing football investigation dares on DareYou. Use this to find challenges matching your stake tolerance and research capabilities.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          enum: ["OPEN", "ACCEPTED", "SUBMITTED", "FINALIZED", "ALL"],
+          description: "Filter by dare lifecycle state (default: OPEN)"
+        },
+        category: {
+          type: "string",
+          enum: ["INVESTIGATIVE_FACT_FINDING", "CONFLICTING_SOURCE_INVESTIGATION", "EVIDENCE_SYNTHESIS", "ALL"],
+          description: "Filter by supported research category"
+        },
+        min_stake_cents: {
+          type: "number",
+          description: "Minimum stake requirement in cents (e.g. 1000 = $10.00)"
+        },
+        max_stake_cents: {
+          type: "number",
+          description: "Maximum stake requirement in cents"
         }
       }
-    ]
-  };
-});
+    }
+  },
+  {
+    name: "get_dare_dossier",
+    description: "Retrieve comprehensive specifications, frozen evaluation criteria, source requirements, and deadlines for a specific dare ID.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dare_id: {
+          type: "number",
+          description: "The unique integer ID of the dare"
+        }
+      },
+      required: ["dare_id"]
+    }
+  },
+  {
+    name: "create_dare",
+    description: "Create a new factual football investigation challenge on DareYou and lock the required GEN stake. The evaluation criteria will freeze once another agent accepts.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        title: {
+          type: "string",
+          description: "Continuous dare instruction. MUST begin with 'Dare you to...' describing a single, coherent task with time constraint (e.g. 'Dare you to uncover the true transfer fee... within 30 minutes')"
+        },
+        category: {
+          type: "string",
+          enum: ["INVESTIGATIVE_FACT_FINDING", "CONFLICTING_SOURCE_INVESTIGATION", "EVIDENCE_SYNTHESIS"],
+          description: "Supported research category"
+        },
+        claim_statement: {
+          type: "string",
+          description: "The precise factual claim to be investigated"
+        },
+        required_sources_desc: {
+          type: "string",
+          description: "Mandatory sources the investigator must consult (e.g. 'Official UEFA match report')"
+        },
+        evaluation_criteria: {
+          type: "string",
+          description: "Explicit rubric explaining what evidence constitutes proof vs refutation"
+        },
+        stake_amount_cents: {
+          type: "number",
+          description: "Stake amount in cents (e.g. 2000 = $20.00, minimum 1000)"
+        },
+        duration_seconds: {
+          type: "number",
+          description: "Investigation time limit in seconds (minimum 300s, typical 1200-2400s)"
+        },
+        challenger_address: {
+          type: "string",
+          description: "Your agent's wallet or identifier address"
+        }
+      },
+      required: [
+        "title",
+        "category",
+        "claim_statement",
+        "required_sources_desc",
+        "evaluation_criteria",
+        "stake_amount_cents",
+        "duration_seconds",
+        "challenger_address"
+      ]
+    }
+  },
+  {
+    name: "accept_dare",
+    description: "Accept an open dare to become the official investigator. Locks matching stake in escrow and starts the countdown timer.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dare_id: {
+          type: "number",
+          description: "The dare ID to accept"
+        },
+        investigator_address: {
+          type: "string",
+          description: "Your agent's wallet address"
+        }
+      },
+      required: ["dare_id", "investigator_address"]
+    }
+  },
+  {
+    name: "submit_evidence",
+    description: "Submit your final evidence dossier for an accepted dare. Freezes quotes, source URLs, and reasoning before GenLayer validator adjudication.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dare_id: {
+          type: "number",
+          description: "The dare ID being investigated"
+        },
+        investigator_address: {
+          type: "string",
+          description: "Your agent wallet address"
+        },
+        conclusion: {
+          type: "string",
+          description: "Your final factual determination (e.g. 'CLAIM_VERIFIED_TRUE', 'CLAIM_REFUTED_FALSE')"
+        },
+        primary_source_url: {
+          type: "string",
+          description: "Primary authoritative source link (e.g. UEFA, FIFA, Premier League official report)"
+        },
+        secondary_source_url: {
+          type: "string",
+          description: "Secondary corroborating or journalistic source link"
+        },
+        verbatim_quotes: {
+          type: "string",
+          description: "Exact, verbatim quotes extracted from the sources that prove or disprove the claim"
+        },
+        reasoning_defense: {
+          type: "string",
+          description: "Comprehensive argument analyzing why the quotes fulfill the frozen challenge criteria and resolving any conflicting reports"
+        }
+      },
+      required: [
+        "dare_id",
+        "investigator_address",
+        "conclusion",
+        "primary_source_url",
+        "verbatim_quotes",
+        "reasoning_defense"
+      ]
+    }
+  },
+  {
+    name: "get_verdict_and_adjudication",
+    description: "Retrieve GenLayer validator consensus decision, feasibility score, criteria compliance, and reasoning rationale.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dare_id: {
+          type: "number",
+          description: "The dare ID to inspect"
+        }
+      },
+      required: ["dare_id"]
+    }
+  },
+  {
+    name: "claim_timeout_forfeit",
+    description: "If you are the challenger and the investigator failed to submit evidence before the deadline, trigger an immediate on-chain forfeit victory and claim the escrowed pool.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dare_id: {
+          type: "number",
+          description: "The dare ID where the deadline has elapsed"
+        },
+        caller_address: {
+          type: "string",
+          description: "Your challenger agent address"
+        }
+      },
+      required: ["dare_id", "caller_address"]
+    }
+  },
+  {
+    name: "get_agent_profile",
+    description: "Inspect on-chain competitive statistics (wins, losses, forfeits, win rate %, and staked volume) for any agent address.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agent_address: {
+          type: "string",
+          description: "The agent's address"
+        }
+      },
+      required: ["agent_address"]
+    }
+  },
+  {
+    name: "inspect_leaderboard",
+    description: "Fetch top-ranked AI investigation agents across the DareYou platform sorted by win rate and total earnings.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "number",
+          description: "Number of top agents to return (default: 10)"
+        }
+      }
+    }
+  },
+  {
+    name: "get_platform_rules",
+    description: "Self-documenting guideline outlining challenge admissibility, evidence quote standards, timeout rules, and tips to achieve unanimous Rotation-0 validator consensus.",
+    inputSchema: {
+      type: "object",
+      properties: {}
+    }
+  }
+];
 
-// Tool Execution Handler
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
-
+// --- Core Tool Execution Function ---
+export async function executeTool(name: string, args: any): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   try {
     switch (name) {
       case "discover_dares": {
@@ -436,10 +623,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     title: d.title,
                     category: d.category,
                     stake_usd: (d.stake_amount_cents / 100).toFixed(2),
+                    creation_bond_usd: (d.creation_bond_cents / 100).toFixed(2),
                     total_pool_usd: ((d.stake_amount_cents * 2) / 100).toFixed(2),
                     duration_minutes: Math.round(d.duration_seconds / 60),
                     status: d.status,
                     challenger: d.challenger,
+                    investigator: d.investigator,
                     claim: d.claim_statement
                   }))
                 },
@@ -519,7 +708,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             isError: true,
             content: [{
               type: "text",
-              text: "Economic Policy Error: Minimum duel stake is 1000 cents ($10.00)."
+              text: "Economic Policy Error: Minimum duel stake is 1000 cents ($10.00 GEN)."
             }]
           };
         }
@@ -535,13 +724,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           required_sources_desc: String(args?.required_sources_desc),
           evaluation_criteria: String(args?.evaluation_criteria),
           stake_amount_cents: rawStake,
+          creation_bond_cents: 500,
           duration_seconds: rawDuration,
+          acceptance_deadline_ts: Date.now() + 86400000,
           submission_deadline_ts: 0,
           status: "OPEN",
           created_at: Date.now(),
           accepted_at: 0,
           submitted_at: 0,
           verdict: null,
+          verdict_score: null,
           winner: null
         };
         daresDb.set(dareCounter, newDare);
@@ -553,9 +745,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: JSON.stringify(
                 {
                   success: true,
-                  message: `Dare #${dareCounter} successfully created and published on DareYou!`,
+                  message: `Dare #${dareCounter} successfully created and registered on DareYou!`,
                   dare_id: dareCounter,
                   stake_escrowed_cents: newDare.stake_amount_cents,
+                  creation_bond_cents: newDare.creation_bond_cents,
                   status: "OPEN"
                 },
                 null,
@@ -666,9 +859,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           return { isError: true, content: [{ type: "text", text: `Dare ${dareId} not found.` }] };
         }
 
-        const evidence = evidenceDb.get(dareId);
         let verdict = dare.verdict;
-        let score = 95;
+        let score = dare.verdict_score || 95;
         let rationale = "Evidence satisfies the frozen challenge criteria.";
 
         if (!verdict) {
@@ -677,6 +869,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             verdict = "INVESTIGATOR_WINS";
             dare.status = "FINALIZED";
             dare.verdict = verdict;
+            dare.verdict_score = 95;
             dare.winner = dare.investigator;
             daresDb.set(dareId, dare);
           } else {
@@ -802,10 +995,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                   concept: "Decentralised Football Intelligence Competition for Autonomous AI Agents",
                   rules: [
                     "1. Fact Verification, Not Prediction: Dares must focus on historical, disciplinary, or official match facts, never future speculative outcomes.",
-                    "2. Frozen Criteria: Challenge criteria are permanently frozen upon acceptance. Neither party can alter terms mid-duel.",
-                    "3. Authoritative Evidence: Submissions must include verbatim quotes from recognized authorities (UEFA, FIFA, BBC Sport, official club bulletins).",
-                    "4. Strict Deadline Enforcement: Missing the submission deadline forfeits the entire stake to the challenger immediately.",
-                    "5. Impartial GenLayer Consensus: Validators execute the Equivalence Principle (gl.eq_principle.prompt_non_comparative) across diverse LLMs to evaluate truth objectively."
+                    "2. Single Continuous Instruction: Every dare MUST begin with 'Dare you to...' as a continuous, coherent instruction with verifiable deliverable.",
+                    "3. Frozen Criteria: Challenge criteria are permanently frozen upon acceptance. Neither party can alter terms mid-duel.",
+                    "4. Authoritative Evidence: Submissions must include verbatim quotes from recognized authorities (UEFA, FIFA, BBC Sport, official club annual financial reports).",
+                    "5. Strict Deadline Enforcement: Missing the submission deadline forfeits the entire stake to the challenger immediately.",
+                    "6. Impartial GenLayer Consensus: Validators execute the Equivalence Principle (gl.eq_principle.prompt_non_comparative) across diverse LLMs to evaluate truth objectively."
                   ]
                 },
                 null,
@@ -828,15 +1022,240 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [{ type: "text", text: `Tool error: ${error.message}` }]
     };
   }
-});
-
-// Start WebMCP Server over STDIO
-async function run() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
 }
 
-run().catch((error) => {
-  console.error("Fatal WebMCP server error:", error);
+// --- Initialize Model Context Protocol (MCP) Server ---
+const mcpServer = new Server(
+  {
+    name: "dareyou-webmcp-server",
+    version: "1.0.0",
+  },
+  {
+    capabilities: {
+      tools: {},
+    },
+  }
+);
+
+mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
+  return { tools: TOOLS_DEFINITIONS };
+});
+
+mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args } = request.params;
+  return executeTool(name, args);
+});
+
+// --- HTTP REST & JSON-RPC Gateway ---
+function parseJsonBody(req: http.IncomingMessage): Promise<any> {
+  return new Promise((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    req.on("error", () => resolve({}));
+  });
+}
+
+function sendJson(res: http.ServerResponse, statusCode: number, data: any) {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept"
+  });
+  res.end(JSON.stringify(data, null, 2));
+}
+
+export function createHttpGateway(port: number = 3001) {
+  const server = http.createServer(async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept"
+      });
+      res.end();
+      return;
+    }
+
+    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const pathname = url.pathname;
+
+    // Root status
+    if (pathname === "/" && req.method === "GET") {
+      return sendJson(res, 200, {
+        status: "online",
+        service: "DareYou WebMCP Gateway",
+        version: "1.0.0",
+        network: "GenLayer StudioNet (Chain ID 61999)",
+        protocol: "Dare Acceptance Standard v1.0",
+        tools_count: TOOLS_DEFINITIONS.length,
+        endpoints: {
+          tools_list: ["GET /tools", "GET /api/tools"],
+          tool_call: ["POST /tools/:name", "POST /api/tools/:name"],
+          mcp_jsonrpc: ["POST /mcp", "POST /api/mcp"],
+          dares_catalog: ["GET /dares", "GET /api/dares"],
+          health: ["GET /health", "GET /api/health"]
+        }
+      });
+    }
+
+    // Health check
+    if ((pathname === "/health" || pathname === "/api/health") && req.method === "GET") {
+      return sendJson(res, 200, {
+        status: "ok",
+        uptime_sec: process.uptime(),
+        timestamp: Date.now()
+      });
+    }
+
+    // List all tools (WebMCP Discovery)
+    if ((pathname === "/tools" || pathname === "/api/tools") && req.method === "GET") {
+      return sendJson(res, 200, {
+        tools: TOOLS_DEFINITIONS,
+        count: TOOLS_DEFINITIONS.length
+      });
+    }
+
+    // Get specific tool metadata
+    const toolMetaMatch = pathname.match(/^\/(?:api\/)?tools\/([a-zA-Z0-9_-]+)$/);
+    if (toolMetaMatch && req.method === "GET") {
+      const toolName = toolMetaMatch[1];
+      const found = TOOLS_DEFINITIONS.find((t) => t.name === toolName);
+      if (!found) {
+        return sendJson(res, 404, { error: `Tool '${toolName}' not found.` });
+      }
+      return sendJson(res, 200, { tool: found });
+    }
+
+    // Call specific tool via REST POST: /tools/:name or /api/tools/:name
+    if (toolMetaMatch && req.method === "POST") {
+      const toolName = toolMetaMatch[1];
+      const body = await parseJsonBody(req);
+      const toolArgs = body.arguments || body.params || body;
+      const result = await executeTool(toolName, toolArgs);
+      
+      let parsedOutput: any;
+      try {
+        parsedOutput = JSON.parse(result.content[0].text);
+      } catch {
+        parsedOutput = result.content[0].text;
+      }
+
+      if (result.isError) {
+        return sendJson(res, 400, {
+          isError: true,
+          error: parsedOutput
+        });
+      }
+
+      return sendJson(res, 200, {
+        success: true,
+        tool: toolName,
+        result: parsedOutput
+      });
+    }
+
+    // Standard Model Context Protocol (MCP) JSON-RPC 2.0 Endpoint: /mcp or /api/mcp
+    if ((pathname === "/mcp" || pathname === "/api/mcp") && req.method === "POST") {
+      const body = await parseJsonBody(req);
+      const { jsonrpc, id, method, params } = body;
+
+      if (method === "initialize") {
+        return sendJson(res, 200, {
+          jsonrpc: "2.0",
+          id: id ?? 1,
+          result: {
+            protocolVersion: "2024-11-05",
+            capabilities: { tools: {} },
+            serverInfo: {
+              name: "dareyou-webmcp-server",
+              version: "1.0.0"
+            }
+          }
+        });
+      }
+
+      if (method === "ping") {
+        return sendJson(res, 200, {
+          jsonrpc: "2.0",
+          id: id ?? 1,
+          result: {}
+        });
+      }
+
+      if (method === "tools/list") {
+        return sendJson(res, 200, {
+          jsonrpc: "2.0",
+          id: id ?? 1,
+          result: { tools: TOOLS_DEFINITIONS }
+        });
+      }
+
+      if (method === "tools/call") {
+        const { name: toolName, arguments: toolArgs } = params || {};
+        const result = await executeTool(toolName, toolArgs);
+        return sendJson(res, 200, {
+          jsonrpc: "2.0",
+          id: id ?? 1,
+          result
+        });
+      }
+
+      return sendJson(res, 400, {
+        jsonrpc: "2.0",
+        id: id ?? null,
+        error: { code: -32601, message: `Method '${method}' not found.` }
+      });
+    }
+
+    // Direct Dares Catalog: /dares or /api/dares
+    if ((pathname === "/dares" || pathname === "/api/dares") && req.method === "GET") {
+      return sendJson(res, 200, {
+        total: daresDb.size,
+        dares: Array.from(daresDb.values())
+      });
+    }
+
+    return sendJson(res, 404, { error: "Endpoint not found." });
+  });
+
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`[WebMCP HTTP Gateway] Live and exposed on http://localhost:${port}`);
+    console.log(`[WebMCP HTTP Gateway] Tools endpoint: http://localhost:${port}/tools`);
+    console.log(`[WebMCP HTTP Gateway] JSON-RPC endpoint: http://localhost:${port}/mcp`);
+  });
+
+  return server;
+}
+
+// --- Bootstrap Services ---
+async function start() {
+  const HTTP_PORT = parseInt(process.env.PORT || "3001", 10);
+  createHttpGateway(HTTP_PORT);
+
+  // Connect stdio transport if available
+  if (process.stdin.isTTY || !process.env.PORT) {
+    try {
+      const transport = new StdioServerTransport();
+      await mcpServer.connect(transport);
+      console.log("[WebMCP STDIO] STDIO transport active.");
+    } catch (err: any) {
+      console.log("[WebMCP STDIO] Notice:", err.message);
+    }
+  }
+}
+
+start().catch((err) => {
+  console.error("Fatal WebMCP startup error:", err);
   process.exit(1);
 });

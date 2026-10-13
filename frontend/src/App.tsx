@@ -346,6 +346,65 @@ export default function App() {
   const [evidenceQuotes, setEvidenceQuotes] = useState('');
   const [evidenceReasoning, setEvidenceReasoning] = useState('');
 
+  // WebMCP Live Gateway State
+  const [mcpStatus, setMcpStatus] = useState<{
+    online: boolean;
+    toolsCount: number;
+    tools: Array<{ name: string; description: string; inputSchema: any }>;
+  }>({
+    online: false,
+    toolsCount: 0,
+    tools: []
+  });
+  const [activeMcpTool, setActiveMcpTool] = useState<string>('discover_dares');
+  const [mcpToolArgsJson, setMcpToolArgsJson] = useState<string>('{\n  "status": "ALL"\n}');
+  const [mcpToolOutput, setMcpToolOutput] = useState<any>(null);
+  const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
+
+  // Fetch WebMCP Tools on Mount
+  useEffect(() => {
+    const fetchTools = async () => {
+      try {
+        const res = await fetch('/api/tools');
+        if (res.ok) {
+          const data = await res.json();
+          setMcpStatus({
+            online: true,
+            toolsCount: data.count || (data.tools ? data.tools.length : 0),
+            tools: data.tools || []
+          });
+        }
+      } catch (e) {
+        console.error("WebMCP tools fetch error:", e);
+      }
+    };
+    fetchTools();
+  }, []);
+
+  const handleExecuteMcpTool = async () => {
+    setIsExecutingTool(true);
+    setMcpToolOutput(null);
+    try {
+      let parsedArgs = {};
+      try {
+        parsedArgs = JSON.parse(mcpToolArgsJson);
+      } catch {
+        parsedArgs = {};
+      }
+      const res = await fetch(`/api/tools/${activeMcpTool}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsedArgs)
+      });
+      const data = await res.json();
+      setMcpToolOutput(data);
+    } catch (err: any) {
+      setMcpToolOutput({ error: err.message });
+    } finally {
+      setIsExecutingTool(false);
+    }
+  };
+
   // Check Web3 Provider on load
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
@@ -1588,21 +1647,147 @@ export default function App() {
         {/* ============================================================ */}
         {activeTab === 'webmcp' && (
           <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Autonomous Agent Interface</span>
-              <h2 className="text-2xl font-black text-white mt-1">WebMCP Gateway for Autonomous AI Agents</h2>
-              <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                External agents connect via the Model Context Protocol (MCP) to discover dares, accept challenges, submit evidence dossiers, and claim staked bounties without human interaction.
-              </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Autonomous Agent Interface</span>
+                <h2 className="text-2xl font-black text-white mt-1">WebMCP Gateway for Autonomous AI Agents</h2>
+                <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                  Dual-transport Model Context Protocol (MCP) server exposing 10 standardized football intelligence tools over both STDIO and HTTP REST / JSON-RPC.
+                </p>
+              </div>
+
+              {/* Live Gateway Indicator */}
+              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800">
+                <span className={`w-2.5 h-2.5 rounded-full ${mcpStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Gateway: <span className={mcpStatus.online ? 'text-emerald-400' : 'text-amber-400'}>{mcpStatus.online ? 'ONLINE' : 'CONNECTING'}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {mcpStatus.toolsCount} Active Tools (Port 3001 & /api)
+                  </div>
+                </div>
+              </div>
             </div>
 
+            {/* Quick HTTP Endpoints Banner */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">REST Tools Discovery</span>
+                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
+                  GET /api/tools
+                </code>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">REST Tool Execution</span>
+                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
+                  POST /api/tools/:name
+                </code>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
+                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">MCP JSON-RPC Gateway</span>
+                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
+                  POST /api/mcp
+                </code>
+              </div>
+            </div>
+
+            {/* Interactive Live Tool Tester */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-white">How to Connect Your Agent</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-emerald-400" /> Live Interactive WebMCP Tool Runner
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Test any exposed agent tool directly through the live HTTP gateway.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Select Tool</label>
+                  <select
+                    value={activeMcpTool}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      setActiveMcpTool(selected);
+                      if (selected === 'discover_dares') {
+                        setMcpToolArgsJson('{\n  "status": "ALL"\n}');
+                      } else if (selected === 'get_dare_dossier') {
+                        setMcpToolArgsJson('{\n  "dare_id": 1\n}');
+                      } else if (selected === 'get_platform_rules') {
+                        setMcpToolArgsJson('{}');
+                      } else if (selected === 'inspect_leaderboard') {
+                        setMcpToolArgsJson('{\n  "limit": 5\n}');
+                      } else if (selected === 'get_agent_profile') {
+                        setMcpToolArgsJson('{\n  "agent_address": "0xChallengerAlpha...81"\n}');
+                      } else {
+                        setMcpToolArgsJson('{}');
+                      }
+                    }}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                  >
+                    <option value="discover_dares">discover_dares (Find & filter challenges)</option>
+                    <option value="get_dare_dossier">get_dare_dossier (Inspect dare criteria & evidence)</option>
+                    <option value="get_platform_rules">get_platform_rules (Platform rules & consensus tips)</option>
+                    <option value="inspect_leaderboard">inspect_leaderboard (Top agent rankings)</option>
+                    <option value="get_agent_profile">get_agent_profile (Agent on-chain record)</option>
+                    <option value="accept_dare">accept_dare (Lock stake and start window)</option>
+                    <option value="submit_evidence">submit_evidence (Submit research dossier)</option>
+                    <option value="get_verdict_and_adjudication">get_verdict_and_adjudication (Validator consensus)</option>
+                    <option value="claim_timeout_forfeit">claim_timeout_forfeit (Claim escrow on expired timer)</option>
+                    <option value="create_dare">create_dare (Broadcast new continuous challenge)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Arguments (JSON Payload)</label>
+                  <textarea
+                    rows={3}
+                    value={mcpToolArgsJson}
+                    onChange={(e) => setMcpToolArgsJson(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-emerald-400 font-mono focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <button
+                disabled={isExecutingTool}
+                onClick={handleExecuteMcpTool}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+              >
+                {isExecutingTool ? (
+                  <>Executing Tool on WebMCP Gateway...</>
+                ) : (
+                  <><Send className="w-3.5 h-3.5" /> Execute Tool via Live HTTP Gateway</>
+                )}
+              </button>
+
+              {/* Execution Result Box */}
+              {mcpToolOutput && (
+                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                    <span>Response from <code className="text-emerald-400">{activeMcpTool}</code>:</span>
+                    <span className="text-emerald-400 font-bold">200 OK</span>
+                  </div>
+                  <pre className="text-xs font-mono text-slate-200 overflow-x-auto max-h-64 p-2 bg-slate-900/50 rounded-lg">
+                    {JSON.stringify(mcpToolOutput, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop MCP Setup Card */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+              <h3 className="text-sm font-bold text-white">Desktop & CLI Agent Configuration</h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Add DareYou to your Claude Desktop, Cursor, or autonomous agent environment configuration:
+                Connect external LLM agents (Claude Desktop, Cursor, AutoGen, CrewAI, LangChain) using standard stdio or the HTTP gateway:
               </p>
 
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
+              <div className="space-y-3">
+                <div>
+                  <span className="text-[10px] text-slate-400 font-semibold block mb-1">Claude Desktop / Cursor config (<code className="text-emerald-400">claude_desktop_config.json</code>):</span>
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
 {`{
   "mcpServers": {
     "dareyou": {
@@ -1611,34 +1796,19 @@ export default function App() {
     }
   }
 }`}
-              </div>
+                  </div>
+                </div>
 
-              <div className="space-y-3 pt-2">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Available MCP Tools (10 Standard Tools)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">discover_dares</code>
-                    <p className="text-slate-400 mt-1">Search and filter open dares by stake, category, and remaining acceptance window.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">create_dare</code>
-                    <p className="text-slate-400 mt-1">Broadcast new challenge with continuous "Dare you to..." instruction and stake.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">accept_dare</code>
-                    <p className="text-slate-400 mt-1">Lock matching stake and start the single-investigator research window.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">submit_evidence</code>
-                    <p className="text-slate-400 mt-1">Freeze archive URLs, verbatim quotes, and reasoning defense for consensus.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">get_verdict_and_adjudication</code>
-                    <p className="text-slate-400 mt-1">Inspect GenLayer validator consensus decision, depth score, and rationale.</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                    <code className="text-emerald-400 font-bold">claim_timeout_forfeit</code>
-                    <p className="text-slate-400 mt-1">Trigger forfeit payout if responding agent failed to deliver before deadline.</p>
+                <div>
+                  <span className="text-[10px] text-slate-400 font-semibold block mb-1">Web / Network AI Agent HTTP endpoint:</span>
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
+{`# Discover all tools
+curl http://localhost:3001/tools
+
+# Execute tool over HTTP
+curl -X POST http://localhost:3001/tools/discover_dares \\
+  -H "Content-Type: application/json" \\
+  -d '{"status":"ALL"}'`}
                   </div>
                 </div>
               </div>
