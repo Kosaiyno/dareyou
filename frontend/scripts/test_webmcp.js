@@ -68,7 +68,7 @@ console.log(`✓ validate_dare (self-correction): valid = ${validation.valid}`);
 const audit = await window.__WEBMCP_TOOLS__.execute('validate_state', {});
 console.log(`✓ validate_state (platform health audit): valid = ${audit.valid}, issues = ${audit.issues.length}`);
 
-// 8. Test start_adjudication (Fast-track consensus)
+// 8. Test start_adjudication (Fast-track consensus with dynamic citations)
 const adjRes = await window.__WEBMCP_TOOLS__.execute('start_adjudication', {
   dare_id: createRes.dare_id,
   fast_track: true
@@ -76,14 +76,39 @@ const adjRes = await window.__WEBMCP_TOOLS__.execute('start_adjudication', {
 console.log(`✓ start_adjudication response: ${adjRes.message}`);
 const finalizedDare = useStore.getState().dares.find(d => d.id === createRes.dare_id);
 console.log(`✓ Finalized dare status: ${finalizedDare?.status}, verdict: ${finalizedDare?.verdict}`);
+console.log(`✓ Dynamic consensus rationale: "${finalizedDare?.verdictRationale}"`);
+console.log(`✓ Validator 1 (Llama 3.3) reasoning: "${finalizedDare?.adjudicationSession?.votes[0]?.reasoning}"`);
+if (!finalizedDare?.verdictRationale?.includes("web.archive.org")) {
+  throw new Error("FAIL: Consensus rationale did not dynamically cite submitted source!");
+}
 
-// 9. Test process_all_expired (Dare #11 is pre-seeded with expired deadline)
-const expiredBefore = useStore.getState().dares.filter(d => d.status === 'ACCEPTED' && d.researchDeadlineTs && d.researchDeadlineTs <= Date.now()).length;
-console.log(`✓ Expired dares eligible for forfeit before sweep: ${expiredBefore}`);
+// 9. Test claim_timeout_forfeit explicitly on Dare #11 (Controlled Expired Settlement Test)
+console.log("\n--- Testing Controlled Expired Settlement Flow ---");
+const dare11Before = useStore.getState().dares.find(d => d.id === 11);
+console.log(`✓ Dare #11 before forfeit: status = ${dare11Before?.status}, deadline passed = ${Date.now() > (dare11Before?.researchDeadlineTs || 0)}`);
+
+const forfeitRes = await window.__WEBMCP_TOOLS__.execute('claim_timeout_forfeit', {
+  dare_id: 11,
+  challenger_address: "0xChallengerAlpha...81"
+});
+console.log(`✓ claim_timeout_forfeit response: ${forfeitRes.message}`);
+
+const dare11After = useStore.getState().dares.find(d => d.id === 11);
+console.log(`✓ Dare #11 after forfeit: status = ${dare11After?.status}, verdict = ${dare11After?.verdict}`);
+console.log(`✓ Dare #11 settlement rationale: "${dare11After?.verdictRationale}"`);
+if (dare11After?.status !== "FINALIZED" || dare11After?.verdict !== "CHALLENGER_WINS") {
+  throw new Error("FAIL: Dare #11 timeout forfeit did not finalize with CHALLENGER_WINS!");
+}
+
+// 10. Test process_all_expired bulk sweep
 const sweepRes = await window.__WEBMCP_TOOLS__.execute('process_all_expired', {});
-console.log(`✓ process_all_expired response: ${sweepRes.message}, resolved: ${sweepRes.resolvedCount}`);
+console.log(`✓ process_all_expired bulk sweep completed: resolved = ${sweepRes.resolvedCount}`);
 
-// 10. Test undo & redo
+// 11. Test get_app_state explicit EXPIRED state segregation
+const stateAfter = await window.__WEBMCP_TOOLS__.execute('get_app_state', {});
+console.log(`✓ Dares summary: open=${stateAfter.daresSummary.open}, accepted=${stateAfter.daresSummary.accepted}, expired=${stateAfter.daresSummary.expired}, finalized=${stateAfter.daresSummary.finalized}`);
+
+// 12. Test undo & redo
 const undoRes = await window.__WEBMCP_TOOLS__.execute('undo', {});
 console.log(`✓ undo action: ${undoRes.message}`);
 

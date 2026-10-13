@@ -64,20 +64,25 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         totalDares: state.dares.length,
         daresSummary: {
           open: state.dares.filter(d => d.status === 'OPEN').length,
-          accepted: state.dares.filter(d => d.status === 'ACCEPTED').length,
+          accepted: state.dares.filter(d => d.status === 'ACCEPTED' && (!d.researchDeadlineTs || d.researchDeadlineTs > Date.now())).length,
+          expired: state.dares.filter(d => d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now())).length,
           submitted: state.dares.filter(d => d.status === 'SUBMITTED').length,
           finalized: state.dares.filter(d => d.status === 'FINALIZED').length
         },
-        dares: state.dares.map(d => ({
-          id: d.id,
-          title: d.title,
-          category: d.category,
-          status: d.status,
-          stakeUsd: (d.stakeCents / 100).toFixed(2),
-          durationMinutes: Math.round(d.durationSeconds / 60),
-          challenger: d.challenger,
-          investigator: d.investigator || null
-        }))
+        dares: state.dares.map(d => {
+          const isExpired = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
+          return {
+            id: d.id,
+            title: d.title,
+            category: d.category,
+            status: isExpired ? 'EXPIRED' : d.status,
+            forfeitEligible: isExpired,
+            stakeUsd: (d.stakeCents / 100).toFixed(2),
+            durationMinutes: Math.round(d.durationSeconds / 60),
+            challenger: d.challenger,
+            investigator: d.investigator || null
+          };
+        })
       };
     }
   },
@@ -114,13 +119,13 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'list_dares',
-    description: 'Filter and list challenges by status (OPEN, ACCEPTED, SUBMITTED, FINALIZED, ALL) or category.',
+    description: 'Filter and list challenges by status (OPEN, ACCEPTED, SUBMITTED, FINALIZED, EXPIRED, ALL) or category.',
     inputSchema: {
       type: 'object',
       properties: {
         status: {
           type: 'string',
-          enum: ['OPEN', 'ACCEPTED', 'SUBMITTED', 'FINALIZED', 'ALL'],
+          enum: ['OPEN', 'ACCEPTED', 'SUBMITTED', 'FINALIZED', 'EXPIRED', 'ALL'],
           description: 'Filter by dare status lifecycle.'
         },
         category: {
@@ -138,7 +143,9 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const catFilter = args.category || 'ALL';
 
       const filtered = dares.filter(d => {
-        if (statusFilter !== 'ALL' && d.status !== statusFilter) return false;
+        const isExp = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
+        const effectiveStatus = isExp ? 'EXPIRED' : d.status;
+        if (statusFilter !== 'ALL' && effectiveStatus !== statusFilter) return false;
         if (catFilter !== 'ALL' && d.category !== catFilter) return false;
         return true;
       });
@@ -507,7 +514,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const state = useStore.getState();
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      if (target.status !== 'ACCEPTED') {
+      if (target.status !== 'ACCEPTED' && target.status !== 'EXPIRED') {
         return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}", cannot claim timeout.` };
       }
       const ok = state.claimTimeoutForfeit(args.dare_id, args.challenger_address);

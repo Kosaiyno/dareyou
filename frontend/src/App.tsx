@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import type { DareCategory, Dare } from './store/useStore';
+import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
 
 /**
  * Live Countdown Timer with 1-second auto-refresh
@@ -291,16 +292,16 @@ export default function App() {
     toolsCount: number;
     tools: Array<{ name: string; description: string; inputSchema: any }>;
   }>({
-    online: false,
-    toolsCount: 0,
-    tools: []
+    online: true,
+    toolsCount: APP_WEBMCP_TOOLS.length,
+    tools: APP_WEBMCP_TOOLS
   });
-  const [activeMcpTool, setActiveMcpTool] = useState<string>('discover_dares');
-  const [mcpToolArgsJson, setMcpToolArgsJson] = useState<string>('{\n  "status": "ALL"\n}');
+  const [activeMcpTool, setActiveMcpTool] = useState<string>('get_app_state');
+  const [mcpToolArgsJson, setMcpToolArgsJson] = useState<string>('{}');
   const [mcpToolOutput, setMcpToolOutput] = useState<any>(null);
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
 
-  // Fetch WebMCP Tools on Mount (Check In-Browser WebMCP first, then fallback)
+  // Sync WebMCP Tools on Mount with safe content-type validation
   useEffect(() => {
     if (typeof window !== 'undefined' && window.__WEBMCP_TOOLS__) {
       const toolList = window.__WEBMCP_TOOLS__.list();
@@ -311,15 +312,20 @@ export default function App() {
       });
     } else {
       fetch('/api/tools')
-        .then((res) => res.json())
-        .then((data) => {
-          setMcpStatus({
-            online: true,
-            toolsCount: data.count || (data.tools ? data.tools.length : 0),
-            tools: data.tools || []
-          });
+        .then(async (res) => {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
+            const data = await res.json();
+            setMcpStatus({
+              online: true,
+              toolsCount: data.count || (data.tools ? data.tools.length : APP_WEBMCP_TOOLS.length),
+              tools: data.tools || APP_WEBMCP_TOOLS
+            });
+          }
         })
-        .catch(console.error);
+        .catch(() => {
+          // In-browser WebMCP standalone fallback
+        });
     }
   }, []);
 
@@ -877,8 +883,32 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Controls: Undo / Redo & Web3 Wallet */}
+          {/* Controls: Persona Role Switcher, Undo / Redo & Web3 Wallet */}
           <div className="flex items-center gap-2">
+            {/* Persona Role Switcher */}
+            <div className="hidden md:flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-xl border border-slate-800 text-[11px]">
+              <span className="text-slate-500 font-medium">Actor:</span>
+              <select
+                value={walletAddress}
+                onChange={(e) => {
+                  const addr = e.target.value;
+                  setWalletAddress(addr);
+                  if (addr.includes('Investigator')) {
+                    store.setActiveRole('INVESTIGATOR');
+                  } else {
+                    store.setActiveRole('CHALLENGER');
+                  }
+                  store.setWallet(true, addr);
+                }}
+                className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 text-[10px] font-mono focus:outline-none focus:border-emerald-500"
+                title="Switch active testing identity (Investigator, Challenger, or Custom Agent)"
+              >
+                <option value="0xAgentInvestigatorBeta...F442">Investigator (0xAgen...F442)</option>
+                <option value="0xTacticalOracle...94">Challenger (0xTact...94)</option>
+                <option value="0xTestInvestigatorFunctionalQA...2026">Test QA Agent (0xTest...2026)</option>
+              </select>
+            </div>
+
             <div className="hidden sm:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
               <button
                 onClick={() => store.undo()}
@@ -1890,7 +1920,7 @@ export default function App() {
                   </p>
                 </div>
                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                  16 Tools Active
+                  {mcpStatus.toolsCount} Tools Active
                 </span>
               </div>
 
@@ -2187,13 +2217,29 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
                   <div>
                     <span className="text-slate-500 block">Challenger:</span>
-                    <code className="text-emerald-400">{selectedDare.challenger.slice(0, 10)}...</code>
+                    <code className="text-emerald-400 font-mono">{selectedDare.challenger.slice(0, 10)}...</code>
+                    {selectedDare.challenger.toLowerCase().includes(walletAddress.slice(2, 8).toLowerCase()) && (
+                      <span className="text-[10px] text-amber-400 font-bold block">★ (Your Connected Wallet)</span>
+                    )}
                   </div>
                   <div>
                     <span className="text-slate-500 block">Total Escrow Pool:</span>
                     <span className="font-bold text-white">${((selectedDare.stakeCents * (selectedDare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN</span>
                   </div>
                 </div>
+                {selectedDare.investigator && (
+                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px]">
+                    <div>
+                      <span className="text-slate-500 block">Assigned Investigator:</span>
+                      <code className="text-cyan-400 font-mono">{selectedDare.investigator.slice(0, 14)}...</code>
+                    </div>
+                    {selectedDare.investigator.toLowerCase().includes(walletAddress.slice(2, 8).toLowerCase()) && (
+                      <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
+                        ★ You are the Investigator
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Phase 1: Open Challenge Action */}
@@ -2352,26 +2398,25 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                   <div className="space-y-2 pt-2 border-t border-indigo-900/40">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Heterogeneous Validator Rotation:</span>
                     <div className="space-y-1.5 font-mono text-[11px]">
-                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                        <span className="text-slate-300">1. Llama-3.3-70b-instruct</span>
-                        <span className="text-emerald-400 font-bold">APPROVED (Score: 95)</span>
-                      </div>
-                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                        <span className="text-slate-300">2. Mixtral-8x22b-instruct</span>
-                        <span className="text-emerald-400 font-bold">APPROVED (Score: 92)</span>
-                      </div>
-                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                        <span className="text-slate-300">3. GPT-4o Validator</span>
-                        <span className="text-emerald-400 font-bold">APPROVED (Score: 96)</span>
-                      </div>
-                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                        <span className="text-slate-300">4. Claude-3.5-Sonnet</span>
-                        <span className="text-emerald-400 font-bold">APPROVED (Score: 94)</span>
-                      </div>
-                      <div className="p-2 rounded bg-slate-950/60 border border-slate-800 flex items-center justify-between">
-                        <span className="text-slate-400">5. Gemini-2.5-Flash</span>
-                        <span className="text-amber-400 animate-pulse">Evaluating criteria...</span>
-                      </div>
+                      {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 ? (
+                        selectedDare.adjudicationSession.votes.map((v, i) => (
+                          <div key={i} className="p-2.5 rounded bg-slate-950/80 border border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-300 font-semibold">{i + 1}. {v.model}</span>
+                              <span className="text-emerald-400 font-bold">APPROVED ({v.score}/100)</span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-sans leading-normal">
+                              "{v.reasoning}"
+                            </p>
+                          </div>
+                        ))
+                      ) : null}
+                      {(!selectedDare.adjudicationSession?.votes || selectedDare.adjudicationSession.votes.length < 5) && (
+                        <div className="p-2 rounded bg-slate-950/40 border border-slate-800/80 flex items-center justify-between text-slate-500">
+                          <span>{((selectedDare.adjudicationSession?.votes?.length || 0) + 1)}. Gemini-2.5-Flash (Verifier)</span>
+                          <span className="text-amber-400 animate-pulse text-[10px]">Evaluating criteria...</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
