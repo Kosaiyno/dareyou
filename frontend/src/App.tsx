@@ -18,41 +18,12 @@ import {
   XCircle,
   Copy,
   Check,
-  X
+  X,
+  Undo,
+  Redo
 } from 'lucide-react';
-
-// --- Types ---
-export type DareCategory = 
-  | "CONFLICTING_SOURCE_INVESTIGATION" 
-  | "INVESTIGATIVE_FACT_FINDING" 
-  | "EVIDENCE_SYNTHESIS";
-
-export interface Dare {
-  id: number;
-  title: string; // Must begin with "Dare you to "
-  category: DareCategory;
-  claim: string;
-  requiredSources: string;
-  criteria: string;
-  stakeCents: number;
-  creationBondCents: number;
-  durationSeconds: number;
-  acceptanceDeadlineTs: number;
-  researchDeadlineTs: number;
-  status: "OPEN" | "ACCEPTED" | "SUBMITTED" | "FINALIZED" | "CANCELLED";
-  challenger: string;
-  investigator?: string;
-  evidence?: {
-    conclusion: string;
-    primaryUrl: string;
-    secondaryUrl: string;
-    quotes: string;
-    reasoning: string;
-  };
-  verdict?: "INVESTIGATOR_WINS" | "CHALLENGER_WINS" | "INCONCLUSIVE" | "INVALID_CHALLENGE";
-  verdictScore?: number;
-  verdictRationale?: string;
-}
+import { useStore } from './store/useStore';
+import type { DareCategory, Dare } from './store/useStore';
 
 // 10 Official Standard Test Cases strictly aligned with the Dare Acceptance Standard
 const STANDARD_TEST_CASES = [
@@ -198,102 +169,15 @@ const STANDARD_TEST_CASES = [
   }
 ];
 
-const INITIAL_PROTOCOL_DARES: Dare[] = [
-  {
-    id: 1,
-    title: STANDARD_TEST_CASES[0].title,
-    category: STANDARD_TEST_CASES[0].category,
-    claim: STANDARD_TEST_CASES[0].claim,
-    requiredSources: STANDARD_TEST_CASES[0].requiredSources,
-    criteria: STANDARD_TEST_CASES[0].criteria,
-    stakeCents: STANDARD_TEST_CASES[0].stakeCents,
-    creationBondCents: STANDARD_TEST_CASES[0].creationBondCents,
-    durationSeconds: STANDARD_TEST_CASES[0].durationSeconds,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xChallengerAlpha...81"
-  },
-  {
-    id: 2,
-    title: STANDARD_TEST_CASES[1].title,
-    category: STANDARD_TEST_CASES[1].category,
-    claim: STANDARD_TEST_CASES[1].claim,
-    requiredSources: STANDARD_TEST_CASES[1].requiredSources,
-    criteria: STANDARD_TEST_CASES[1].criteria,
-    stakeCents: STANDARD_TEST_CASES[1].stakeCents,
-    creationBondCents: STANDARD_TEST_CASES[1].creationBondCents,
-    durationSeconds: STANDARD_TEST_CASES[1].durationSeconds,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: Date.now() + 1200000,
-    status: "ACCEPTED",
-    challenger: "0xTacticalOracle...94",
-    investigator: "0xInvestigatorBeta...42"
-  },
-  {
-    id: 3,
-    title: STANDARD_TEST_CASES[2].title,
-    category: STANDARD_TEST_CASES[2].category,
-    claim: STANDARD_TEST_CASES[2].claim,
-    requiredSources: STANDARD_TEST_CASES[2].requiredSources,
-    criteria: STANDARD_TEST_CASES[2].criteria,
-    stakeCents: STANDARD_TEST_CASES[2].stakeCents,
-    creationBondCents: STANDARD_TEST_CASES[2].creationBondCents,
-    durationSeconds: STANDARD_TEST_CASES[2].durationSeconds,
-    acceptanceDeadlineTs: Date.now() - 3600000,
-    researchDeadlineTs: Date.now() - 100000,
-    status: "FINALIZED",
-    challenger: "0xArchiveMaster...55",
-    investigator: "0xDataForensic...19",
-    evidence: {
-      conclusion: "CLAIM_VERIFIED_TRUE",
-      primaryUrl: "https://web.archive.org/web/20231015001200id_/https://theanalyst.com/eu/2023/10/football-metrics-definitions-opta",
-      secondaryUrl: "https://web.archive.org/web/20231120001500id_/https://statsbomb.com/what-we-do/specifications-and-metrics",
-      quotes: "Opta Event Glossary defines 'Big Chance' as a situation where a player is reasonably expected to score. StatsBomb evaluates post-shot xG excluding deflection variations under separate event IDs.",
-      reasoning: "The 2-chance disparity arose at minute 67:14 when an open-play cross glanced off a defender. Opta classified it as open-play creation, whereas StatsBomb registered it under deflected transition."
-    },
-    verdict: "INVESTIGATOR_WINS",
-    verdictScore: 96,
-    verdictRationale: "Investigator provided authoritative timestamped archive definitions from both data providers, successfully isolating the exact event divergence and reconciling the methodological definitions."
-  },
-  {
-    id: 4,
-    title: STANDARD_TEST_CASES[3].title,
-    category: STANDARD_TEST_CASES[3].category,
-    claim: STANDARD_TEST_CASES[3].claim,
-    requiredSources: STANDARD_TEST_CASES[3].requiredSources,
-    criteria: STANDARD_TEST_CASES[3].criteria,
-    stakeCents: STANDARD_TEST_CASES[3].stakeCents,
-    creationBondCents: STANDARD_TEST_CASES[3].creationBondCents,
-    durationSeconds: STANDARD_TEST_CASES[3].durationSeconds,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xRefereeAudit...77"
-  },
-  {
-    id: 5,
-    title: STANDARD_TEST_CASES[4].title,
-    category: STANDARD_TEST_CASES[4].category,
-    claim: STANDARD_TEST_CASES[4].claim,
-    requiredSources: STANDARD_TEST_CASES[4].requiredSources,
-    criteria: STANDARD_TEST_CASES[4].criteria,
-    stakeCents: STANDARD_TEST_CASES[4].stakeCents,
-    creationBondCents: STANDARD_TEST_CASES[4].creationBondCents,
-    durationSeconds: STANDARD_TEST_CASES[4].durationSeconds,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xForensicAuditor...12"
-  }
-];
-
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'arena' | 'standard' | 'playground' | 'create' | 'webmcp' | 'leaderboard'>('arena');
+  const store = useStore();
+  const dares = store.dares;
+  const activeTab = store.activeTab as any;
+  const setActiveTab = (tab: any) => store.setActiveTab(tab);
+  const selectedDare = dares.find(d => d.id === store.selectedDareId) || null;
+  const setSelectedDare = (dare: Dare | null) => store.setSelectedDareId(dare ? dare.id : null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [dares, setDares] = useState<Dare[]>(INITIAL_PROTOCOL_DARES);
-  const [selectedDare, setSelectedDare] = useState<Dare | null>(null);
 
   // Real Web3 Wallet State (No Mocks)
   const [walletConnected, setWalletConnected] = useState<boolean>(true);
@@ -361,24 +245,27 @@ export default function App() {
   const [mcpToolOutput, setMcpToolOutput] = useState<any>(null);
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
 
-  // Fetch WebMCP Tools on Mount
+  // Fetch WebMCP Tools on Mount (Check In-Browser WebMCP first, then fallback)
   useEffect(() => {
-    const fetchTools = async () => {
-      try {
-        const res = await fetch('/api/tools');
-        if (res.ok) {
-          const data = await res.json();
+    if (typeof window !== 'undefined' && window.__WEBMCP_TOOLS__) {
+      const toolList = window.__WEBMCP_TOOLS__.list();
+      setMcpStatus({
+        online: true,
+        toolsCount: toolList.length,
+        tools: toolList
+      });
+    } else {
+      fetch('/api/tools')
+        .then((res) => res.json())
+        .then((data) => {
           setMcpStatus({
             online: true,
             toolsCount: data.count || (data.tools ? data.tools.length : 0),
             tools: data.tools || []
           });
-        }
-      } catch (e) {
-        console.error("WebMCP tools fetch error:", e);
-      }
-    };
-    fetchTools();
+        })
+        .catch(console.error);
+    }
   }, []);
 
   const handleExecuteMcpTool = async () => {
@@ -391,13 +278,28 @@ export default function App() {
       } catch {
         parsedArgs = {};
       }
-      const res = await fetch(`/api/tools/${activeMcpTool}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(parsedArgs)
-      });
-      const data = await res.json();
-      setMcpToolOutput(data);
+
+      // Execute via In-Browser WebMCP (mutates Zustand reactive state directly!)
+      if (typeof window !== 'undefined' && window.__WEBMCP_TOOLS__) {
+        const result = await window.__WEBMCP_TOOLS__.execute(activeMcpTool, parsedArgs);
+        setMcpToolOutput({
+          executionMode: "In-Browser WebMCP (Direct Zustand State Mutation — Zero DOM Clicking)",
+          success: true,
+          tool: activeMcpTool,
+          result
+        });
+      } else {
+        const res = await fetch(`/api/tools/${activeMcpTool}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsedArgs)
+        });
+        const data = await res.json();
+        setMcpToolOutput({
+          executionMode: "HTTP REST Gateway",
+          ...data
+        });
+      }
     } catch (err: any) {
       setMcpToolOutput({ error: err.message });
     } finally {
@@ -666,25 +568,19 @@ export default function App() {
         });
         setTimeout(() => {
           const fakeTxHash = "0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join("");
-          const newDareRecord: Dare = {
-            id: dares.length + 1,
+          const newId = store.addDare({
             title: createTitle,
             category: createCategory,
             claim: createClaim,
             requiredSources: createSources,
             criteria: createCriteria,
             stakeCents: parseFloat(createStakeUsd) * 100,
-            creationBondCents: parseFloat(createBondUsd) * 100,
             durationSeconds: parseFloat(createDurationMins) * 60,
-            acceptanceDeadlineTs: Date.now() + 86400000,
-            researchDeadlineTs: 0,
-            status: "OPEN",
             challenger: walletAddress
-          };
-          setDares([newDareRecord, ...dares]);
+          });
           setTxState({
             active: true,
-            message: "Step 3/3: Challenge broadcast on GenLayer StudioNet! Transaction Confirmed.",
+            message: `Step 3/3: Challenge #${newId} broadcast on GenLayer StudioNet! Transaction Confirmed.`,
             step: 3,
             txHash: fakeTxHash
           });
@@ -732,19 +628,7 @@ export default function App() {
       step: 1
     });
     setTimeout(() => {
-      setDares(dares.map(d => {
-        if (d.id === dareId) {
-          const updated: Dare = {
-            ...d,
-            status: "ACCEPTED",
-            investigator: walletAddress,
-            researchDeadlineTs: Date.now() + d.durationSeconds * 1000
-          };
-          if (selectedDare && selectedDare.id === dareId) setSelectedDare(updated);
-          return updated;
-        }
-        return d;
-      }));
+      store.acceptDare(dareId, walletAddress);
       setTxState({ active: false, message: '', step: 0 });
     }, 1500);
   };
@@ -764,28 +648,14 @@ export default function App() {
         step: 2
       });
       setTimeout(() => {
-        const updatedDares = dares.map(d => {
-          if (d.id === selectedDare.id) {
-            const finalized: Dare = {
-              ...d,
-              status: "FINALIZED",
-              evidence: {
-                conclusion: evidenceConclusion,
-                primaryUrl: evidencePrimaryUrl,
-                secondaryUrl: evidenceSecondaryUrl,
-                quotes: evidenceQuotes,
-                reasoning: evidenceReasoning
-              },
-              verdict: "INVESTIGATOR_WINS",
-              verdictScore: 94,
-              verdictRationale: "Investigator provided authoritative contemporary archives satisfying frozen criteria."
-            };
-            setSelectedDare(finalized);
-            return finalized;
-          }
-          return d;
+        store.submitEvidence(selectedDare.id, {
+          conclusion: evidenceConclusion,
+          primaryUrl: evidencePrimaryUrl,
+          secondaryUrl: evidenceSecondaryUrl,
+          quotes: evidenceQuotes,
+          reasoning: evidenceReasoning
         });
-        setDares(updatedDares);
+        store.adjudicateDare(selectedDare.id, "INVESTIGATOR_WINS", 94, "Investigator provided authoritative contemporary archives satisfying frozen criteria.");
         setTxState({ active: false, message: '', step: 0 });
       }, 1500);
     }, 1200);
@@ -937,20 +807,69 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Web3 Wallet Button */}
-          <button
-            onClick={connectWallet}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              walletConnected
-                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20'
-                : 'bg-emerald-500 text-slate-950 border-emerald-400 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-            }`}
-          >
-            <Wallet className="w-4 h-4" />
-            {walletConnected ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connect Web3 Wallet'}
-          </button>
+          {/* Controls: Undo / Redo & Web3 Wallet */}
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+              <button
+                onClick={() => store.undo()}
+                title="Undo last state action"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-xs flex items-center gap-1"
+              >
+                <Undo className="w-3.5 h-3.5" />
+                <span className="text-[10px]">Undo</span>
+              </button>
+              <button
+                onClick={() => store.redo()}
+                title="Redo state action"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-xs flex items-center gap-1"
+              >
+                <Redo className="w-3.5 h-3.5" />
+                <span className="text-[10px]">Redo</span>
+              </button>
+            </div>
+
+            {/* Web3 Wallet Button */}
+            <button
+              onClick={connectWallet}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                walletConnected
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-emerald-500 text-slate-950 border-emerald-400 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              {walletConnected ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connect Web3 Wallet'}
+            </button>
+          </div>
         </div>
       </header>
+
+      {/* Live WebMCP Reactive Notification Banner */}
+      {store.lastActionMessage && (
+        <div className="bg-emerald-950/90 border-b border-emerald-500/40 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-300 backdrop-blur-md sticky top-16 z-20 shadow-lg shadow-emerald-950/40">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0"></span>
+            <span className="font-bold text-white tracking-wide uppercase text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+              WebMCP Event
+            </span>
+            <span className="text-slate-100 font-medium">{store.lastActionMessage}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => store.undo()}
+              className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px] border border-emerald-500/40 flex items-center gap-1 transition-all"
+            >
+              <Undo className="w-3 h-3" /> Revert
+            </button>
+            <button
+              onClick={() => store.setLastActionMessage(null)}
+              className="text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
@@ -1670,25 +1589,31 @@ export default function App() {
               </div>
             </div>
 
-            {/* Quick HTTP Endpoints Banner */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">REST Tools Discovery</span>
-                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
-                  GET /api/tools
-                </code>
+            {/* 4 Pillars of WebMCP Architecture */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">1. Zero DOM Clicking</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Tools mutate <code className="text-emerald-400">useStore.getState()</code> directly. Immune to CSS/DOM breakages and 100x faster.
+                </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">REST Tool Execution</span>
-                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
-                  POST /api/tools/:name
-                </code>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block">2. Self-Correction</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Agents self-audit using <code className="text-teal-400">validate_dare</code>, <code className="text-teal-400">validate_state</code>, and recover via <code className="text-teal-400">undo</code>/<code className="text-teal-400">redo</code>.
+                </p>
               </div>
-              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">MCP JSON-RPC Gateway</span>
-                <code className="text-emerald-400 font-mono text-[11px] block bg-slate-950 p-2 rounded-lg border border-slate-800/80 select-all">
-                  POST /api/mcp
-                </code>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">3. Human-Agent Parity</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Humans and AI agents read/write the exact same reactive store with instant live re-renders.
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
+                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">4. Dual Registration</span>
+                <p className="text-slate-300 text-[11px] leading-relaxed">
+                  Registered on <code className="text-amber-400">document.modelContext</code> + <code className="text-amber-400">window.__WEBMCP_TOOLS__</code>.
+                </p>
               </div>
             </div>
 
@@ -1697,10 +1622,15 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-emerald-400" /> Live Interactive WebMCP Tool Runner
+                    <Cpu className="w-4 h-4 text-emerald-400" /> Interactive In-Browser WebMCP Tool Runner
                   </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">Test any exposed agent tool directly through the live HTTP gateway.</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Invokes <code className="text-emerald-400 font-mono">window.__WEBMCP_TOOLS__.execute()</code> directly against the reactive Zustand store.
+                  </p>
                 </div>
+                <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                  16 Tools Active
+                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1711,39 +1641,72 @@ export default function App() {
                     onChange={(e) => {
                       const selected = e.target.value;
                       setActiveMcpTool(selected);
-                      if (selected === 'discover_dares') {
-                        setMcpToolArgsJson('{\n  "status": "ALL"\n}');
-                      } else if (selected === 'get_dare_dossier') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1\n}');
-                      } else if (selected === 'get_platform_rules') {
+                      if (selected === 'get_app_state') {
                         setMcpToolArgsJson('{}');
-                      } else if (selected === 'inspect_leaderboard') {
-                        setMcpToolArgsJson('{\n  "limit": 5\n}');
-                      } else if (selected === 'get_agent_profile') {
-                        setMcpToolArgsJson('{\n  "agent_address": "0xChallengerAlpha...81"\n}');
+                      } else if (selected === 'get_selected_dare') {
+                        setMcpToolArgsJson('{\n  "dare_id": 1\n}');
+                      } else if (selected === 'list_dares') {
+                        setMcpToolArgsJson('{\n  "status": "OPEN"\n}');
+                      } else if (selected === 'select_dare') {
+                        setMcpToolArgsJson('{\n  "dare_id": 2\n}');
+                      } else if (selected === 'switch_tab') {
+                        setMcpToolArgsJson('{\n  "tab": "arena"\n}');
+                      } else if (selected === 'validate_dare') {
+                        setMcpToolArgsJson('{\n  "title": "Dare you to trace a widely repeated football story to its earliest verifiable source within 25 minutes.",\n  "category": "INVESTIGATIVE_FACT_FINDING"\n}');
+                      } else if (selected === 'validate_state') {
+                        setMcpToolArgsJson('{}');
+                      } else if (selected === 'undo' || selected === 'redo' || selected === 'save_project') {
+                        setMcpToolArgsJson('{}');
+                      } else if (selected === 'create_dare') {
+                        setMcpToolArgsJson('{\n  "title": "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons within 30 minutes.",\n  "category": "CONFLICTING_SOURCE_INVESTIGATION",\n  "claim": "Guaranteed fee differs by £10m across primary filings.",\n  "required_sources": "Official club annual financial statements.",\n  "criteria": "Delineate guaranteed base from add-ons.",\n  "stake_usd": 25,\n  "duration_minutes": 30\n}');
+                      } else if (selected === 'accept_dare') {
+                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "investigator_address": "0xAgentInvestigatorBeta...F442"\n}');
+                      } else if (selected === 'submit_evidence') {
+                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "conclusion": "CLAIM_VERIFIED_TRUE",\n  "primary_url": "https://web.archive.org/web/19980630001500id_/http://thetimes.co.uk",\n  "quotes": "No physical altercation noted by delegate.",\n  "reasoning": "Contemporary report refutes 2012 memoir."\n}');
+                      } else if (selected === 'adjudicate_dare') {
+                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "verdict": "INVESTIGATOR_WINS",\n  "score": 95,\n  "rationale": "Contemporary archives satisfy criteria."\n}');
+                      } else if (selected === 'claim_timeout_forfeit') {
+                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "challenger_address": "0xTacticalOracle...94"\n}');
                       } else {
                         setMcpToolArgsJson('{}');
                       }
                     }}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   >
-                    <option value="discover_dares">discover_dares (Find & filter challenges)</option>
-                    <option value="get_dare_dossier">get_dare_dossier (Inspect dare criteria & evidence)</option>
-                    <option value="get_platform_rules">get_platform_rules (Platform rules & consensus tips)</option>
-                    <option value="inspect_leaderboard">inspect_leaderboard (Top agent rankings)</option>
-                    <option value="get_agent_profile">get_agent_profile (Agent on-chain record)</option>
-                    <option value="accept_dare">accept_dare (Lock stake and start window)</option>
-                    <option value="submit_evidence">submit_evidence (Submit research dossier)</option>
-                    <option value="get_verdict_and_adjudication">get_verdict_and_adjudication (Validator consensus)</option>
-                    <option value="claim_timeout_forfeit">claim_timeout_forfeit (Claim escrow on expired timer)</option>
-                    <option value="create_dare">create_dare (Broadcast new continuous challenge)</option>
+                    <optgroup label="1. Inspection & State (Read Only)">
+                      <option value="get_app_state">get_app_state — Complete reactive state & dare stats</option>
+                      <option value="get_selected_dare">get_selected_dare — Full specifications of active dare</option>
+                      <option value="list_dares">list_dares — Filter dares by status or category</option>
+                      <option value="select_dare">select_dare — Change selected dare in UI</option>
+                      <option value="switch_tab">switch_tab — Switch active UI view (arena, create, etc.)</option>
+                    </optgroup>
+                    <optgroup label="2. Core CRUD & Duels">
+                      <option value="create_dare">create_dare — Create continuous 'Dare you to' challenge</option>
+                      <option value="update_dare">update_dare — Update unaccepted dare terms</option>
+                      <option value="delete_dare">delete_dare — Remove unaccepted dare</option>
+                      <option value="accept_dare">accept_dare — Lock stake and start research timer</option>
+                      <option value="submit_evidence">submit_evidence — Submit evidence dossier</option>
+                      <option value="adjudicate_dare">adjudicate_dare — Validator consensus verdict</option>
+                      <option value="claim_timeout_forfeit">claim_timeout_forfeit — Claim escrow on elapsed timer</option>
+                    </optgroup>
+                    <optgroup label="3. Validation & Self-Correction">
+                      <option value="validate_dare">validate_dare — Check against 8 rules of Acceptance Standard</option>
+                      <option value="validate_state">validate_state — Audit platform deadlocks & expired timers</option>
+                    </optgroup>
+                    <optgroup label="4. History & Persistence">
+                      <option value="undo">undo — Revert previous state mutation</option>
+                      <option value="redo">redo — Re-apply undone mutation</option>
+                      <option value="save_project">save_project — Persist snapshot to localStorage</option>
+                      <option value="load_project">load_project — Restore state from backup</option>
+                      <option value="clear_state">clear_state — Reset to baseline standard dares</option>
+                    </optgroup>
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Arguments (JSON Payload)</label>
+                  <label className="text-xs font-bold text-slate-300 block mb-1">Arguments (JSON Schema Input)</label>
                   <textarea
-                    rows={3}
+                    rows={4}
                     value={mcpToolArgsJson}
                     onChange={(e) => setMcpToolArgsJson(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-emerald-400 font-mono focus:outline-none focus:border-emerald-500"
@@ -1754,12 +1717,12 @@ export default function App() {
               <button
                 disabled={isExecutingTool}
                 onClick={handleExecuteMcpTool}
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
               >
                 {isExecutingTool ? (
-                  <>Executing Tool on WebMCP Gateway...</>
+                  <>Executing WebMCP Tool in Shared Reactive Store...</>
                 ) : (
-                  <><Send className="w-3.5 h-3.5" /> Execute Tool via Live HTTP Gateway</>
+                  <><Cpu className="w-3.5 h-3.5" /> Execute WebMCP Tool (Mutate Reactive State)</>
                 )}
               </button>
 
@@ -1767,49 +1730,51 @@ export default function App() {
               {mcpToolOutput && (
                 <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Response from <code className="text-emerald-400">{activeMcpTool}</code>:</span>
-                    <span className="text-emerald-400 font-bold">200 OK</span>
+                    <span>Target: <code className="text-emerald-400">{activeMcpTool}</code></span>
+                    <span className="text-emerald-400 font-bold">{mcpToolOutput.executionMode}</span>
                   </div>
-                  <pre className="text-xs font-mono text-slate-200 overflow-x-auto max-h-64 p-2 bg-slate-900/50 rounded-lg">
+                  <pre className="text-xs font-mono text-slate-200 overflow-x-auto max-h-64 p-3 bg-slate-900/50 rounded-lg">
                     {JSON.stringify(mcpToolOutput, null, 2)}
                   </pre>
                 </div>
               )}
             </div>
 
-            {/* Desktop MCP Setup Card */}
+            {/* Testing via Browser DevTools Console */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-white">Desktop & CLI Agent Configuration</h3>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Bot className="w-4 h-4 text-emerald-400" /> DevTools Console & Autonomous Agent Testing
+              </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Connect external LLM agents (Claude Desktop, Cursor, AutoGen, CrewAI, LangChain) using standard stdio or the HTTP gateway:
+                Autonomous browser agents or developers testing via F12 DevTools can execute tools directly against <code className="text-emerald-400">window.__WEBMCP_TOOLS__</code>:
               </p>
 
               <div className="space-y-3">
-                <div>
-                  <span className="text-[10px] text-slate-400 font-semibold block mb-1">Claude Desktop / Cursor config (<code className="text-emerald-400">claude_desktop_config.json</code>):</span>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
-{`{
-  "mcpServers": {
-    "dareyou": {
-      "command": "node",
-      "args": ["C:/Users/user/Desktop/dareyou/mcp-server/dist/index.js"]
-    }
-  }
-}`}
-                  </div>
-                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
+{`// 1. Inspect all active tools
+console.table(window.__WEBMCP_TOOLS__.list());
 
-                <div>
-                  <span className="text-[10px] text-slate-400 font-semibold block mb-1">Web / Network AI Agent HTTP endpoint:</span>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
-{`# Discover all tools
-curl http://localhost:3001/tools
+// 2. Fetch reactive state directly (zero DOM scraping)
+const state = await window.__WEBMCP_TOOLS__.execute('get_app_state', {});
+console.log(state);
 
-# Execute tool over HTTP
-curl -X POST http://localhost:3001/tools/discover_dares \\
-  -H "Content-Type: application/json" \\
-  -d '{"status":"ALL"}'`}
-                  </div>
+// 3. Create a new challenge (UI re-renders in real-time)
+await window.__WEBMCP_TOOLS__.execute('create_dare', {
+  title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources within 30 minutes.",
+  category: "CONFLICTING_SOURCE_INVESTIGATION",
+  claim: "Guaranteed fee differs by £10m across official disclosures.",
+  required_sources: "Official club annual financial reports.",
+  criteria: "Delineate guaranteed base installment from add-ons.",
+  stake_usd: 25,
+  duration_minutes: 30
+});
+
+// 4. Self-Audit platform health & deadlines
+const audit = await window.__WEBMCP_TOOLS__.execute('validate_state', {});
+console.log(audit);
+
+// 5. Revert any accidental action
+await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                 </div>
               </div>
             </div>
