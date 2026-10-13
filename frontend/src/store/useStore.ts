@@ -15,8 +15,36 @@ export interface EvidenceData {
   reasoning: string;
 }
 
+export interface ValidatorVote {
+  validatorIndex: number;
+  validatorAddress: string;
+  model: string;
+  verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS";
+  score: number;
+  quotesVerified: boolean;
+  sourcesIndependent: boolean;
+  reasoning: string;
+  timestamp: number;
+}
+
+export interface AdjudicationSession {
+  dareId: number;
+  status: "PENDING_TRIGGER" | "VOTING_IN_PROGRESS" | "CONSENSUS_REACHED" | "FINALIZED";
+  progressPercent: number;
+  currentStage: string;
+  startedAt: number;
+  etaSeconds: number;
+  votes: ValidatorVote[];
+  requiredVotes: number;
+  consensusThreshold: string;
+  finalVerdict?: "INVESTIGATOR_WINS" | "CHALLENGER_WINS";
+  averageScore?: number;
+  consensusRationale?: string;
+}
+
 export interface Dare {
   id: number;
+  isBenchmark: boolean;
   title: string;
   category: DareCategory;
   claim: string;
@@ -31,6 +59,7 @@ export interface Dare {
   challenger: string;
   investigator?: string;
   evidence?: EvidenceData;
+  adjudicationSession?: AdjudicationSession;
   verdict?: "INVESTIGATOR_WINS" | "CHALLENGER_WINS" | "INCONCLUSIVE" | "INVALID_CHALLENGE";
   verdictScore?: number;
   verdictRationale?: string;
@@ -42,8 +71,11 @@ export interface AppState {
   selectedDareId: number | null;
   activeTab: 'arena' | 'playground' | 'create' | 'webmcp' | 'leaderboard' | 'audit';
   categoryFilter: 'ALL' | DareCategory;
+  lifecycleFilter: 'ALL' | 'OPEN' | 'ACCEPTED' | 'SUBMITTED' | 'FINALIZED' | 'EXPIRED';
+  benchmarkFilter: 'ALL' | 'BENCHMARK' | 'USER_DARES';
   walletConnected: boolean;
   walletAddress: string;
+  activeRole: 'INVESTIGATOR' | 'CHALLENGER';
   lastActionMessage: string | null;
 
   // Undo / Redo History
@@ -54,7 +86,10 @@ export interface AppState {
   setSelectedDareId: (id: number | null) => void;
   setActiveTab: (tab: 'arena' | 'playground' | 'create' | 'webmcp' | 'leaderboard' | 'audit') => void;
   setCategoryFilter: (filter: 'ALL' | DareCategory) => void;
+  setLifecycleFilter: (filter: 'ALL' | 'OPEN' | 'ACCEPTED' | 'SUBMITTED' | 'FINALIZED' | 'EXPIRED') => void;
+  setBenchmarkFilter: (filter: 'ALL' | 'BENCHMARK' | 'USER_DARES') => void;
   setWallet: (connected: boolean, address: string) => void;
+  setActiveRole: (role: 'INVESTIGATOR' | 'CHALLENGER') => void;
   setLastActionMessage: (msg: string | null) => void;
 
   // Core Mutation Workflows
@@ -73,8 +108,11 @@ export interface AppState {
   deleteDare: (id: number) => boolean;
   acceptDare: (id: number, investigatorAddress: string) => boolean;
   submitEvidence: (id: number, evidence: EvidenceData) => boolean;
+  startAdjudication: (id: number) => boolean;
+  fastTrackAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
+  processAllExpiredDares: () => number;
 
   // History & Persistence
   undo: () => boolean;
@@ -91,7 +129,7 @@ export interface AppState {
   };
   validateState: () => {
     valid: boolean;
-    summary: { totalDares: number; open: number; accepted: number; submitted: number; finalized: number };
+    summary: { totalDares: number; open: number; accepted: number; submitted: number; finalized: number; expired: number };
     issues: string[];
     recommendations: string[];
   };
@@ -100,6 +138,7 @@ export interface AppState {
 export const INITIAL_DARES: Dare[] = [
   {
     id: 1,
+    isBenchmark: true,
     title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION",
     claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
@@ -115,6 +154,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 2,
+    isBenchmark: true,
     title: "Dare you to trace a widely repeated football story to its earliest verifiable source, compare the original account with later retellings, and expose which details were changed, exaggerated, or never supported by evidence within 25 minutes.",
     category: "INVESTIGATIVE_FACT_FINDING",
     claim: "The widely repeated dressing room altercation narrative was embellished over decades and lacks support in contemporary reports.",
@@ -124,13 +164,14 @@ export const INITIAL_DARES: Dare[] = [
     creationBondCents: 500,
     durationSeconds: 1500,
     acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: Date.now() + 1200000,
+    researchDeadlineTs: Date.now() + 1500 * 1000, // Live 25-minute countdown running now!
     status: "ACCEPTED",
     challenger: "0xTacticalOracle...94",
     investigator: "0xInvestigatorBeta...42"
   },
   {
     id: 3,
+    isBenchmark: true,
     title: "Dare you to investigate why two established football statistics providers report different numbers for the same metric in a completed match, identify the methodological or factual source of the discrepancy, and support your conclusion with evidence within 20 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION",
     claim: "Provider A logged 4 big chances created while Provider B logged 2 due to differing definitions of open-play vs set-piece pass sequences.",
@@ -157,6 +198,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 4,
+    isBenchmark: true,
     title: "Dare you to reconstruct the exact timeline and decision chain behind a controversial VAR intervention, documenting each official communication and rule application using primary broadcast and federation sources within 35 minutes.",
     category: "EVIDENCE_SYNTHESIS",
     claim: "The on-field referee was not alerted to the offside phase until after the restart protocol had been initiated.",
@@ -172,6 +214,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 5,
+    isBenchmark: true,
     title: "Dare you to audit a club's reported financial compliance figure against published regulatory filings, identifying the accounting distinctions between official figures, league calculations, and credible reporting without presenting speculation as fact within 30 minutes.",
     category: "INVESTIGATIVE_FACT_FINDING",
     claim: "The allowable loss deduction for infrastructure investment was calculated differently by the independent commission versus the club's submission.",
@@ -187,6 +230,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 6,
+    isBenchmark: true,
     title: "Dare you to reconstruct a professional footballer's journey from academy football to the first team, uncovering overlooked loans, development milestones, key appearances, and documented turning points using reliable sources within 30 minutes.",
     category: "INVESTIGATIVE_FACT_FINDING",
     claim: "Player's senior debut occurred during an emergency unrecorded youth loan prior to their official league debut.",
@@ -202,6 +246,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 7,
+    isBenchmark: true,
     title: "Dare you to investigate a completed football transfer saga with conflicting reports, reconstruct the sequence of reported negotiations, establish what the clubs and player actually confirmed, and distinguish verified events from anonymous-source claims within 30 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION",
     claim: "The formal bid was submitted 48 hours after media claimed talks collapsed, verified by club stock exchange disclosure.",
@@ -217,6 +262,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 8,
+    isBenchmark: true,
     title: "Dare you to explain how an unexpected football club reached the latter stages of a European competition by investigating its opponents, tactical adjustments, squad availability, and decisive match events, then rank the explanations by evidence strength within 40 minutes.",
     category: "EVIDENCE_SYNTHESIS",
     claim: "Progress was primarily determined by opponent suspension/injury crises rather than tactical formation shifts.",
@@ -232,6 +278,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 9,
+    isBenchmark: true,
     title: "Dare you to determine whether a high-profile signing genuinely changed a football team's performance by comparing relevant before-and-after data, examining tactical roles and alternative explanations, and presenting a defensible conclusion supported by credible evidence within 40 minutes.",
     category: "EVIDENCE_SYNTHESIS",
     claim: "Team points per game improved by 0.6 solely during matches where the player started in a specific hybrid role.",
@@ -247,6 +294,7 @@ export const INITIAL_DARES: Dare[] = [
   },
   {
     id: 10,
+    isBenchmark: true,
     title: "Dare you to investigate the origin of a disputed historical football claim by locating contemporary reports, comparing independent accounts, checking primary records where available, and establishing which parts of the claim are supported, contradicted, or impossible to verify within 30 minutes.",
     category: "INVESTIGATIVE_FACT_FINDING",
     claim: "The legendary 1954 World Cup ball pressure controversy originated from a single misattributed radio commentary.",
@@ -259,6 +307,23 @@ export const INITIAL_DARES: Dare[] = [
     researchDeadlineTs: 0,
     status: "OPEN",
     challenger: "0xHistoryAdjudicator...02"
+  },
+  {
+    id: 11,
+    isBenchmark: false,
+    title: "Dare you to trace an unrecorded disciplinary suspension overturned on appeal during the 1998 season within 20 minutes.",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    claim: "The regional disciplinary panel overturned the red card suspension within 48 hours on procedural appeal grounds.",
+    requiredSources: "Contemporary matchday disciplinary logs and federation registers.",
+    criteria: "Locate formal regional notice confirming rescission of match suspension.",
+    stakeCents: 2000,
+    creationBondCents: 500,
+    durationSeconds: 1200,
+    acceptanceDeadlineTs: Date.now() - 3600000,
+    researchDeadlineTs: Date.now() - 600000, // Expired 10 minutes ago — Ready for immediate forfeit claim!
+    status: "ACCEPTED",
+    challenger: "0xChallengerAlpha...81",
+    investigator: "0xDelinquentAgent...99"
   }
 ];
 
@@ -277,8 +342,11 @@ export const useStore = create<AppState>((set, get) => ({
   selectedDareId: 1,
   activeTab: 'arena',
   categoryFilter: 'ALL',
-  walletConnected: false,
-  walletAddress: '',
+  lifecycleFilter: 'ALL',
+  benchmarkFilter: 'ALL',
+  walletConnected: true,
+  walletAddress: '0xAgentInvestigatorBeta...F442',
+  activeRole: 'INVESTIGATOR',
   lastActionMessage: null,
 
   history: [INITIAL_DARES],
@@ -287,7 +355,10 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedDareId: (id) => set({ selectedDareId: id }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   setCategoryFilter: (filter) => set({ categoryFilter: filter }),
+  setLifecycleFilter: (filter) => set({ lifecycleFilter: filter }),
+  setBenchmarkFilter: (filter) => set({ benchmarkFilter: filter }),
   setWallet: (connected, address) => set({ walletConnected: connected, walletAddress: address }),
+  setActiveRole: (role) => set({ activeRole: role }),
   setLastActionMessage: (msg) => set({ lastActionMessage: msg }),
 
   addDare: (item) => {
@@ -295,6 +366,7 @@ export const useStore = create<AppState>((set, get) => ({
     const nextId = state.dares.reduce((max, d) => Math.max(max, d.id), 0) + 1;
     const newDare: Dare = {
       id: nextId,
+      isBenchmark: false,
       title: item.title.trim(),
       category: item.category,
       claim: item.claim.trim(),
@@ -313,7 +385,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: nextId,
-      lastActionMessage: `WebMCP Action: Created dare #${nextId} "${newDare.title.substring(0, 40)}..."`
+      lastActionMessage: `Created Dare #${nextId} "${newDare.title.substring(0, 40)}..."`
     });
     return nextId;
   },
@@ -326,7 +398,7 @@ export const useStore = create<AppState>((set, get) => ({
     const newDares = state.dares.map(d => d.id === id ? { ...d, ...updates } : d);
     set({
       ...pushSnapshot(state, newDares),
-      lastActionMessage: `WebMCP Action: Updated dare #${id}`
+      lastActionMessage: `Updated Dare #${id}`
     });
     return true;
   },
@@ -340,7 +412,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: state.selectedDareId === id ? (newDares[0]?.id || null) : state.selectedDareId,
-      lastActionMessage: `WebMCP Action: Removed dare #${id}`
+      lastActionMessage: `Removed Dare #${id}`
     });
     return true;
   },
@@ -365,7 +437,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `WebMCP Action: Agent ${investigatorAddress.substring(0, 10)}... accepted Dare #${id}`
+      lastActionMessage: `Investigator ${investigatorAddress.substring(0, 10)} accepted Dare #${id}. Research countdown started.`
     });
     return true;
   },
@@ -375,12 +447,60 @@ export const useStore = create<AppState>((set, get) => ({
     const target = state.dares.find(d => d.id === id);
     if (!target || target.status !== "ACCEPTED") return false;
 
+    // Build initial live adjudication session with 3 initial validator votes
+    const session: AdjudicationSession = {
+      dareId: id,
+      status: "VOTING_IN_PROGRESS",
+      progressPercent: 65,
+      currentStage: "Rotation 0: Heterogeneous LLM Validators Evaluating Evidence Rubric",
+      startedAt: Date.now(),
+      etaSeconds: 8,
+      votes: [
+        {
+          validatorIndex: 0,
+          validatorAddress: "0xValLlama3_3_70B...11",
+          model: "Llama-3.3-70B-Instruct (Consensus Leader)",
+          verdict: "INVESTIGATOR_WINS",
+          score: 96,
+          quotesVerified: true,
+          sourcesIndependent: true,
+          reasoning: "Primary quotes verified against statutory archives. Delineates guaranteed payments clearly.",
+          timestamp: Date.now() - 3000
+        },
+        {
+          validatorIndex: 1,
+          validatorAddress: "0xValMixtral8x22B...22",
+          model: "Mixtral-8x22B-Instruct",
+          verdict: "INVESTIGATOR_WINS",
+          score: 94,
+          quotesVerified: true,
+          sourcesIndependent: true,
+          reasoning: "Source independence confirmed. Disproves circular tabloid claims.",
+          timestamp: Date.now() - 2000
+        },
+        {
+          validatorIndex: 2,
+          validatorAddress: "0xValGPT4o...33",
+          model: "GPT-4o (Validator Rotation)",
+          verdict: "INVESTIGATOR_WINS",
+          score: 95,
+          quotesVerified: true,
+          sourcesIndependent: true,
+          reasoning: "Strict criteria compliance confirmed under Equivalence Principle.",
+          timestamp: Date.now() - 1000
+        }
+      ],
+      requiredVotes: 5,
+      consensusThreshold: "3 of 5 (Majority Quorum)"
+    };
+
     const newDares = state.dares.map(d => {
       if (d.id === id) {
         return {
           ...d,
           status: "SUBMITTED" as DareStatus,
-          evidence
+          evidence,
+          adjudicationSession: session
         };
       }
       return d;
@@ -389,7 +509,126 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `WebMCP Action: Evidence dossier submitted for Dare #${id}. Awaiting validator consensus.`
+      lastActionMessage: `Evidence submitted for Dare #${id}. Validator voting started automatically.`
+    });
+
+    // Auto-resolve adjudication after a short window (6 seconds) so user sees voting then resolution
+    setTimeout(() => {
+      const currentState = get();
+      const currentDare = currentState.dares.find(d => d.id === id);
+      if (currentDare && currentDare.status === "SUBMITTED") {
+        get().fastTrackAdjudication(id);
+      }
+    }, 6000);
+
+    return true;
+  },
+
+  startAdjudication: (id) => {
+    const state = get();
+    const target = state.dares.find(d => d.id === id);
+    if (!target || target.status !== "SUBMITTED") return false;
+
+    // Immediately trigger fast-track adjudication
+    return get().fastTrackAdjudication(id);
+  },
+
+  fastTrackAdjudication: (id) => {
+    const state = get();
+    const target = state.dares.find(d => d.id === id);
+    if (!target) return false;
+
+    const completedVotes: ValidatorVote[] = [
+      {
+        validatorIndex: 0,
+        validatorAddress: "0xValLlama3_3_70B...11",
+        model: "Llama-3.3-70B-Instruct (Consensus Leader)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 96,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: "Primary quotes verified against statutory archives. Delineates guaranteed payments clearly.",
+        timestamp: Date.now() - 4000
+      },
+      {
+        validatorIndex: 1,
+        validatorAddress: "0xValMixtral8x22B...22",
+        model: "Mixtral-8x22B-Instruct",
+        verdict: "INVESTIGATOR_WINS",
+        score: 94,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: "Source independence confirmed. Disproves circular tabloid claims.",
+        timestamp: Date.now() - 3000
+      },
+      {
+        validatorIndex: 2,
+        validatorAddress: "0xValGPT4o...33",
+        model: "GPT-4o (Equivalence Validator)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 95,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: "Strict criteria compliance confirmed under Equivalence Principle.",
+        timestamp: Date.now() - 2000
+      },
+      {
+        validatorIndex: 3,
+        validatorAddress: "0xValClaude3_5...44",
+        model: "Claude-3.5-Sonnet (Adjudicator)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 97,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: "Chronological reconstruction is rigorous and verifiable.",
+        timestamp: Date.now() - 1000
+      },
+      {
+        validatorIndex: 4,
+        validatorAddress: "0xValGemini2_5...55",
+        model: "Gemini-2.5-Flash (Verifier)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 95,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: "Unanimous consensus confirmed. Evidence fulfills frozen criteria.",
+        timestamp: Date.now()
+      }
+    ];
+
+    const completedSession: AdjudicationSession = {
+      dareId: id,
+      status: "FINALIZED",
+      progressPercent: 100,
+      currentStage: "Consensus Finalized: 5/5 Unanimous Agreement across Rotation 0 Validators",
+      startedAt: target.adjudicationSession?.startedAt || Date.now() - 5000,
+      etaSeconds: 0,
+      votes: completedVotes,
+      requiredVotes: 5,
+      consensusThreshold: "5 of 5 Unanimous Consensus",
+      finalVerdict: "INVESTIGATOR_WINS",
+      averageScore: 95,
+      consensusRationale: "Heterogeneous validator rotation unanimously confirmed: Evidence dossier contains authoritative primary source quotes, successfully fulfills frozen challenge criteria, and resolves factual discrepancies without speculative bias."
+    };
+
+    const newDares = state.dares.map(d => {
+      if (d.id === id) {
+        return {
+          ...d,
+          status: "FINALIZED" as DareStatus,
+          adjudicationSession: completedSession,
+          verdict: "INVESTIGATOR_WINS" as any,
+          verdictScore: 95,
+          verdictRationale: completedSession.consensusRationale
+        };
+      }
+      return d;
+    });
+
+    set({
+      ...pushSnapshot(state, newDares),
+      selectedDareId: id,
+      lastActionMessage: `Consensus Reached for Dare #${id}: INVESTIGATOR_WINS (95/100). Escrow pool paid out.`
     });
     return true;
   },
@@ -415,7 +654,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `WebMCP Action: Finalized Dare #${id} with verdict ${verdict} (${score}/100)`
+      lastActionMessage: `Finalized Dare #${id} with verdict ${verdict} (${score}/100)`
     });
     return true;
   },
@@ -423,8 +662,10 @@ export const useStore = create<AppState>((set, get) => ({
   claimTimeoutForfeit: (id, challengerAddress) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target || target.status !== "ACCEPTED") return false;
+    if (!target) return false;
+    if (target.status !== "ACCEPTED") return false;
 
+    const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
     const newDares = state.dares.map(d => {
       if (d.id === id) {
         return {
@@ -432,7 +673,7 @@ export const useStore = create<AppState>((set, get) => ({
           status: "FINALIZED" as DareStatus,
           verdict: "CHALLENGER_WINS" as any,
           verdictScore: 100,
-          verdictRationale: "Investigator forfeited due to missed research deadline. Total escrow paid to challenger."
+          verdictRationale: `Investigator forfeited due to missed research deadline. Total escrow pool of $${payoutDollars} GEN transferred to Challenger (${challengerAddress}).`
         };
       }
       return d;
@@ -441,9 +682,38 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `WebMCP Action: Challenger ${challengerAddress.substring(0, 10)} claimed timeout forfeit for Dare #${id}`
+      lastActionMessage: `Timeout Forfeit Settled for Dare #${id}: $${payoutDollars} GEN awarded to Challenger!`
     });
     return true;
+  },
+
+  processAllExpiredDares: () => {
+    const state = get();
+    const now = Date.now();
+    let processed = 0;
+
+    const newDares = state.dares.map(d => {
+      if (d.status === "ACCEPTED" && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
+        processed++;
+        const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
+        return {
+          ...d,
+          status: "FINALIZED" as DareStatus,
+          verdict: "CHALLENGER_WINS" as any,
+          verdictScore: 100,
+          verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`
+        };
+      }
+      return d;
+    });
+
+    if (processed > 0) {
+      set({
+        ...pushSnapshot(state, newDares),
+        lastActionMessage: `Processed timeout forfeit settlements for ${processed} expired dare(s).`
+      });
+    }
+    return processed;
   },
 
   undo: () => {
@@ -454,7 +724,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       dares: previousDares,
       historyIndex: nextIndex,
-      lastActionMessage: "WebMCP Action: Reverted previous state change (Undo)"
+      lastActionMessage: "Reverted previous state mutation (Undo)"
     });
     return true;
   },
@@ -467,7 +737,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       dares: nextDares,
       historyIndex: nextIndex,
-      lastActionMessage: "WebMCP Action: Re-applied state change (Redo)"
+      lastActionMessage: "Re-applied state mutation (Redo)"
     });
     return true;
   },
@@ -478,14 +748,14 @@ export const useStore = create<AppState>((set, get) => ({
       history: [INITIAL_DARES],
       historyIndex: 0,
       selectedDareId: 1,
-      lastActionMessage: "WebMCP Action: Reset state store to baseline standard dares"
+      lastActionMessage: "Sandbox state reset to baseline protocol benchmark suite."
     });
   },
 
   saveProject: () => {
     const state = get();
     const payload = JSON.stringify({
-      version: "1.0",
+      version: "1.1",
       timestamp: Date.now(),
       dares: state.dares,
       activeTab: state.activeTab,
@@ -495,7 +765,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem('dareyou_state_backup', payload);
     }
-    set({ lastActionMessage: "WebMCP Action: Saved project snapshot to localStorage" });
+    set({ lastActionMessage: "Saved sandbox project snapshot to localStorage." });
     return payload;
   },
 
@@ -513,7 +783,7 @@ export const useStore = create<AppState>((set, get) => ({
         set({
           ...pushSnapshot(state, parsed.dares),
           selectedDareId: parsed.selectedDareId || parsed.dares[0]?.id || 1,
-          lastActionMessage: `WebMCP Action: Loaded ${parsed.dares.length} dares from persistent project backup`
+          lastActionMessage: `Loaded ${parsed.dares.length} dares from persistent project backup.`
         });
         return true;
       }
@@ -556,21 +826,24 @@ export const useStore = create<AppState>((set, get) => ({
 
   validateState: () => {
     const state = get();
+    const now = Date.now();
+    const expiredCount = state.dares.filter(d => d.status === "ACCEPTED" && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs).length;
+    
     const summary = {
       totalDares: state.dares.length,
       open: state.dares.filter(d => d.status === "OPEN").length,
-      accepted: state.dares.filter(d => d.status === "ACCEPTED").length,
+      accepted: state.dares.filter(d => d.status === "ACCEPTED" && now <= d.researchDeadlineTs).length,
       submitted: state.dares.filter(d => d.status === "SUBMITTED").length,
-      finalized: state.dares.filter(d => d.status === "FINALIZED").length
+      finalized: state.dares.filter(d => d.status === "FINALIZED").length,
+      expired: expiredCount
     };
 
     const issues: string[] = [];
     const recommendations: string[] = [];
-    const now = Date.now();
 
     state.dares.forEach(d => {
       if (d.status === "ACCEPTED" && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
-        issues.push(`Dare #${d.id} research deadline has expired without evidence. Eligible for timeout forfeit claim.`);
+        issues.push(`Dare #${d.id} research window expired (${Math.round((now - d.researchDeadlineTs) / 60000)} mins ago) without evidence. Eligible for timeout forfeit claim.`);
       }
       if (d.status === "SUBMITTED" && !d.evidence) {
         issues.push(`Dare #${d.id} marked as SUBMITTED but has no evidence dossier attached.`);
@@ -580,11 +853,11 @@ export const useStore = create<AppState>((set, get) => ({
       }
     });
 
-    if (summary.open === 0) {
-      recommendations.push("No OPEN dares available for investigators. Consider creating new challenges.");
+    if (expiredCount > 0) {
+      recommendations.push(`${expiredCount} dare(s) have expired research windows. Trigger 'Claim Timeout Forfeit' to settle escrow to challengers.`);
     }
     if (summary.submitted > 0) {
-      recommendations.push(`${summary.submitted} dares are waiting for validator adjudication.`);
+      recommendations.push(`${summary.submitted} dare(s) in SUBMITTED state. Trigger 'Start Adjudication' to finalize validator consensus.`);
     }
 
     return {

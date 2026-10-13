@@ -430,6 +430,34 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     }
   },
   {
+    name: 'start_adjudication',
+    description: 'Initiates or fast-tracks multi-LLM validator consensus adjudication on a submitted challenge.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' },
+        fast_track: { type: 'boolean', description: 'Whether to immediately resolve with full consensus without waiting (default true).' }
+      },
+      required: ['dare_id'],
+      additionalProperties: false
+    },
+    execute: async (args: { dare_id: number; fast_track?: boolean }) => {
+      const state = useStore.getState();
+      const target = state.dares.find(d => d.id === args.dare_id);
+      if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
+      if (target.status !== 'SUBMITTED') {
+        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}". Must be SUBMITTED to adjudicate.` };
+      }
+      if (args.fast_track !== false) {
+        const ok = state.fastTrackAdjudication(args.dare_id);
+        return { success: ok, message: `Dare #${args.dare_id} fast-tracked and adjudicated. Final verdict settled.` };
+      } else {
+        const ok = state.startAdjudication(args.dare_id);
+        return { success: ok, message: `Dare #${args.dare_id} adjudication session initialized.` };
+      }
+    }
+  },
+  {
     name: 'adjudicate_dare',
     description: 'Triggers GenLayer validator consensus adjudication on a submitted dare dossier.',
     inputSchema: {
@@ -486,6 +514,24 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       return {
         success: ok,
         message: `Timeout forfeit processed for Dare #${args.dare_id}. Escrow transferred to challenger.`
+      };
+    }
+  },
+  {
+    name: 'process_all_expired',
+    description: 'Scans the arena and auto-resolves all expired dares where investigators missed the research deadline.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    },
+    execute: async () => {
+      const state = useStore.getState();
+      const resolvedCount = state.processAllExpiredDares();
+      return {
+        success: true,
+        message: `Processed ${resolvedCount} expired dares for timeout forfeit.`,
+        resolvedCount
       };
     }
   },
@@ -584,7 +630,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'clear_state',
-    description: 'Resets the DareYou state store back to the 10 canonical standard test cases.',
+    description: 'Resets the DareYou state store back to the baseline benchmark challenge suite (Chain ID 61999).',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -592,7 +638,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     },
     execute: async () => {
       useStore.getState().clearState();
-      return { success: true, message: 'State store reset to baseline standard test cases.' };
+      return { success: true, message: 'State store reset to baseline benchmark challenges.' };
     }
   },
   {

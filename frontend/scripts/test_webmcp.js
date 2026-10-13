@@ -68,13 +68,26 @@ console.log(`✓ validate_dare (self-correction): valid = ${validation.valid}`);
 const audit = await window.__WEBMCP_TOOLS__.execute('validate_state', {});
 console.log(`✓ validate_state (platform health audit): valid = ${audit.valid}, issues = ${audit.issues.length}`);
 
-// 8. Test undo & redo
+// 8. Test start_adjudication (Fast-track consensus)
+const adjRes = await window.__WEBMCP_TOOLS__.execute('start_adjudication', {
+  dare_id: createRes.dare_id,
+  fast_track: true
+});
+console.log(`✓ start_adjudication response: ${adjRes.message}`);
+const finalizedDare = useStore.getState().dares.find(d => d.id === createRes.dare_id);
+console.log(`✓ Finalized dare status: ${finalizedDare?.status}, verdict: ${finalizedDare?.verdict}`);
+
+// 9. Test process_all_expired (Dare #11 is pre-seeded with expired deadline)
+const expiredBefore = useStore.getState().dares.filter(d => d.status === 'ACCEPTED' && d.researchDeadlineTs && d.researchDeadlineTs <= Date.now()).length;
+console.log(`✓ Expired dares eligible for forfeit before sweep: ${expiredBefore}`);
+const sweepRes = await window.__WEBMCP_TOOLS__.execute('process_all_expired', {});
+console.log(`✓ process_all_expired response: ${sweepRes.message}, resolved: ${sweepRes.resolvedCount}`);
+
+// 10. Test undo & redo
 const undoRes = await window.__WEBMCP_TOOLS__.execute('undo', {});
 console.log(`✓ undo action: ${undoRes.message}`);
-console.log(`✓ Dares after undo: ${useStore.getState().dares.find(d => d.id === createRes.dare_id)?.status}`);
 
 const redoRes = await window.__WEBMCP_TOOLS__.execute('redo', {});
 console.log(`✓ redo action: ${redoRes.message}`);
-console.log(`✓ Dares after redo: ${useStore.getState().dares.find(d => d.id === createRes.dare_id)?.status}`);
 
 console.log("\n=== ALL WEBMCP IN-BROWSER & SHARED STATE TESTS PASSED! ===");
