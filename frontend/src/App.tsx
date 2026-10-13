@@ -732,7 +732,7 @@ export default function App() {
     if (selectedCategory !== 'ALL' && d.category !== selectedCategory) return false;
     if (selectedStatus !== 'ALL') {
       if (selectedStatus === 'EXPIRED') {
-        const isExp = d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now();
+        const isExp = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
         if (!isExp) return false;
       } else if (d.status !== selectedStatus) {
         return false;
@@ -1244,18 +1244,18 @@ export default function App() {
                                 Validator Voting in Progress
                               </span>
                               <span className="text-[11px] font-bold text-indigo-200">
-                                {(dare.adjudicationSession?.votes?.length ?? 3)}/5 Responded
+                                {(dare.adjudicationSession?.votes?.length ?? 0)}/5 Responded
                               </span>
                             </div>
                             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
                               <div
                                 className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-500"
-                                style={{ width: `${(((dare.adjudicationSession?.votes?.length ?? 3)) / 5) * 100}%` }}
+                                style={{ width: `${(((dare.adjudicationSession?.votes?.length ?? 0)) / 5) * 100}%` }}
                               />
                             </div>
                             <div className="flex items-center justify-between pt-1">
                               <span className="text-[10px] text-slate-400">
-                                {dare.adjudicationSession?.etaSeconds ? `${dare.adjudicationSession.etaSeconds}s ETA` : 'Auto-consensus in ~6s'}
+                                {dare.adjudicationSession?.etaSeconds ? `${dare.adjudicationSession.etaSeconds}s ETA` : 'Consensus pending'}
                               </span>
                               <button
                                 onClick={(e) => {
@@ -2380,7 +2380,7 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                       <span className="font-bold text-indigo-300 text-sm">Validator Consensus in Progress</span>
                     </div>
                     <span className="text-[11px] font-mono text-indigo-200 bg-indigo-900/60 px-2 py-0.5 rounded border border-indigo-500/30">
-                      {(selectedDare.adjudicationSession?.votes?.length ?? 3)} of {(selectedDare.adjudicationSession?.requiredVotes ?? 5)} Responded
+                      {(selectedDare.adjudicationSession?.votes?.length ?? 0)} of {(selectedDare.adjudicationSession?.requiredVotes ?? 5)} Responded
                     </span>
                   </div>
 
@@ -2391,7 +2391,7 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                   <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-500"
-                      style={{ width: `${(((selectedDare.adjudicationSession?.votes?.length ?? 3)) / (selectedDare.adjudicationSession?.requiredVotes ?? 5)) * 100}%` }}
+                      style={{ width: `${(((selectedDare.adjudicationSession?.votes?.length ?? 0)) / (selectedDare.adjudicationSession?.requiredVotes ?? 5)) * 100}%` }}
                     />
                   </div>
 
@@ -2403,7 +2403,9 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                           <div key={i} className="p-2.5 rounded bg-slate-950/80 border border-slate-800 space-y-1">
                             <div className="flex items-center justify-between">
                               <span className="text-slate-300 font-semibold">{i + 1}. {v.model}</span>
-                              <span className="text-emerald-400 font-bold">APPROVED ({v.score}/100)</span>
+                              <span className={v.verdict === 'INVESTIGATOR_WINS' ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                                {v.verdict === 'INVESTIGATOR_WINS' ? 'APPROVED' : 'REJECTED'} ({v.score}/100)
+                              </span>
                             </div>
                             <p className="text-[10px] text-slate-400 font-sans leading-normal">
                               "{v.reasoning}"
@@ -2411,18 +2413,29 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                           </div>
                         ))
                       ) : null}
-                      {(!selectedDare.adjudicationSession?.votes || selectedDare.adjudicationSession.votes.length < 5) && (
-                        <div className="p-2 rounded bg-slate-950/40 border border-slate-800/80 flex items-center justify-between text-slate-500">
-                          <span>{((selectedDare.adjudicationSession?.votes?.length || 0) + 1)}. Gemini-2.5-Flash (Verifier)</span>
-                          <span className="text-amber-400 animate-pulse text-[10px]">Evaluating criteria...</span>
-                        </div>
-                      )}
+                      {(!selectedDare.adjudicationSession?.votes || selectedDare.adjudicationSession.votes.length < 5) && (() => {
+                        const nextIdx = selectedDare.adjudicationSession?.votes?.length || 0;
+                        const validatorNames = [
+                          "Llama-3.3-70B-Instruct (Consensus Leader)",
+                          "Mixtral-8x22B-Instruct",
+                          "GPT-4o (Equivalence Validator)",
+                          "Claude-3.5-Sonnet (Adjudicator)",
+                          "Gemini-2.5-Flash (Verifier)"
+                        ];
+                        const nextName = validatorNames[nextIdx] || "Validator Node";
+                        return (
+                          <div className="p-2 rounded bg-slate-950/40 border border-slate-800/80 flex items-center justify-between text-slate-500">
+                            <span>{nextIdx + 1}. {nextName}</span>
+                            <span className="text-amber-400 animate-pulse text-[10px]">Evaluating criteria...</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 
                   <div className="pt-2 flex items-center justify-between gap-3">
                     <span className="text-[11px] text-slate-400">
-                      ETA: {selectedDare.adjudicationSession?.etaSeconds ? `${selectedDare.adjudicationSession.etaSeconds}s ETA` : 'Auto-consensus in ~6s'}
+                      ETA: {selectedDare.adjudicationSession?.etaSeconds ? `${selectedDare.adjudicationSession.etaSeconds}s ETA` : 'Consensus reached'}
                     </span>
                     <button
                       onClick={() => store.fastTrackAdjudication(selectedDare.id)}

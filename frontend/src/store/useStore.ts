@@ -343,80 +343,214 @@ function truncateText(text?: string, maxLen = 60): string {
   return cleaned.length <= maxLen ? cleaned : cleaned.slice(0, maxLen) + '...';
 }
 
+export function evaluateEvidenceQuality(dare: Dare, evidence?: EvidenceData): {
+  isGood: boolean;
+  sourceDomain: string;
+  sourceIssue?: string;
+  quotesIssue?: string;
+  reasoningIssue?: string;
+} {
+  const url = (evidence?.primaryUrl || '').trim();
+  const quotes = (evidence?.quotes || '').trim();
+  const reasoning = (evidence?.reasoning || '').trim();
+  const sourceDomain = extractDomain(url);
+
+  // 1. Check Source URL
+  let sourceIssue: string | undefined;
+  if (!url || !url.startsWith('http')) {
+    sourceIssue = "Missing or invalid HTTP primary source URL";
+  } else {
+    const domainLower = sourceDomain.toLowerCase();
+    const selfReferential = [
+      'localhost',
+      '127.0.0.1',
+      '0.0.0.0',
+      'vercel.app',
+      'dareyou',
+      'example.com',
+      'test.com'
+    ];
+    // Reject self-referential or sandbox URLs unless dare specifically asks about the app
+    const isAppSpecificDare = dare.title.toLowerCase().includes(domainLower) || dare.claim.toLowerCase().includes(domainLower);
+    const isSelfRef = (selfReferential.some(d => domainLower.includes(d)) ||
+      (typeof window !== 'undefined' && window.location?.hostname && domainLower.includes(window.location.hostname)))
+      && !isAppSpecificDare;
+
+    if (isSelfRef) {
+      sourceIssue = `Source '${sourceDomain}' is an unverified self-referential or sandbox domain, not an independent primary record`;
+    }
+  }
+
+  // 2. Check Quotes
+  let quotesIssue: string | undefined;
+  if (!quotes || quotes.length < 20) {
+    quotesIssue = "Submitted quotes are empty or below minimum evidentiary threshold (20 chars)";
+  } else {
+    const quotesLower = quotes.toLowerCase();
+    const dummyWords = ['test', 'testing', 'asdf', 'foo', 'bar', 'i won', 'fake', 'dummy'];
+    if (dummyWords.some(w => quotesLower === w || quotesLower.startsWith(w + ' '))) {
+      quotesIssue = "Quotes contain placeholder text rather than primary documentation";
+    }
+  }
+
+  // 3. Check Reasoning
+  let reasoningIssue: string | undefined;
+  if (!reasoning || reasoning.length < 15) {
+    reasoningIssue = "Reasoning defense is empty or superficial";
+  }
+
+  const isGood = !sourceIssue && !quotesIssue && !reasoningIssue;
+  return { isGood, sourceDomain, sourceIssue, quotesIssue, reasoningIssue };
+}
+
 export function generateDynamicValidatorVotes(dare: Dare, evidence?: EvidenceData): {
   votes: ValidatorVote[];
   consensusRationale: string;
   averageScore: number;
+  finalVerdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS";
 } {
-  const domain = extractDomain(evidence?.primaryUrl);
+  const evalQuality = evaluateEvidenceQuality(dare, evidence);
+  const domain = evalQuality.sourceDomain;
   const claimSnippet = truncateText(dare.claim, 55);
   const criteriaSnippet = truncateText(dare.criteria, 55);
   const quotesSnippet = truncateText(evidence?.quotes, 65);
   const conclusion = evidence?.conclusion || "CLAIM_VERIFIED_TRUE";
   const reasoningSnippet = truncateText(evidence?.reasoning, 70);
 
-  const votes: ValidatorVote[] = [
-    {
-      validatorIndex: 0,
-      validatorAddress: "0xValLlama3_3_70B...11",
-      model: "Llama-3.3-70B-Instruct (Consensus Leader)",
-      verdict: "INVESTIGATOR_WINS",
-      score: 96,
-      quotesVerified: true,
-      sourcesIndependent: true,
-      reasoning: `Verified primary citations from ${domain}. Verbatim quotes directly address "${claimSnippet}". Determination '${conclusion}' is fully substantiated by source text.`,
-      timestamp: Date.now() - 4000
-    },
-    {
-      validatorIndex: 1,
-      validatorAddress: "0xValMixtral8x22B...22",
-      model: "Mixtral-8x22B-Instruct",
-      verdict: "INVESTIGATOR_WINS",
-      score: 94,
-      quotesVerified: true,
-      sourcesIndependent: true,
-      reasoning: `Source provenance check passed for ${domain}. Satisfies required source specifications '${truncateText(dare.requiredSources, 45)}' without reliance on circular hearsay.`,
-      timestamp: Date.now() - 3000
-    },
-    {
-      validatorIndex: 2,
-      validatorAddress: "0xValGPT4o...33",
-      model: "GPT-4o (Equivalence Validator)",
-      verdict: "INVESTIGATOR_WINS",
-      score: 95,
-      quotesVerified: true,
-      sourcesIndependent: true,
-      reasoning: `Adjudication criteria matched: '${criteriaSnippet}'. Reasoning defense (${reasoningSnippet}) strictly reconciles evidence against frozen protocol terms.`,
-      timestamp: Date.now() - 2000
-    },
-    {
-      validatorIndex: 3,
-      validatorAddress: "0xValClaude3_5...44",
-      model: "Claude-3.5-Sonnet (Adjudicator)",
-      verdict: "INVESTIGATOR_WINS",
-      score: 97,
-      quotesVerified: true,
-      sourcesIndependent: true,
-      reasoning: `Citation fidelity verified: "${quotesSnippet}". Investigator extracted authentic primary text satisfying factual legitimacy and deliverable standards.`,
-      timestamp: Date.now() - 1000
-    },
-    {
-      validatorIndex: 4,
-      validatorAddress: "0xValGemini2_5...55",
-      model: "Gemini-2.5-Flash (Verifier)",
-      verdict: "INVESTIGATOR_WINS",
-      score: 95,
-      quotesVerified: true,
-      sourcesIndependent: true,
-      reasoning: `Quorum consensus verified for Dare #${dare.id}. No contradictory facts discovered across independent verification sweep.`,
-      timestamp: Date.now()
-    }
-  ];
+  if (evalQuality.isGood) {
+    // High-quality evidence passes multi-validator scrutiny
+    const votes: ValidatorVote[] = [
+      {
+        validatorIndex: 0,
+        validatorAddress: "0xValLlama3_3_70B...11",
+        model: "Llama-3.3-70B-Instruct (Consensus Leader)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 96,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: `Verified primary citations from ${domain}. Verbatim quotes directly address "${claimSnippet}". Determination '${conclusion}' is fully substantiated by source text.`,
+        timestamp: Date.now() - 4000
+      },
+      {
+        validatorIndex: 1,
+        validatorAddress: "0xValMixtral8x22B...22",
+        model: "Mixtral-8x22B-Instruct",
+        verdict: "INVESTIGATOR_WINS",
+        score: 94,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: `Source provenance check passed for ${domain}. Satisfies required source specifications '${truncateText(dare.requiredSources, 45)}' without reliance on circular hearsay.`,
+        timestamp: Date.now() - 3000
+      },
+      {
+        validatorIndex: 2,
+        validatorAddress: "0xValGPT4o...33",
+        model: "GPT-4o (Equivalence Validator)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 95,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: `Adjudication criteria matched: '${criteriaSnippet}'. Reasoning defense (${reasoningSnippet}) strictly reconciles evidence against frozen protocol terms.`,
+        timestamp: Date.now() - 2000
+      },
+      {
+        validatorIndex: 3,
+        validatorAddress: "0xValClaude3_5...44",
+        model: "Claude-3.5-Sonnet (Adjudicator)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 97,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: `Citation fidelity verified: "${quotesSnippet}". Investigator extracted authentic primary text satisfying factual legitimacy and deliverable standards.`,
+        timestamp: Date.now() - 1000
+      },
+      {
+        validatorIndex: 4,
+        validatorAddress: "0xValGemini2_5...55",
+        model: "Gemini-2.5-Flash (Verifier)",
+        verdict: "INVESTIGATOR_WINS",
+        score: 95,
+        quotesVerified: true,
+        sourcesIndependent: true,
+        reasoning: `Quorum consensus verified for Dare #${dare.id}. No contradictory facts discovered across independent verification sweep.`,
+        timestamp: Date.now()
+      }
+    ];
 
-  const averageScore = Math.round(votes.reduce((acc, v) => acc + v.score, 0) / votes.length);
-  const consensusRationale = `Heterogeneous validator rotation unanimously confirmed: Evidence dossier from ${domain} contains authentic quotes ("${quotesSnippet}"), satisfies frozen criteria ("${criteriaSnippet}"), and resolves "${claimSnippet}" without speculative bias.`;
+    const averageScore = Math.round(votes.reduce((acc, v) => acc + v.score, 0) / votes.length);
+    const consensusRationale = `Heterogeneous validator rotation unanimously confirmed: Evidence dossier from ${domain} contains authentic quotes ("${quotesSnippet}"), satisfies frozen criteria ("${criteriaSnippet}"), and resolves "${claimSnippet}" without speculative bias.`;
 
-  return { votes, consensusRationale, averageScore };
+    return { votes, consensusRationale, averageScore, finalVerdict: "INVESTIGATOR_WINS" };
+  } else {
+    // Substandard / Self-Referential / Weak evidence is rejected by multi-validator consensus
+    const flawSummary = evalQuality.sourceIssue || evalQuality.quotesIssue || evalQuality.reasoningIssue || "Dossier fails evidentiary threshold";
+    const votes: ValidatorVote[] = [
+      {
+        validatorIndex: 0,
+        validatorAddress: "0xValLlama3_3_70B...11",
+        model: "Llama-3.3-70B-Instruct (Consensus Leader)",
+        verdict: "CHALLENGER_WINS",
+        score: 28,
+        quotesVerified: !evalQuality.quotesIssue,
+        sourcesIndependent: !evalQuality.sourceIssue,
+        reasoning: evalQuality.sourceIssue
+          ? `REJECTED: ${evalQuality.sourceIssue}. Primary citations fail independence standard.`
+          : `REJECTED: Citations fail to substantiate claim "${claimSnippet}".`,
+        timestamp: Date.now() - 4000
+      },
+      {
+        validatorIndex: 1,
+        validatorAddress: "0xValMixtral8x22B...22",
+        model: "Mixtral-8x22B-Instruct",
+        verdict: "CHALLENGER_WINS",
+        score: 24,
+        quotesVerified: !evalQuality.quotesIssue,
+        sourcesIndependent: false,
+        reasoning: `Source provenance check FAILED for ${domain}. Does not satisfy required sources '${truncateText(dare.requiredSources, 45)}'. Relying on unverified sources violates protocol standards.`,
+        timestamp: Date.now() - 3000
+      },
+      {
+        validatorIndex: 2,
+        validatorAddress: "0xValGPT4o...33",
+        model: "GPT-4o (Equivalence Validator)",
+        verdict: "CHALLENGER_WINS",
+        score: 30,
+        quotesVerified: !evalQuality.quotesIssue,
+        sourcesIndependent: !evalQuality.sourceIssue,
+        reasoning: `Criteria '${criteriaSnippet}' unsatisfied. Dossier reasoning (${reasoningSnippet || 'insufficient'}) fails to reconcile evidence against frozen protocol terms.`,
+        timestamp: Date.now() - 2000
+      },
+      {
+        validatorIndex: 3,
+        validatorAddress: "0xValClaude3_5...44",
+        model: "Claude-3.5-Sonnet (Adjudicator)",
+        verdict: "CHALLENGER_WINS",
+        score: 22,
+        quotesVerified: false,
+        sourcesIndependent: false,
+        reasoning: evalQuality.quotesIssue
+          ? `REJECTED: ${evalQuality.quotesIssue}. Verbatim citation fidelity score 0.`
+          : `REJECTED: Citation text does not substantiate claim "${claimSnippet}".`,
+        timestamp: Date.now() - 1000
+      },
+      {
+        validatorIndex: 4,
+        validatorAddress: "0xValGemini2_5...55",
+        model: "Gemini-2.5-Flash (Verifier)",
+        verdict: "CHALLENGER_WINS",
+        score: 25,
+        quotesVerified: false,
+        sourcesIndependent: false,
+        reasoning: `Unanimous rejection quorum for Dare #${dare.id}. Factual legitimacy threshold not met; challenger wins by evidentiary default.`,
+        timestamp: Date.now()
+      }
+    ];
+
+    const averageScore = Math.round(votes.reduce((acc, v) => acc + v.score, 0) / votes.length);
+    const consensusRationale = `Heterogeneous validator rotation rejected evidence dossier: ${flawSummary}. Criteria "${criteriaSnippet}" unsatisfied. Escrow pool awarded to Challenger.`;
+
+    return { votes, consensusRationale, averageScore, finalVerdict: "CHALLENGER_WINS" };
+  }
 }
 
 function pushSnapshot(state: AppState, newDares: Dare[]): Partial<AppState> {
@@ -428,6 +562,9 @@ function pushSnapshot(state: AppState, newDares: Dare[]): Partial<AppState> {
     historyIndex: newHistory.length - 1
   };
 }
+
+// Active timers for sequential validator voting progression
+const activeAdjudicationTimers: Record<number, any[]> = {};
 
 export const useStore = create<AppState>((set, get) => ({
   dares: INITIAL_DARES,
@@ -539,18 +676,27 @@ export const useStore = create<AppState>((set, get) => ({
     const target = state.dares.find(d => d.id === id);
     if (!target || target.status !== "ACCEPTED") return false;
 
-    // Build initial live adjudication session with 3 initial validator votes dynamically tailored to this specific dare
+    // Clear any existing timers for this dare
+    if (activeAdjudicationTimers[id]) {
+      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
+      delete activeAdjudicationTimers[id];
+    }
+
+    // Evaluate evidence dynamically using realistic heuristics
     const dynamicAdj = generateDynamicValidatorVotes(target, evidence);
     const session: AdjudicationSession = {
       dareId: id,
       status: "VOTING_IN_PROGRESS",
-      progressPercent: 65,
-      currentStage: "Rotation 0: Heterogeneous LLM Validators Evaluating Evidence Rubric",
+      progressPercent: 10,
+      currentStage: "Step 1/5: Validator 1 (Llama-3.3-70B Leader) inspecting primary citations...",
       startedAt: Date.now(),
-      etaSeconds: 6,
-      votes: dynamicAdj.votes.slice(0, 3),
+      etaSeconds: 15,
+      votes: [], // Starts empty so user witnesses live validator arrivals
       requiredVotes: 5,
-      consensusThreshold: "3 of 5 (Majority Quorum)"
+      consensusThreshold: "3 of 5 (Majority Quorum)",
+      finalVerdict: dynamicAdj.finalVerdict,
+      averageScore: dynamicAdj.averageScore,
+      consensusRationale: dynamicAdj.consensusRationale
     };
 
     const newDares = state.dares.map(d => {
@@ -568,18 +714,76 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `Evidence submitted for Dare #${id}. Dynamic validator voting started automatically.`
+      lastActionMessage: `Evidence submitted for Dare #${id}. Live multi-LLM validator voting initiated.`
     });
 
-    // Auto-resolve adjudication after a short window (6 seconds) so user sees voting then resolution
-    setTimeout(() => {
-      const currentState = get();
-      const currentDare = currentState.dares.find(d => d.id === id);
-      if (currentDare && currentDare.status === "SUBMITTED") {
-        get().fastTrackAdjudication(id);
-      }
-    }, 6000);
+    // Staged progression of validator votes (simulating live Equivalence Principle deliberation)
+    const timers: any[] = [];
 
+    // Stage 1: Vote 1 arrives at 2.5s
+    timers.push(setTimeout(() => {
+      const cur = get().dares.find(d => d.id === id);
+      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
+      const updated: AdjudicationSession = {
+        ...cur.adjudicationSession,
+        progressPercent: 25,
+        etaSeconds: 12,
+        currentStage: "Step 2/5: Validator 2 (Mixtral-8x22B) checking source provenance & independence...",
+        votes: [dynamicAdj.votes[0]]
+      };
+      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
+    }, 2500));
+
+    // Stage 2: Vote 2 arrives at 5.5s
+    timers.push(setTimeout(() => {
+      const cur = get().dares.find(d => d.id === id);
+      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
+      const updated: AdjudicationSession = {
+        ...cur.adjudicationSession,
+        progressPercent: 45,
+        etaSeconds: 9,
+        currentStage: "Step 3/5: Validator 3 (GPT-4o) evaluating criteria compliance against frozen terms...",
+        votes: dynamicAdj.votes.slice(0, 2)
+      };
+      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
+    }, 5500));
+
+    // Stage 3: Vote 3 arrives at 8.5s (Majority Quorum reached!)
+    timers.push(setTimeout(() => {
+      const cur = get().dares.find(d => d.id === id);
+      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
+      const updated: AdjudicationSession = {
+        ...cur.adjudicationSession,
+        progressPercent: 65,
+        etaSeconds: 6,
+        currentStage: "Step 4/5: Majority Quorum Reached (3/5). Validator 4 (Claude-3.5) evaluating verbatim fidelity...",
+        votes: dynamicAdj.votes.slice(0, 3)
+      };
+      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
+    }, 8500));
+
+    // Stage 4: Vote 4 arrives at 11.5s
+    timers.push(setTimeout(() => {
+      const cur = get().dares.find(d => d.id === id);
+      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
+      const updated: AdjudicationSession = {
+        ...cur.adjudicationSession,
+        progressPercent: 85,
+        etaSeconds: 3,
+        currentStage: "Step 5/5: Validator 5 (Gemini-2.5-Flash) aggregating Equivalence Principle consensus...",
+        votes: dynamicAdj.votes.slice(0, 4)
+      };
+      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
+    }, 11500));
+
+    // Stage 5: Finalization at 14.5s
+    timers.push(setTimeout(() => {
+      const cur = get().dares.find(d => d.id === id);
+      if (!cur || cur.status !== "SUBMITTED") return;
+      get().fastTrackAdjudication(id);
+    }, 14500));
+
+    activeAdjudicationTimers[id] = timers;
     return true;
   },
 
@@ -593,6 +797,12 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   fastTrackAdjudication: (id) => {
+    // Clear any pending staged timers
+    if (activeAdjudicationTimers[id]) {
+      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
+      delete activeAdjudicationTimers[id];
+    }
+
     const state = get();
     const target = state.dares.find(d => d.id === id);
     if (!target) return false;
@@ -610,10 +820,13 @@ export const useStore = create<AppState>((set, get) => ({
       votes: completedVotes,
       requiredVotes: 5,
       consensusThreshold: "5 of 5 Unanimous Consensus",
-      finalVerdict: "INVESTIGATOR_WINS",
+      finalVerdict: dynamicAdj.finalVerdict,
       averageScore: dynamicAdj.averageScore,
       consensusRationale: dynamicAdj.consensusRationale
     };
+
+    const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
+    const winnerLabel = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
 
     const newDares = state.dares.map(d => {
       if (d.id === id) {
@@ -621,7 +834,7 @@ export const useStore = create<AppState>((set, get) => ({
           ...d,
           status: "FINALIZED" as DareStatus,
           adjudicationSession: completedSession,
-          verdict: "INVESTIGATOR_WINS" as any,
+          verdict: dynamicAdj.finalVerdict,
           verdictScore: dynamicAdj.averageScore,
           verdictRationale: dynamicAdj.consensusRationale
         };
@@ -632,12 +845,16 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `Consensus Reached for Dare #${id}: INVESTIGATOR_WINS (${dynamicAdj.averageScore}/100). Escrow pool paid out.`
+      lastActionMessage: `Consensus Reached for Dare #${id}: ${dynamicAdj.finalVerdict} (${dynamicAdj.averageScore}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
     });
     return true;
   },
 
   adjudicateDare: (id, verdict, score = 95, rationale = "Evidence independently corroborates claim under Equivalence Principle.") => {
+    if (activeAdjudicationTimers[id]) {
+      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
+      delete activeAdjudicationTimers[id];
+    }
     const state = get();
     const target = state.dares.find(d => d.id === id);
     if (!target) return false;

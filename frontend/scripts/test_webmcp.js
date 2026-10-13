@@ -82,6 +82,44 @@ if (!finalizedDare?.verdictRationale?.includes("web.archive.org")) {
   throw new Error("FAIL: Consensus rationale did not dynamically cite submitted source!");
 }
 
+// 8b. Test Bad / Self-Referential Evidence Submission -> Multi-Validator Rejection & CHALLENGER_WINS
+console.log("\n--- Testing Bad / Self-Referential Evidence Rejection (CHALLENGER_WINS) ---");
+const badDareRes = await window.__WEBMCP_TOOLS__.execute('create_dare', {
+  title: "Dare you to investigate an unrecorded youth tournament goal tally within 20 minutes.",
+  category: "INVESTIGATIVE_FACT_FINDING",
+  claim: "Player scored 14 goals in regional youth tournament prior to academy signing.",
+  required_sources: "Regional tournament score sheets and match delegate filings.",
+  criteria: "Locate formal tournament records verifying 14 goals.",
+  stake_usd: 15,
+  duration_minutes: 20
+});
+await window.__WEBMCP_TOOLS__.execute('accept_dare', {
+  dare_id: badDareRes.dare_id,
+  investigator_address: "0xAgentInvestigatorBeta...F442"
+});
+// Submit weak/self-referential source with placeholder quotes
+await window.__WEBMCP_TOOLS__.execute('submit_evidence', {
+  dare_id: badDareRes.dare_id,
+  conclusion: "CLAIM_VERIFIED_TRUE",
+  primary_url: "https://dareyou.vercel.app/preview",
+  quotes: "test dummy quote",
+  reasoning: "short"
+});
+await window.__WEBMCP_TOOLS__.execute('start_adjudication', {
+  dare_id: badDareRes.dare_id,
+  fast_track: true
+});
+const rejectedDare = useStore.getState().dares.find(d => d.id === badDareRes.dare_id);
+console.log(`✓ Rejected dare status: ${rejectedDare?.status}, verdict: ${rejectedDare?.verdict}, score: ${rejectedDare?.verdictScore}`);
+console.log(`✓ Rejection rationale: "${rejectedDare?.verdictRationale}"`);
+console.log(`✓ Validator 1 (Llama 3.3) rejection reason: "${rejectedDare?.adjudicationSession?.votes[0]?.reasoning}"`);
+if (rejectedDare?.verdict !== "CHALLENGER_WINS") {
+  throw new Error(`FAIL: Bad evidence should have produced CHALLENGER_WINS, got ${rejectedDare?.verdict}`);
+}
+if ((rejectedDare?.verdictScore || 100) > 40) {
+  throw new Error(`FAIL: Bad evidence score should be <= 40, got ${rejectedDare?.verdictScore}`);
+}
+
 // 9. Test claim_timeout_forfeit explicitly on Dare #11 (Controlled Expired Settlement Test)
 console.log("\n--- Testing Controlled Expired Settlement Flow ---");
 const dare11Before = useStore.getState().dares.find(d => d.id === 11);
