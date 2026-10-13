@@ -74,13 +74,13 @@ async function runSimulation() {
     params: {
       name: "create_dare",
       arguments: {
-        title: "Did Rodri receive a red card against Nottingham Forest in Sept 2023?",
-        category: "DISCIPLINARY",
-        claim_statement: "Rodri was sent off with a straight red card for violent conduct against Gibbs-White.",
-        required_sources_desc: "Official Premier League match report & BBC Sport live commentary.",
-        evaluation_criteria: "Prove whether the red card was straight red or second yellow, and the exact minute.",
+        title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes.",
+        category: "CONFLICTING_SOURCE_INVESTIGATION",
+        claim_statement: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
+        required_sources_desc: "Official club annual audited financial reports and official federation registration filings.",
+        evaluation_criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
         stake_amount_cents: 3000,
-        duration_seconds: 3600,
+        duration_seconds: 1800,
         challenger_address: "0xAgentAlpha...99"
       }
     }
@@ -146,10 +146,10 @@ async function runSimulation() {
         dare_id: activeDareId,
         investigator_address: "0xAgentBeta...77",
         conclusion: "CLAIM_VERIFIED_TRUE",
-        primary_source_url: "https://premierleague.com/match/93375",
-        secondary_source_url: "https://bbc.com/sport/football/66831448",
-        verbatim_quotes: "Official Premier League match record: '46' Red Card: Rodri (Manchester City) shown straight red card for violent conduct.'",
-        reasoning_defense: "Official match referee report confirms direct dismissal in 46th minute, fully satisfying challenger criteria."
+        primary_source_url: "https://web.archive.org/web/20230901001500id_/https://companieshouse.gov.uk/accounts/filing-transfer-disclosures",
+        secondary_source_url: "https://web.archive.org/web/20230902002000id_/https://fifa.com/legal/registration-transfer-clearinghouse",
+        verbatim_quotes: "Audited financial report note 14: Initial consideration fixed at £62.5m paid over 3 tranches, with contingent performance additions capped at £10m.",
+        reasoning_defense: "Separated statutory base £62.5m from press-reported £75m lump sum, identifying £12.5m as unconfirmed media speculation."
       }
     }
   });
