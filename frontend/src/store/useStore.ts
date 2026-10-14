@@ -935,7 +935,7 @@ export const useStore = create<AppState>((set, get) => ({
       history: [INITIAL_DARES],
       historyIndex: 0,
       selectedDareId: 1,
-      lastActionMessage: "Sandbox state reset to baseline protocol benchmark suite."
+      lastActionMessage: "State reset to production on-chain baseline."
     });
   },
 

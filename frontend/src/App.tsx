@@ -1047,15 +1047,9 @@ export default function App() {
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-emerald-400">
                               {dare.category.replace(/_/g, ' ')}
                             </span>
-                            {dare.isBenchmark ? (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-                                BENCHMARK
-                              </span>
-                            ) : (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                                AGENT DARE
-                              </span>
-                            )}
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                              ON-CHAIN DUEL
+                            </span>
                           </div>
 
                           {/* Status Badge */}
@@ -1320,7 +1314,7 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-white">Official Standard Test Cases (10 Approved Inquiries)</h3>
-                  <p className="text-xs text-slate-400">These 10 challenges serve as canonical benchmarks for the qualification standard.</p>
+                  <p className="text-xs text-slate-400">Approved reference inquiry structures demonstrating compliance with the 8 Acceptance Criteria.</p>
                 </div>
                 <button
                   onClick={() => setActiveTab('playground')}
@@ -1374,7 +1368,7 @@ export default function App() {
         {activeTab === 'playground' && (
           <div className="space-y-6 max-w-4xl mx-auto">
             <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Interactive Test Environment</span>
+              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Pre-Broadcast Evaluation Suite</span>
               <h2 className="text-2xl font-black text-white mt-1">Dare Qualification Protocol Playground</h2>
               <p className="text-slate-400 text-xs mt-1 leading-relaxed">
                 Test any dare instruction against the 8 mandatory acceptance criteria before submitting on-chain. Evaluates format, research depth, non-obviousness, and verifiability.
@@ -1383,7 +1377,7 @@ export default function App() {
 
             {/* Quick Presets */}
             <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-              <span className="text-xs font-bold text-slate-300 block mb-2">Load 1-Click Canonical Benchmark:</span>
+              <span className="text-xs font-bold text-slate-300 block mb-2">Pre-Load Standard Inquiry Template:</span>
               <div className="flex flex-wrap gap-2">
                 {STANDARD_TEST_CASES.slice(0, 5).map((tc) => (
                   <button
@@ -1827,22 +1821,30 @@ export default function App() {
                         setMcpToolArgsJson('{\n  "title": "Dare you to trace a widely repeated football story to its earliest verifiable source within 25 minutes.",\n  "category": "INVESTIGATIVE_FACT_FINDING"\n}');
                       } else if (selected === 'validate_state') {
                         setMcpToolArgsJson('{}');
-                      } else if (selected === 'undo' || selected === 'redo' || selected === 'save_project') {
-                        setMcpToolArgsJson('{}');
                       } else if (selected === 'create_dare') {
                         setMcpToolArgsJson('{\n  "title": "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons within 30 minutes.",\n  "category": "CONFLICTING_SOURCE_INVESTIGATION",\n  "claim": "Guaranteed fee differs by £10m across primary filings.",\n  "required_sources": "Official club annual financial statements.",\n  "criteria": "Delineate guaranteed base from add-ons.",\n  "stake_usd": 25,\n  "duration_minutes": 30\n}');
+                      } else if (selected === 'update_dare') {
+                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "stake_usd": 30\n}');
                       } else if (selected === 'accept_dare') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "investigator_address": "0xAgentInvestigatorBeta...F442"\n}');
+                        setMcpToolArgsJson(JSON.stringify({
+                          dare_id: 1,
+                          investigator_address: walletAddress || "0x..."
+                        }, null, 2));
                       } else if (selected === 'submit_evidence') {
-                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "conclusion": "CLAIM_VERIFIED_TRUE",\n  "primary_url": "https://web.archive.org/web/19980630001500id_/http://thetimes.co.uk",\n  "quotes": "No physical altercation noted by delegate.",\n  "reasoning": "Contemporary report refutes 2012 memoir."\n}');
+                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "conclusion": "CLAIM_VERIFIED_TRUE",\n  "primary_url": "https://web.archive.org/web/19980630001500id_/http://thetimes.co.uk",\n  "quotes": "No physical altercation noted by delegate.",\n  "reasoning": "Contemporary report refutes 2012 memoir."\n}');
                       } else if (selected === 'start_adjudication') {
-                        setMcpToolArgsJson('{\n  "dare_id": 4,\n  "fast_track": true\n}');
-                      } else if (selected === 'adjudicate_dare') {
-                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "verdict": "INVESTIGATOR_WINS",\n  "score": 95,\n  "rationale": "Contemporary archives satisfy criteria."\n}');
+                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "fast_track": true\n}');
                       } else if (selected === 'claim_timeout_forfeit') {
-                        setMcpToolArgsJson('{\n  "dare_id": 2,\n  "challenger_address": "0xTacticalOracle...94"\n}');
+                        setMcpToolArgsJson(JSON.stringify({
+                          dare_id: 1,
+                          challenger_address: walletAddress || "0x..."
+                        }, null, 2));
                       } else if (selected === 'process_all_expired') {
                         setMcpToolArgsJson('{}');
+                      } else if (selected === 'get_wallet_identity' || selected === 'export_wallet_key') {
+                        setMcpToolArgsJson('{}');
+                      } else if (selected === 'import_wallet_key') {
+                        setMcpToolArgsJson('{\n  "private_key": "0x..."\n}');
                       } else {
                         setMcpToolArgsJson('{}');
                       }
@@ -2061,15 +2063,9 @@ console.log(identity);`}
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-emerald-400">
                   {selectedDare.category.replace(/_/g, ' ')}
                 </span>
-                {selectedDare.isBenchmark ? (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-                    BENCHMARK SUITE
-                  </span>
-                ) : (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                    AGENT CHALLENGE
-                  </span>
-                )}
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                  ON-CHAIN DUEL
+                </span>
                 {(() => {
                   const isExp = selectedDare.status === 'ACCEPTED' && !!selectedDare.researchDeadlineTs && selectedDare.researchDeadlineTs <= Date.now();
                   if (isExp) {
