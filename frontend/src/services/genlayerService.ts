@@ -5,7 +5,7 @@ import type { ValidatorVote } from '../store/useStore';
 
 export const GENLAYER_ADJUDICATOR_ADDRESS = "0x0936db9AEFB73f87B5E4F5CA36435FB4a9168A94";
 export const GENLAYER_ESCROW_ADDRESS = "0x50fC8Cf8Eae04e26f4B7F995092465f421AD91a9";
-export const GENLAYER_REGISTRY_ADDRESS = "0x614FC00A9Be4Ec50cB569b89616A76cf530dC053";
+export const GENLAYER_REGISTRY_ADDRESS = "0x76E36c8414EF9aa42fAe1990a9D7B3F1377B4d01";
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
 export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
 export const GENLAYER_EXPLORER_URL = "https://genlayer-explorer.vercel.app";
