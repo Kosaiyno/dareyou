@@ -512,6 +512,26 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     }
   },
   {
+    name: 'close_dare',
+    description: 'Closes and finalizes an open or active dare, setting its status to FINALIZED (Closed) with an optional verdict rationale.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dare_id: { type: 'number', description: 'ID of the dare to close.' },
+        rationale: { type: 'string', description: 'Optional rationale for closing the dare.' }
+      },
+      required: ['dare_id'],
+      additionalProperties: false
+    },
+    execute: async (args: { dare_id: number; rationale?: string }) => {
+      const ok = useStore.getState().closeDare(args.dare_id, args.rationale);
+      return {
+        success: ok,
+        message: ok ? `Dare #${args.dare_id} successfully closed and finalized.` : `Failed to close dare #${args.dare_id}.`
+      };
+    }
+  },
+  {
     name: 'process_all_expired',
     description: 'Scans the arena and auto-resolves all expired dares where investigators missed the research deadline.',
     inputSchema: {

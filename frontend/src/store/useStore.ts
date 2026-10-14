@@ -135,6 +135,7 @@ export interface AppState {
   fastTrackAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
+  closeDare: (id: number, rationale?: string) => boolean;
   processAllExpiredDares: () => number;
   loadOnChainDares: () => Promise<void>;
 
@@ -159,7 +160,87 @@ export interface AppState {
   };
 }
 
-export const INITIAL_DARES: Dare[] = [];
+export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares';
+
+export const SEED_INITIAL_DARES: Dare[] = [
+  {
+    id: 1,
+    isBenchmark: false,
+    title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources within 30 minutes.",
+    category: "CONFLICTING_SOURCE_INVESTIGATION",
+    claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
+    requiredSources: "Official club annual audited financial reports and official federation registration filings.",
+    criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 1800,
+    acceptanceDeadlineTs: 86400,
+    researchDeadlineTs: 0,
+    status: "FINALIZED",
+    challenger: "0x6da2D3d6c5F95a35bfEDaa01f3602e298682405e",
+    investigator: "0xInvestigatorAgentAlpha...99",
+    verdict: "CHALLENGER_WINS",
+    verdictScore: 26,
+    verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger.",
+    txHash: "0x604038654d8ea1c9d9e2d313b2ec8032b5d6556cbf651dbbbe8c3df4b797a4bb"
+  },
+  {
+    id: 2,
+    isBenchmark: false,
+    title: "Dare you to investigate the official Premier League charges against Manchester City by identifying the specific financial season where alleged undisclosed managerial remuneration occurred, cross-referencing published leak documents against club statutory Companies House filings, and substantiating whether primary documents confirm direct third-party offshore payment routing within 5 minutes.",
+    category: "CONFLICTING_SOURCE_INVESTIGATION",
+    claim: "Leaked contract emails alleged that more than £1.5m in annual compensation was routed through an offshore entity rather than declared in statutory Companies House accounts.",
+    requiredSources: "Premier League official charge sheet releases, Club statutory annual accounts filed at Companies House, and contemporary investigative disclosures.",
+    criteria: "Delineate declared base salary from alleged third-party offshore consultancy payments and document exact fiscal year discrepancies.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 300,
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: 0,
+    status: "OPEN",
+    challenger: "0x6da2D3d6c5F95a35bfEDaa01f3602e298682405e"
+  }
+];
+
+export function saveDaresToStorage(dares: Dare[]) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      window.localStorage.setItem(DAREYOU_PERSISTED_DARES_KEY, JSON.stringify(dares));
+    } catch (e) {
+      console.warn('Could not persist dares to localStorage', e);
+    }
+  }
+}
+
+export function loadDaresFromStorage(): Dare[] {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = window.localStorage.getItem(DAREYOU_PERSISTED_DARES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((d: Dare) => {
+            if (d.id === 1 && d.status !== 'FINALIZED') {
+              return {
+                ...d,
+                status: 'FINALIZED',
+                verdict: 'CHALLENGER_WINS',
+                verdictScore: 26,
+                verdictRationale: "Heterogeneous validator rotation rejected unverified forum evidence under Equivalence Principle. Criteria unsatisfied. Escrow pool awarded to Challenger."
+              };
+            }
+            return d;
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load dares from localStorage', e);
+    }
+  }
+  return SEED_INITIAL_DARES;
+}
+
+export const INITIAL_DARES: Dare[] = loadDaresFromStorage();
 
 function extractDomain(url?: string): string {
   if (!url) return "primary archive";
@@ -388,6 +469,7 @@ export function generateDynamicValidatorVotes(dare: Dare, evidence?: EvidenceDat
 }
 
 function pushSnapshot(state: AppState, newDares: Dare[]): Partial<AppState> {
+  saveDaresToStorage(newDares);
   const newHistory = state.history.slice(0, state.historyIndex + 1);
   newHistory.push(newDares);
   return {
@@ -856,22 +938,83 @@ export const useStore = create<AppState>((set, get) => ({
       const onChain = await fetchOnChainDares();
       if (onChain && onChain.length > 0) {
         const state = get();
-        const existingIds = new Set(state.dares.map(d => d.id));
-        const newDares = [...state.dares];
-        for (const d of onChain) {
-          if (!existingIds.has(d.id)) {
-            newDares.push(d);
+        const existingMap = new Map(state.dares.map(d => [d.id, d]));
+        const mergedDares: Dare[] = [];
+
+        for (const oc of onChain) {
+          const existing = existingMap.get(oc.id);
+          if (existing) {
+            // If existing local dare is already finalized/closed or in progress, preserve its state!
+            if (existing.status !== 'OPEN') {
+              mergedDares.push(existing);
+            } else if (oc.id === 1) {
+              // Ensure Dare #1 stays finalized/closed as requested by user
+              mergedDares.push({
+                ...oc,
+                status: 'FINALIZED',
+                verdict: 'CHALLENGER_WINS',
+                verdictScore: 26,
+                verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger."
+              });
+            } else {
+              mergedDares.push({ ...oc, ...existing });
+            }
+            existingMap.delete(oc.id);
+          } else {
+            if (oc.id === 1) {
+              mergedDares.push({
+                ...oc,
+                status: 'FINALIZED',
+                verdict: 'CHALLENGER_WINS',
+                verdictScore: 26,
+                verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger."
+              });
+            } else {
+              mergedDares.push(oc);
+            }
           }
         }
+
+        for (const remaining of existingMap.values()) {
+          mergedDares.push(remaining);
+        }
+
+        saveDaresToStorage(mergedDares);
         set({
-          dares: newDares,
-          selectedDareId: state.selectedDareId || newDares[0]?.id || null,
+          dares: mergedDares,
+          selectedDareId: state.selectedDareId || mergedDares.find(d => d.status === 'OPEN')?.id || mergedDares[0]?.id || null,
           lastActionMessage: `Synchronized ${onChain.length} verified challenge(s) from DareRegistry contract.`
         });
       }
     } catch (err) {
       console.warn('[loadOnChainDares] Could not fetch on-chain dares:', err);
     }
+  },
+
+  closeDare: (id: number, rationale = "Dare closed and finalized by challenger.") => {
+    const state = get();
+    const target = state.dares.find(d => d.id === id);
+    if (!target) return false;
+
+    const newDares = state.dares.map(d => {
+      if (d.id === id) {
+        return {
+          ...d,
+          status: "FINALIZED" as DareStatus,
+          verdict: (target.verdict || "CHALLENGER_WINS") as any,
+          verdictScore: target.verdictScore || 100,
+          verdictRationale: rationale
+        };
+      }
+      return d;
+    });
+
+    set({
+      ...pushSnapshot(state, newDares),
+      selectedDareId: id,
+      lastActionMessage: `Closed Dare #${id}: Status set to FINALIZED.`
+    });
+    return true;
   },
 
   processAllExpiredDares: () => {

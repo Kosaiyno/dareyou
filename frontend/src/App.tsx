@@ -1075,7 +1075,7 @@ export default function App() {
                                 ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
                                 : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
                             }`}>
-                              {dare.verdict === 'INVESTIGATOR_WINS' ? '🏆 Investigator Won' : '🛡️ Challenger Won'}
+                              Phase 4: Closed ({dare.verdict === 'INVESTIGATOR_WINS' ? '🏆 Investigator Won' : '🛡️ Challenger Won'})
                             </span>
                           )}
                         </div>
@@ -2164,6 +2164,15 @@ console.log(identity);`}
                     className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
                   >
                     Match Stake & Accept Challenge (${(selectedDare.stakeCents / 100).toFixed(2)} GEN)
+                  </button>
+                  <button
+                    onClick={() => {
+                      store.closeDare(selectedDare.id, "Dare closed and finalized by challenger.");
+                      setSelectedDare(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700 cursor-pointer"
+                  >
+                    Close / Finalize Challenge
                   </button>
                 </div>
               )}
