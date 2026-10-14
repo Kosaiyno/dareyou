@@ -699,38 +699,46 @@ export default function App() {
         </div>
       </aside>
 
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-xs transition-opacity duration-300"
+        />
+      )}
+
       {/* ============================================================ */}
       {/* 2. MAIN WORKSPACE (PORCELAIN WARM LIGHT THEME) */}
       {/* ============================================================ */}
-      <div className="ml-0 md:ml-64 flex-1 flex flex-col min-h-screen bg-[#F7F7F8]">
+      <div className="ml-0 md:ml-64 flex-1 min-w-0 w-full max-w-full overflow-x-hidden flex flex-col min-h-screen bg-[#F7F7F8]">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-30 bg-[#F7F7F8]/95 backdrop-blur-md border-b border-slate-200/80 px-4 md:px-8 py-3.5 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 max-w-lg">
+        <header className="sticky top-0 z-30 bg-[#F7F7F8]/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-4 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-lg">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900"
+              className="md:hidden p-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-slate-900 flex-shrink-0 shadow-2xs cursor-pointer"
             >
               <Flame className="w-5 h-5 text-[#EF4444]" />
             </button>
 
             {/* Search Input */}
-            <div className="relative w-full">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <div className="relative w-full min-w-0">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search dares, topics, or creators..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-9 pr-9 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#EF4444] shadow-2xs font-medium"
+                placeholder="Search dares..."
+                className="w-full bg-white border border-slate-200 rounded-full pl-8 pr-3 py-1.5 md:py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#EF4444] shadow-2xs font-medium"
               />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
+              <span className="hidden sm:inline-block absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono">
                 /
               </span>
             </div>
           </div>
 
           {/* Navigation Links + Wallet Identity */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0">
             <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold">
               <button 
                 onClick={() => setActiveTab('standard')}
@@ -751,31 +759,32 @@ export default function App() {
             </nav>
 
             {/* Wallet Identity Chip */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
               {walletConnected ? (
                 <div 
                   onClick={() => setShowKeyModal(true)}
-                  className="bg-white border border-slate-200 hover:border-slate-300 px-3.5 py-1.5 rounded-full flex items-center gap-2 text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer select-none"
+                  className="bg-white border border-slate-200 hover:border-slate-300 px-2.5 sm:px-3.5 py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer select-none flex-shrink-0"
                   title="View Connected Account & Balances"
                 >
-                  <div className="w-3.5 h-3.5 rounded bg-gradient-to-tr from-red-500 to-amber-400" />
+                  <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded bg-gradient-to-tr from-red-500 to-amber-400 flex-shrink-0" />
                   <span className="font-mono">{walletBalance} GEN</span>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />
                 </div>
               ) : (
                 <button
                   onClick={handleConnectMetaMask}
-                  className="px-4 py-1.5 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-3 sm:px-4 py-1.5 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-[11px] sm:text-xs shadow-md shadow-red-500/20 transition-all cursor-pointer flex items-center gap-1.5 flex-shrink-0"
                 >
                   <Wallet className="w-3.5 h-3.5" />
-                  <span>Connect Wallet</span>
+                  <span className="hidden sm:inline">Connect Wallet</span>
+                  <span className="sm:hidden">Connect</span>
                 </button>
               )}
 
               {/* User Avatar Circle */}
               <div 
                 onClick={() => setShowKeyModal(true)}
-                className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:ring-2 hover:ring-[#EF4444] transition-all select-none shadow-sm"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-900 flex items-center justify-center text-white text-[10px] sm:text-xs font-bold cursor-pointer hover:ring-2 hover:ring-[#EF4444] transition-all select-none shadow-sm flex-shrink-0"
               >
                 {walletAddress ? walletAddress.slice(2, 4).toUpperCase() : 'DY'}
               </div>
@@ -791,25 +800,25 @@ export default function App() {
           {activeTab === 'arena' && (
             <>
               {/* Hero Banner ("Challenge reality. Back your answer.") */}
-              <div className="rounded-3xl bg-[#0B0B0E] border border-slate-800/80 p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
+              <div className="rounded-3xl bg-[#0B0B0E] border border-slate-800/80 p-4 sm:p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
                 {/* Crimson Glow in background */}
                 <div className="absolute right-0 top-0 bottom-0 w-2/3 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-600/30 via-red-950/20 to-transparent pointer-events-none" />
 
-                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                <div className="relative z-10 grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6 items-center">
                   {/* Left Column: Heading, description, and CTA buttons */}
-                  <div className="lg:col-span-2 space-y-4">
-                    <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
+                  <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight">
                       Challenge reality.
                       <br />
                       Back <span className="text-[#EF4444]">your answer.</span>
                     </h1>
-                    <p className="text-slate-300 text-xs md:text-sm max-w-lg leading-relaxed font-medium">
+                    <p className="text-slate-300 text-xs sm:text-sm max-w-lg leading-relaxed font-medium">
                       Create or solve research challenges with real stakes. Evidence in. Consensus out. On-chain.
                     </p>
-                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-2">
                       <button
                         onClick={() => setActiveTab('create')}
-                        className="px-6 py-2.5 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-lg shadow-red-500/25 transition-all cursor-pointer flex items-center gap-2"
+                        className="px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-lg shadow-red-500/25 transition-all cursor-pointer flex items-center gap-2"
                       >
                         <span>Create a Dare</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -818,42 +827,42 @@ export default function App() {
                   </div>
 
                   {/* Right Column: Key Protocol Metrics Panel */}
-                  <div className="bg-[#16161D]/80 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 grid grid-cols-2 gap-3 text-left">
+                  <div className="bg-[#16161D]/80 backdrop-blur-md border border-slate-800/80 rounded-2xl p-3 sm:p-4 grid grid-cols-2 gap-2.5 sm:gap-3 text-left">
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
                         <FileText className="w-3 h-3 text-[#EF4444]" /> Total Dares
                       </span>
-                      <span className="text-base font-extrabold text-white font-mono">{totalDaresCount}</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">{totalDaresCount}</span>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
                         <Coins className="w-3 h-3 text-amber-400" /> Escrow Volume
                       </span>
-                      <span className="text-base font-extrabold text-white font-mono">${totalVolumeGen} GEN</span>
-                      <span className="text-[10px] text-slate-400 font-mono block">(${totalVolumeUsd} USD)</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">${totalVolumeGen} GEN</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block">(${totalVolumeUsd} USD)</span>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
                         <Users className="w-3 h-3 text-cyan-400" /> Solvers
                       </span>
-                      <span className="text-base font-extrabold text-white font-mono">{uniqueParticipantsCount}</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">{uniqueParticipantsCount}</span>
                     </div>
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
                         <Zap className="w-3 h-3 text-purple-400" /> Active Validators
                       </span>
-                      <span className="text-base font-extrabold text-white font-mono">5 LLM Nodes</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">5 LLM Nodes</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Category Filter Pills Row */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <div className="flex flex-wrap items-center gap-2">
+              {/* Category Filter Pills Row (Horizontal scroll on mobile, flex-wrap on desktop) */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pt-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar py-1 -mx-2 px-2 sm:mx-0 sm:px-0 flex-1 min-w-0">
                   {[
                     'All',
                     'Crypto',
@@ -871,7 +880,7 @@ export default function App() {
                       <button
                         key={category}
                         onClick={() => setSelectedDomain(category.toUpperCase())}
-                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                        className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                           isActive
                             ? 'bg-[#EF4444] text-white shadow-sm shadow-red-500/25 font-bold'
                             : 'bg-white hover:bg-slate-100 border border-slate-200 text-slate-700'
@@ -884,11 +893,11 @@ export default function App() {
                 </div>
 
                 {/* Status Dropdown Filter */}
-                <div className="relative">
+                <div className="relative self-start sm:self-auto flex-shrink-0">
                   <select
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-full px-4 py-1.5 focus:outline-none focus:border-[#EF4444] shadow-2xs cursor-pointer"
+                    className="bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-full px-3.5 py-1.5 focus:outline-none focus:border-[#EF4444] shadow-2xs cursor-pointer"
                   >
                     <option value="ALL">Open Dares</option>
                     <option value="OPEN">Phase 1: Open</option>
@@ -920,8 +929,8 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Table Column Headers */}
-                  <div className="flex items-center justify-between px-4 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  {/* Table Column Headers (Hidden on mobile) */}
+                  <div className="hidden md:flex items-center justify-between px-4 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     <span className="flex-1">DARE</span>
                     <span className="w-24 text-left">POOL</span>
                     <span className="w-32 text-left">TIME LEFT</span>
@@ -929,7 +938,7 @@ export default function App() {
                   </div>
 
                   {filteredDares.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
+                    <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center shadow-xs">
                       <div className="w-12 h-12 rounded-full bg-red-50 text-[#EF4444] flex items-center justify-center mx-auto mb-3">
                         <Search className="w-6 h-6" />
                       </div>
@@ -977,33 +986,62 @@ export default function App() {
                         <div
                           key={dare.id}
                           onClick={() => handleInspectDare(dare)}
-                          className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 transition-all flex items-center justify-between gap-4 shadow-2xs hover:shadow-xs cursor-pointer group"
+                          className="bg-white hover:bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 transition-all shadow-2xs hover:shadow-xs cursor-pointer group flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4"
                         >
                           {/* Dare Column (Thumbnail + Domain Tag + Title + Participants) */}
-                          <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                          <div className="flex items-start md:items-center gap-3 flex-1 min-w-0">
                             <DareThumbnail domain={dare.domain} title={dare.title} />
 
                             <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider block mb-0.5">
-                                {domainLabel}
-                              </span>
-                              <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#EF4444] transition-colors leading-snug line-clamp-1">
+                              <div className="flex items-center justify-between md:justify-start gap-2 mb-0.5">
+                                <span className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider">
+                                  {domainLabel}
+                                </span>
+
+                                {/* Mobile-only Action Button placed at top-right of card */}
+                                <div className="block md:hidden">
+                                  {dare.status === 'OPEN' ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleInspectDare(dare);
+                                      }}
+                                      className="px-3 py-1 rounded-lg bg-[#EF4444] text-white font-bold text-[11px] shadow-sm shadow-red-500/20"
+                                    >
+                                      Join Dare
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleInspectDare(dare);
+                                      }}
+                                      className="px-3 py-1 rounded-lg bg-[#F3F4F6] text-slate-800 font-bold text-[11px] border border-slate-200"
+                                    >
+                                      View
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <h3 className="text-sm font-bold text-slate-900 group-hover:text-[#EF4444] transition-colors leading-snug line-clamp-2 md:line-clamp-1">
                                 {dare.title}
                               </h3>
-                              <div className="flex items-center gap-2 mt-1">
+
+                              <div className="flex items-center gap-2 mt-1.5 md:mt-1">
                                 {dare.status === 'OPEN' && (
-                                  <div className="flex items-center gap-1.5">
-                                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-[9px] font-bold text-slate-700 flex items-center justify-center font-mono">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <div className="w-5 h-5 rounded-full bg-slate-100 border border-slate-300 text-[9px] font-bold text-slate-700 flex items-center justify-center font-mono flex-shrink-0">
                                       {dare.challenger.slice(2, 4).toUpperCase()}
                                     </div>
                                     <span className="text-[11px] text-slate-500 font-medium">
-                                      Challenger: <code className="font-mono text-slate-700">{dare.challenger.slice(0, 6)}...{dare.challenger.slice(-4)}</code> · Open for Solver
+                                      Challenger: <code className="font-mono text-slate-700">{dare.challenger.slice(0, 6)}...{dare.challenger.slice(-4)}</code> · Open
                                     </span>
                                   </div>
                                 )}
                                 {dare.status === 'ACCEPTED' && (
                                   <div className="flex items-center gap-1.5">
-                                    <div className="flex -space-x-1.5 overflow-hidden">
+                                    <div className="flex -space-x-1.5 overflow-hidden flex-shrink-0">
                                       <div className="w-5 h-5 rounded-full bg-slate-900 border-2 border-white text-[8px] text-white flex items-center justify-center font-mono font-bold" title={`Challenger: ${dare.challenger}`}>
                                         {dare.challenger.slice(2, 4).toUpperCase()}
                                       </div>
@@ -1018,7 +1056,7 @@ export default function App() {
                                 )}
                                 {dare.status === 'FINALIZED' && (
                                   <div className="flex items-center gap-1.5">
-                                    <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center text-[10px] font-bold">
+                                    <div className="w-5 h-5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                                       ✓
                                     </div>
                                     <span className="text-[11px] text-emerald-700 font-semibold">
@@ -1030,84 +1068,89 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Pool Column */}
-                          <div className="w-24 text-left flex-shrink-0">
-                            <div className="text-sm font-bold text-slate-900 font-mono flex items-center gap-1">
-                              <Coins className="w-3.5 h-3.5 text-[#EF4444]" />
-                              <span>{totalPoolGen} GEN</span>
+                          {/* Bottom Row on Mobile / Columns 2-4 on Desktop */}
+                          <div className="flex items-center justify-between md:contents pt-2.5 md:pt-0 border-t border-slate-100 md:border-0">
+                            {/* Pool Column */}
+                            <div className="md:w-24 text-left flex-shrink-0">
+                              <span className="text-[10px] text-slate-400 block md:hidden uppercase font-bold">Pool</span>
+                              <div className="text-xs md:text-sm font-bold text-slate-900 font-mono flex items-center gap-1">
+                                <Coins className="w-3.5 h-3.5 text-[#EF4444]" />
+                                <span>{totalPoolGen} GEN</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-medium block">
+                                (${totalPoolUsd})
+                              </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-medium block">
-                              (${totalPoolUsd})
-                            </span>
-                          </div>
 
-                          {/* Time Left Column */}
-                          <div className="w-32 text-left flex-shrink-0">
-                            {dare.status === 'ACCEPTED' && dare.researchDeadlineTs ? (
-                              <>
-                                <LiveCountdownTimer deadlineTs={dare.researchDeadlineTs} />
-                                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
-                                  Duel in progress
-                                </span>
-                                <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
-                                  <div 
-                                    className="bg-[#EF4444] h-full transition-all duration-1000" 
-                                    style={{ 
-                                      width: `${Math.max(10, Math.min(100, Math.round(((dare.researchDeadlineTs - Date.now()) / (dare.durationSeconds * 1000)) * 100)))}%` 
-                                    }}
-                                  />
-                                </div>
-                              </>
-                            ) : dare.status === 'OPEN' ? (
-                              <>
-                                <div className="text-xs font-bold text-slate-900 font-mono">
-                                  {Math.round(dare.durationSeconds / 60)}m window
-                                </div>
-                                <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">
-                                  Ready to join
-                                </span>
-                                <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
-                                  <div className="bg-emerald-500 h-full w-full" />
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-xs font-bold text-slate-900 font-mono">
-                                  Score: {dare.verdictScore || 95}/100
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
-                                  Settled on StudioNet
-                                </span>
-                                <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
-                                  <div className="bg-slate-400 h-full w-full" />
-                                </div>
-                              </>
-                            )}
-                          </div>
+                            {/* Time Left Column */}
+                            <div className="md:w-32 text-right md:text-left flex-shrink-0">
+                              <span className="text-[10px] text-slate-400 block md:hidden uppercase font-bold">Time Left</span>
+                              {dare.status === 'ACCEPTED' && dare.researchDeadlineTs ? (
+                                <>
+                                  <LiveCountdownTimer deadlineTs={dare.researchDeadlineTs} />
+                                  <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                                    Duel in progress
+                                  </span>
+                                  <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1 ml-auto md:ml-0">
+                                    <div 
+                                      className="bg-[#EF4444] h-full transition-all duration-1000" 
+                                      style={{ 
+                                        width: `${Math.max(10, Math.min(100, Math.round(((dare.researchDeadlineTs - Date.now()) / (dare.durationSeconds * 1000)) * 100)))}%` 
+                                      }}
+                                    />
+                                  </div>
+                                </>
+                              ) : dare.status === 'OPEN' ? (
+                                <>
+                                  <div className="text-xs font-bold text-slate-900 font-mono">
+                                    {Math.round(dare.durationSeconds / 60)}m window
+                                  </div>
+                                  <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">
+                                    Ready to join
+                                  </span>
+                                  <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1 ml-auto md:ml-0">
+                                    <div className="bg-emerald-500 h-full w-full" />
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-xs font-bold text-slate-900 font-mono">
+                                    Score: {dare.verdictScore || 95}/100
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                                    Settled on StudioNet
+                                  </span>
+                                  <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1 ml-auto md:ml-0">
+                                    <div className="bg-slate-400 h-full w-full" />
+                                  </div>
+                                </>
+                              )}
+                            </div>
 
-                          {/* Status / Action Column */}
-                          <div className="w-24 text-right flex-shrink-0">
-                            {dare.status === 'OPEN' ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleInspectDare(dare);
-                                }}
-                                className="px-4 py-2 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all cursor-pointer"
-                              >
-                                Join Dare
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleInspectDare(dare);
-                                }}
-                                className="px-4 py-2 rounded-xl bg-[#F3F4F6] hover:bg-[#E5E7EB] text-slate-800 font-bold text-xs border border-slate-200 transition-all cursor-pointer"
-                              >
-                                View
-                              </button>
-                            )}
+                            {/* Status / Action Column (Desktop only, mobile has it in top right) */}
+                            <div className="hidden md:block w-24 text-right flex-shrink-0">
+                              {dare.status === 'OPEN' ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInspectDare(dare);
+                                  }}
+                                  className="px-4 py-2 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all cursor-pointer"
+                                >
+                                  Join Dare
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInspectDare(dare);
+                                  }}
+                                  className="px-4 py-2 rounded-xl bg-[#F3F4F6] hover:bg-[#E5E7EB] text-slate-800 font-bold text-xs border border-slate-200 transition-all cursor-pointer"
+                                >
+                                  View
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
