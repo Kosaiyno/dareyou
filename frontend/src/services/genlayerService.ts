@@ -1,5 +1,6 @@
 import { createClient, createAccount, chains } from 'genlayer-js';
 import { generatePrivateKey } from 'viem/accounts';
+import { formatEther } from 'viem';
 import type { ValidatorVote } from '../store/useStore';
 
 export const GENLAYER_ADJUDICATOR_ADDRESS = "0x0936db9AEFB73f87B5E4F5CA36435FB4a9168A94";
@@ -373,3 +374,82 @@ export async function fetchOnChainDares(): Promise<any[]> {
 }
 
 
+
+/**
+ * Reads real native GEN token balance for an address from GenLayer StudioNet RPC.
+ */
+export async function getGenLayerBalance(address?: string): Promise<string> {
+  try {
+    const client = getGenLayerClient();
+    const addr = address || getOrCreateGenLayerAccount().address;
+    const balanceWei = await client.getBalance({ address: addr as `0x${string}` });
+    const formatted = formatEther(balanceWei);
+    return parseFloat(formatted).toFixed(2);
+  } catch (err) {
+    console.warn('[GenLayer] Error querying balance:', err);
+    return '0.00';
+  }
+}
+
+/**
+ * Connects to MetaMask (EIP-1193) and prompts network switch to GenLayer StudioNet (61999).
+ */
+export async function connectMetaMask(): Promise<{ address: string; chainId: string; balance: string }> {
+  if (typeof window === 'undefined' || !(window as any).ethereum) {
+    throw new Error('MetaMask or compatible Web3 provider extension not found in this browser.');
+  }
+
+  const eth = (window as any).ethereum;
+  const accounts = await eth.request({ method: 'eth_requestAccounts' });
+  if (!accounts || accounts.length === 0) {
+    throw new Error('No accounts selected in wallet.');
+  }
+
+  let currentChainId = await eth.request({ method: 'eth_chainId' });
+  if (currentChainId !== '0xf22f' && currentChainId !== '61999') {
+    try {
+      await eth.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0xf22f' }]
+      });
+      currentChainId = '0xf22f';
+    } catch (switchError: any) {
+      if (switchError.code === 4902 || switchError.message?.includes('Unrecognized chain')) {
+        await eth.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: '0xf22f',
+            chainName: 'GenLayer StudioNet',
+            rpcUrls: ['https://studio.genlayer.com/api'],
+            nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+            blockExplorerUrls: ['https://explorer-studio.genlayer.com']
+          }]
+        });
+        currentChainId = '0xf22f';
+      } else {
+        throw switchError;
+      }
+    }
+  }
+
+  const balance = await getGenLayerBalance(accounts[0]);
+  return { address: accounts[0], chainId: currentChainId, balance };
+}
+
+/**
+ * Reads verified on-chain adjudication record directly from DareAdjudicator contract.
+ */
+export async function getOnChainAdjudication(dareId: number): Promise<any> {
+  try {
+    const client = getGenLayerClient();
+    const raw = await client.readContract({
+      address: GENLAYER_ADJUDICATOR_ADDRESS as `0x${string}`,
+      functionName: 'get_adjudication',
+      args: [dareId]
+    });
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (err) {
+    console.warn(`[DareAdjudicator] get_adjudication(${dareId}) error:`, err);
+    return null;
+  }
+}

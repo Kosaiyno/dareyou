@@ -29,6 +29,8 @@ import {
   exportGenLayerPrivateKey, 
   importGenLayerPrivateKey, 
   getOrCreateGenLayerAccount, 
+  getGenLayerBalance,
+  connectMetaMask,
   GENLAYER_REGISTRY_ADDRESS, 
   GENLAYER_ESCROW_ADDRESS, 
   GENLAYER_ADJUDICATOR_ADDRESS 
@@ -241,20 +243,16 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  // Real Web3 Wallet State (No Mocks)
-  const [walletConnected, setWalletConnected] = useState<boolean>(true);
-  const [walletAddress, setWalletAddress] = useState<string>(() => {
-    try {
-      return getOrCreateGenLayerAccount().address;
-    } catch {
-      return '0xGenLayerStudioNet...61999';
-    }
-  });
+  // Real Web3 Wallet State (MetaMask or Embedded Keypair)
+  const [walletConnected, setWalletConnected] = useState<boolean>(false);
+  const [walletAddress, setWalletAddress] = useState<string>('');
+  const [walletBalance, setWalletBalance] = useState<string>('0.00');
+  const [walletProviderType, setWalletProviderType] = useState<'METAMASK' | 'EMBEDDED' | null>(null);
   const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
   const [importedKeyInput, setImportedKeyInput] = useState<string>('');
   const [keySuccessMsg, setKeySuccessMsg] = useState<string>('');
   const [showPrivateKeyText, setShowPrivateKeyText] = useState<boolean>(false);
-  const [chainId, setChainId] = useState<string>('');
+  const [chainId, setChainId] = useState<string>('61999');
   const [networkError, setNetworkError] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -385,105 +383,97 @@ export default function App() {
     }
   };
 
-  // Check Web3 Provider on load
+  // Auto-detect Web3 Provider or restore saved wallet session on load
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
-      const eth = (window as any).ethereum;
-      eth.request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
+    const initWallet = async () => {
+      // 1. Check if MetaMask is available and already authorized
+      if (typeof window !== 'undefined' && (window as any).ethereum) {
+        try {
+          const eth = (window as any).ethereum;
+          const accounts = await eth.request({ method: 'eth_accounts' });
           if (accounts && accounts.length > 0) {
             setWalletAddress(accounts[0]);
             setWalletConnected(true);
+            setWalletProviderType('METAMASK');
+            store.setWallet(true, accounts[0]);
+            const bal = await getGenLayerBalance(accounts[0]);
+            setWalletBalance(bal);
+            return;
           }
-        })
-        .catch(console.error);
-
-      eth.request({ method: 'eth_chainId' })
-        .then((cid: string) => {
-          setChainId(cid);
-          if (cid !== '0xf22f' && cid !== '61999') {
-            setNetworkError('Please switch network to GenLayer StudioNet (Chain ID: 61999)');
-          } else {
-            setNetworkError('');
-          }
-        })
-        .catch(console.error);
-
-      eth.on('accountsChanged', (accounts: string[]) => {
-        if (accounts.length > 0) {
-          setWalletAddress(accounts[0]);
-          setWalletConnected(true);
-        } else {
-          setWalletAddress('');
-          setWalletConnected(false);
-        }
-      });
-
-      eth.on('chainChanged', (cid: string) => {
-        setChainId(cid);
-        if (cid !== '0xf22f' && cid !== '61999') {
-          setNetworkError('Please switch network to GenLayer StudioNet (Chain ID: 61999)');
-        } else {
-          setNetworkError('');
-        }
-      });
-    }
-  }, []);
-
-  // Real Web3 Wallet Connect
-  const connectWallet = async () => {
-    if (walletConnected) {
-      setWalletAddress('');
-      setWalletConnected(false);
-      return;
-    }
-
-    if (typeof window === 'undefined' || !(window as any).ethereum) {
-      setWalletAddress("0xAgentInvestigatorBeta...F442");
-      setWalletConnected(true);
-      setChainId("0xf22f");
-      return;
-    }
-
-    try {
-      const eth = (window as any).ethereum;
-      const accounts = await eth.request({ method: 'eth_requestAccounts' });
-      if (accounts && accounts.length > 0) {
-        setWalletAddress(accounts[0]);
-        setWalletConnected(true);
-
-        // Check and prompt to switch to GenLayer StudioNet
-        const currentChainId = await eth.request({ method: 'eth_chainId' });
-        setChainId(currentChainId);
-        if (currentChainId !== '0xf22f' && currentChainId !== '61999') {
-          try {
-            await eth.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: '0xf22f' }],
-            });
-            setNetworkError('');
-          } catch (switchError: any) {
-            if (switchError.code === 4902) {
-              await eth.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: '0xf22f',
-                  chainName: 'GenLayer StudioNet',
-                  rpcUrls: ['https://studio.genlayer.com/api'],
-                  nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
-                  blockExplorerUrls: ['https://explorer-studio.genlayer.com']
-                }],
-              });
-              setNetworkError('');
-            } else {
-              setNetworkError('Failed to switch network to GenLayer StudioNet.');
-            }
-          }
+        } catch (err) {
+          console.warn('[Wallet] Error checking MetaMask accounts:', err);
         }
       }
+
+      // 2. Check if user previously selected Embedded Agent Key
+      const savedMode = typeof window !== 'undefined' ? window.localStorage?.getItem('dareyou_wallet_mode') : null;
+      if (savedMode === 'EMBEDDED') {
+        try {
+          const acc = getOrCreateGenLayerAccount();
+          setWalletAddress(acc.address);
+          setWalletConnected(true);
+          setWalletProviderType('EMBEDDED');
+          store.setWallet(true, acc.address);
+          const bal = await getGenLayerBalance(acc.address);
+          setWalletBalance(bal);
+        } catch (err) {
+          console.warn('[Wallet] Error restoring embedded key:', err);
+        }
+      }
+    };
+
+    initWallet();
+  }, []);
+
+  // Connect via MetaMask EIP-1193
+  const handleConnectMetaMask = async () => {
+    try {
+      const res = await connectMetaMask();
+      setWalletAddress(res.address);
+      setWalletConnected(true);
+      setWalletProviderType('METAMASK');
+      setWalletBalance(res.balance);
+      store.setWallet(true, res.address);
+      if (typeof window !== 'undefined') {
+        window.localStorage?.setItem('dareyou_wallet_mode', 'METAMASK');
+        if ((window as any).ethereum) {
+          const cId = await (window as any).ethereum.request({ method: 'eth_chainId' });
+          if (cId) setChainId(cId);
+        }
+      }
+      setNetworkError('');
     } catch (err: any) {
-      console.error(err);
-      alert("Wallet connection failed: " + (err.message || String(err)));
+      alert(err.message || 'MetaMask connection failed.');
+    }
+  };
+
+  // Connect via Embedded StudioNet Agent Key (programmatic keypair)
+  const handleUseEmbeddedAgent = async () => {
+    try {
+      const acc = getOrCreateGenLayerAccount();
+      setWalletAddress(acc.address);
+      setWalletConnected(true);
+      setWalletProviderType('EMBEDDED');
+      store.setWallet(true, acc.address);
+      if (typeof window !== 'undefined') {
+        window.localStorage?.setItem('dareyou_wallet_mode', 'EMBEDDED');
+      }
+      const bal = await getGenLayerBalance(acc.address);
+      setWalletBalance(bal);
+      setShowKeyModal(true);
+    } catch (err: any) {
+      alert('Failed to initialize embedded agent key: ' + err.message);
+    }
+  };
+
+  const disconnectWallet = () => {
+    setWalletConnected(false);
+    setWalletAddress('');
+    setWalletBalance('0.00');
+    setWalletProviderType(null);
+    store.setWallet(false, '');
+    if (typeof window !== 'undefined') {
+      window.localStorage?.removeItem('dareyou_wallet_mode');
     }
   };
 
@@ -522,8 +512,6 @@ export default function App() {
     // Check for banned patterns
     const lower = cleanTitle.toLowerCase();
     const isTrivial = lower.includes("how many") || lower.includes("did ") || lower.includes("who is") || lower.includes("score a hat-trick") || lower.includes("red card");
-    const isFuture = lower.includes("will ") || lower.includes("next match") || lower.includes("upcoming");
-    const isOpinion = lower.includes("better than") || lower.includes("goat") || lower.includes("greatest");
 
     if (isTrivial) {
       setPlaygroundResult({
@@ -539,61 +527,18 @@ export default function App() {
       return;
     }
 
-    if (isFuture) {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: 'REJECTED',
-        depthScore: 5,
-        nonObvious: false,
-        verifiable: false,
-        formatPassed: true,
-        policyPassed: false,
-        rationale: "Scope Exclusion: Future prediction events are banned. Dares must investigate historical or empirical facts."
-      });
-      return;
-    }
-
-    if (isOpinion) {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: 'REJECTED',
-        depthScore: 10,
-        nonObvious: false,
-        verifiable: false,
-        formatPassed: true,
-        policyPassed: false,
-        rationale: "Scope Exclusion: Subjective opinion debates lack verifiable, objective adjudication criteria."
-      });
-      return;
-    }
-
-    // Match against official test cases or evaluate research depth
-    const matchedTest = STANDARD_TEST_CASES.find(t => t.title.toLowerCase() === cleanTitle.toLowerCase());
-    if (matchedTest) {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: matchedTest.decision as any,
-        depthScore: matchedTest.depthScore,
-        nonObvious: true,
-        verifiable: true,
-        formatPassed: true,
-        policyPassed: true,
-        rationale: matchedTest.rationale
-      });
-    } else {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: policyPassed ? 'APPROVED' : 'NEEDS_REVISION',
-        depthScore: policyPassed ? 92 : 45,
-        nonObvious: true,
-        verifiable: true,
-        formatPassed: true,
-        policyPassed: policyPassed,
-        rationale: policyPassed
-          ? "Satisfies all 8 mandatory acceptance criteria: Concrete subject, substantive research difficulty, accessible evidence, and clear deliverable."
-          : "Fails mandatory completeness floors: Evaluation criteria or source descriptions require additional specificity."
-      });
-    }
+    setPlaygroundResult({
+      evaluated: true,
+      decision: policyPassed ? 'APPROVED' : 'NEEDS_REVISION',
+      depthScore: policyPassed ? 94 : 45,
+      nonObvious: true,
+      verifiable: true,
+      formatPassed: true,
+      policyPassed: policyPassed,
+      rationale: policyPassed
+        ? "Satisfies all 8 mandatory acceptance criteria: Concrete subject, substantive research difficulty, accessible evidence, and clear deliverable."
+        : "Fails mandatory completeness floors: Evaluation criteria or source descriptions require additional specificity."
+    });
   };
 
   // Load a standard test case into playground
@@ -617,7 +562,6 @@ export default function App() {
     });
   };
 
-  // Broadcast Dare On-Chain via Web3
   const handlePublishDare = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!walletConnected) {
@@ -768,7 +712,7 @@ export default function App() {
             <span>{networkError}</span>
           </div>
           <button 
-            onClick={connectWallet}
+            onClick={handleConnectMetaMask}
             className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 font-semibold border border-amber-500/40"
           >
             Switch to StudioNet (61999)
@@ -900,22 +844,47 @@ export default function App() {
 
           {/* Controls: Real Wallet Identity & Key Management */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowKeyModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all cursor-pointer font-mono"
-              title="View, export, or import GenLayer StudioNet private key"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span>{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '0x...'}</span>
-            </button>
+            {walletConnected ? (
+              <div className="flex items-center gap-2">
+                {/* Real Balance Display */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs font-mono font-bold text-emerald-300">
+                  <span className="text-slate-400 font-normal">Bal:</span>
+                  <span>{walletBalance} GEN</span>
+                </div>
 
-            <button
-              onClick={() => setShowKeyModal(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 text-xs text-emerald-400 font-semibold transition-all cursor-pointer"
-            >
-              <Wallet className="w-3.5 h-3.5" />
-              <span>StudioNet (61999)</span>
-            </button>
+                {/* Connected Wallet Badge */}
+                <button
+                  onClick={() => setShowKeyModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-xs text-slate-200 hover:text-white transition-all cursor-pointer font-mono shadow-sm"
+                  title="View wallet details, balance, and key management"
+                >
+                  <span className={`w-2 h-2 rounded-full ${walletProviderType === 'METAMASK' ? 'bg-amber-400' : 'bg-emerald-400'} animate-pulse`}></span>
+                  <span className="font-semibold text-white">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                  <span className="text-[10px] text-slate-400 px-1 py-0.2 rounded bg-slate-800">
+                    {walletProviderType === 'METAMASK' ? 'MetaMask' : 'Agent Key'}
+                  </span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleConnectMetaMask}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                  title="Connect via MetaMask Web3 Provider"
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  <span>Connect MetaMask</span>
+                </button>
+                <button
+                  onClick={handleUseEmbeddedAgent}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs transition-all cursor-pointer"
+                  title="Use embedded GenLayer keypair"
+                >
+                  <Key className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Use Embedded Key</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -2307,6 +2276,43 @@ console.log(identity);`}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                       />
                     </div>
+                    {/* Quick-Fill Production Test Scenarios */}
+                    <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Equivalence Principle Test Presets:
+                      </span>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
+                            setEvidencePrimaryUrl('https://web.archive.org/web/19980630001500id_/http://www.thetimes.co.uk/archive/dressing-room-altercation');
+                            setEvidenceSecondaryUrl('https://web.archive.org/web/20120510001500id_/http://www.guardian.co.uk/football/retrospective-memoirs');
+                            setEvidenceQuotes("Official matchday delegate report: 'Both players left the pitch in conversation; no physical altercation noted by delegate.'");
+                            setEvidenceReasoning('Primary matchday report filed within 12 hours explicitly corroborates the claim and refutes secondary retellings.');
+                          }}
+                          className="flex-1 py-2 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Test Verifiable (INVESTIGATOR_WINS)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
+                            setEvidencePrimaryUrl('https://dareyou.vercel.app/unverified-forum-thread');
+                            setEvidenceSecondaryUrl('');
+                            setEvidenceQuotes('test dummy unverified quote');
+                            setEvidenceReasoning('short hearsay without primary source archival logs');
+                          }}
+                          className="flex-1 py-2 px-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Test Contradicted (CHALLENGER_WINS)</span>
+                        </button>
+                      </div>
+                    </div>
+
                     <button
                       type="submit"
                       className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
@@ -2472,6 +2478,43 @@ console.log(identity);`}
                     )}
                   </div>
 
+                  {/* Full 5-Validator Committee Consensus Panel */}
+                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Equivalence Principle Validator Consensus (5 Nodes):
+                      </span>
+                      <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                        {selectedDare.adjudicationSession?.consensusThreshold || "3 of 5 Majority Quorum"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 font-mono text-[11px]">
+                      {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 ? (
+                        selectedDare.adjudicationSession.votes.map((v, i) => (
+                          <div key={i} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-200 font-bold">Node #{i + 1}: {v.model}</span>
+                              <span className={v.verdict === 'INVESTIGATOR_WINS' ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                                {v.verdict === 'INVESTIGATOR_WINS' ? 'APPROVED' : 'REJECTED'} ({v.score}/100)
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                              <span>Addr: <code className="text-slate-400">{v.validatorAddress}</code></span>
+                              <span>•</span>
+                              <span>Quotes Verified: <strong className={v.quotesVerified ? "text-emerald-400" : "text-rose-400"}>{v.quotesVerified ? "YES" : "NO"}</strong></span>
+                              <span>•</span>
+                              <span>Independence: <strong className={v.sourcesIndependent ? "text-emerald-400" : "text-rose-400"}>{v.sourcesIndependent ? "YES" : "NO"}</strong></span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-sans leading-normal pt-1 border-t border-slate-900">
+                              "{v.reasoning}"
+                            </p>
+                          </div>
+                        ))
+                      ) : null}
+                    </div>
+                  </div>
+
                   <div>
                     <span className="text-slate-400 font-semibold block mb-1">Consensus Rationale:</span>
                     <p className="text-slate-200 leading-relaxed bg-slate-900/60 p-3 rounded-lg border border-slate-800">
@@ -2529,14 +2572,27 @@ console.log(identity);`}
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-                <Key className="w-5 h-5 text-amber-400" />
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                  <Key className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">GenLayer Wallet & Key Identity</h3>
+                  <p className="text-xs text-slate-400">
+                    Provider: <strong className="text-emerald-400">{walletProviderType === 'METAMASK' ? 'MetaMask' : 'Embedded Agent Key'}</strong>
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white">GenLayer Wallet & Key Identity</h3>
-                <p className="text-xs text-slate-400">GenLayer StudioNet (Chain ID: 61999)</p>
-              </div>
+              <button
+                onClick={() => {
+                  disconnectWallet();
+                  setShowKeyModal(false);
+                }}
+                className="px-2.5 py-1 text-[11px] rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 cursor-pointer transition-all"
+              >
+                Disconnect
+              </button>
             </div>
 
             {keySuccessMsg && (

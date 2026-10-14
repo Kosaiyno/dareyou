@@ -130,8 +130,28 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       }
       return {
         success: true,
-        message: `Retrieved dossier for Dare #${targetId}.`,
-        dare
+        message: `Retrieved dossier and validator consensus for Dare #${targetId}.`,
+        dare,
+        validatorPanel: dare.adjudicationSession ? {
+          totalValidators: dare.adjudicationSession.votes?.length || 5,
+          consensusStatus: dare.adjudicationSession.status,
+          finalVerdict: dare.verdict || dare.adjudicationSession.finalVerdict,
+          averageScore: dare.verdictScore ?? dare.adjudicationSession.averageScore,
+          consensusRationale: dare.verdictRationale || dare.adjudicationSession.consensusRationale,
+          txHash: dare.txHash || dare.adjudicationSession.txHash,
+          receiptStatus: dare.adjudicationSession.receiptStatus || "ACCEPTED (MAJORITY_AGREE)",
+          validators: (dare.adjudicationSession.votes || []).map(v => ({
+            index: v.validatorIndex,
+            address: v.validatorAddress,
+            model: v.model,
+            verdict: v.verdict,
+            score: v.score,
+            quotesVerified: v.quotesVerified,
+            sourcesIndependent: v.sourcesIndependent,
+            reasoning: v.reasoning,
+            timestamp: v.timestamp
+          }))
+        } : null
       };
     }
   },
