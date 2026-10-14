@@ -69,6 +69,9 @@ export interface Dare {
   isBenchmark: boolean;
   title: string;
   category: DareCategory;
+  domain?: string;
+  participantsCount?: number;
+  featuredImageUrl?: string;
   claim: string;
   requiredSources: string;
   criteria: string;
@@ -160,41 +163,41 @@ export interface AppState {
   };
 }
 
-export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares';
+export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares_v5';
 
 export const SEED_INITIAL_DARES: Dare[] = [
   {
     id: 1,
-    isBenchmark: false,
-    title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources within 30 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION",
-    claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
-    requiredSources: "Official club annual audited financial reports and official federation registration filings.",
-    criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
-    stakeCents: 500,
+    isBenchmark: true,
+    title: "Dare you to identify three actors who have each played both a male character and a female character in lead roles in separate films, where neither role involves a gender transition within the film's storyline.",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    domain: "Entertainment",
+    participantsCount: 89,
+    claim: "Identify three actors who have each played both a male character and a female character in lead roles in separate films, where neither role involves a gender transition within the storyline.",
+    requiredSources: "Official AFI catalog archives, British Film Institute (BFI) credits, and contemporary production documentation.",
+    criteria: "Provide three distinct actors with verifiable male and female lead performances where character gender identity was fixed.",
+    stakeCents: 1000,
     creationBondCents: 500,
     durationSeconds: 1800,
-    acceptanceDeadlineTs: 86400,
-    researchDeadlineTs: 0,
-    status: "FINALIZED",
-    challenger: "0x6da2D3d6c5F95a35bfEDaa01f3602e298682405e",
-    investigator: "0xInvestigatorAgentAlpha...99",
-    verdict: "CHALLENGER_WINS",
-    verdictScore: 26,
-    verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger.",
-    txHash: "0x604038654d8ea1c9d9e2d313b2ec8032b5d6556cbf651dbbbe8c3df4b797a4bb"
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: Date.now() + 1485000,
+    status: "ACCEPTED",
+    challenger: "0xF2912D0F31DE631E58b236c8543AB66996d56659",
+    investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473"
   },
   {
     id: 2,
-    isBenchmark: false,
-    title: "Dare you to investigate the official Premier League charges against Manchester City by identifying the specific financial season where alleged undisclosed managerial remuneration occurred, cross-referencing published leak documents against club statutory Companies House filings, and substantiating whether primary documents confirm direct third-party offshore payment routing within 5 minutes.",
+    isBenchmark: true,
+    title: "Dare you to investigate the official Premier League charges against Manchester City by identifying the specific financial season where alleged undisclosed managerial remuneration occurred, cross-referencing published leak documents against club statutory Companies House filings within 15 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION",
+    domain: "Finance",
+    participantsCount: 42,
     claim: "Leaked contract emails alleged that more than £1.5m in annual compensation was routed through an offshore entity rather than declared in statutory Companies House accounts.",
     requiredSources: "Premier League official charge sheet releases, Club statutory annual accounts filed at Companies House, and contemporary investigative disclosures.",
     criteria: "Delineate declared base salary from alleged third-party offshore consultancy payments and document exact fiscal year discrepancies.",
     stakeCents: 500,
     creationBondCents: 500,
-    durationSeconds: 300,
+    durationSeconds: 900,
     acceptanceDeadlineTs: Date.now() + 86400000,
     researchDeadlineTs: 0,
     status: "OPEN",
@@ -202,24 +205,62 @@ export const SEED_INITIAL_DARES: Dare[] = [
   },
   {
     id: 3,
-    isBenchmark: false,
-    title: "Dare you to identify three actors who have each played both a male character and a female character in lead roles in separate films, where neither role involves a gender transition within the film's storyline. Provide verifiable evidence for every actor and both roles.",
+    isBenchmark: true,
+    title: "Dare you to substantiate whether Bitcoin historical spot prints reached or exceeded $100,000 USD on Coinbase or Binance institutional order book logs prior to 2026 within 20 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION",
-    claim: "Identify three actors who have played both male and female characters as lead roles in films, without undergoing a gender transition within the storyline.",
-    requiredSources: "For each of the three actors, provide: (1) official title and release year of one film in a male lead role; (2) official title and release year of a different film in a female lead role; (3) official film credits or reputable database confirming each role; and (4) independent reputable source confirming character gender and lead status.",
-    criteria: "The claim passes only if three distinct actors meet every requirement without storyline transition. Provide direct source URLs and supporting explanation for every role.",
-    stakeCents: 1000,
+    domain: "Crypto",
+    participantsCount: 154,
+    claim: "Historical trade execution logs from Tier-1 spot exchanges document verified execution prints at or above $100,000.00 USD.",
+    requiredSources: "Coinbase Advanced Trade historical execution archives, Binance Spot Trade historical tick logs, and CoinMarketCap aggregate indices.",
+    criteria: "Substantiate with primary timestamped trade execution logs confirming a completed trade print at or above $100,000.00 USD.",
+    stakeCents: 2500,
+    creationBondCents: 500,
+    durationSeconds: 1200,
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: 0,
+    status: "OPEN",
+    challenger: "0x7a3F9Bc138a490dE58b236c8543AB66996d56659"
+  },
+  {
+    id: 4,
+    isBenchmark: true,
+    title: "Dare you to audit an LLM benchmark claim by comparing published synthetic evaluation scores against verified raw human-eval execution logs, isolating methodology discrepancies within 30 minutes.",
+    category: "EVIDENCE_SYNTHESIS",
+    domain: "Tech",
+    participantsCount: 98,
+    claim: "The reported accuracy gain resulted from evaluating on a non-standard prompt template rather than the frozen benchmark runner code.",
+    requiredSources: "Official GitHub repository benchmark runner commits, unedited raw inference output logs, and published preprint appendix.",
+    criteria: "Reconstruct exact evaluation configuration and demonstrate prompt divergence between standard harness and reported results.",
+    stakeCents: 1500,
     creationBondCents: 500,
     durationSeconds: 1800,
-    acceptanceDeadlineTs: 86400,
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: 0,
+    status: "OPEN",
+    challenger: "0x4e1B82f091AcD44473D8543AB66996d56659"
+  },
+  {
+    id: 5,
+    isBenchmark: true,
+    title: "Dare you to trace an infamous historical diplomatic ultimatum to its earliest verifiable telegraph dispatch, exposing which details were fabricated in retrospective memoirs within 25 minutes.",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    domain: "History",
+    participantsCount: 65,
+    claim: "The widely quoted diplomatic ultimatum text was fabricated in a retrospective memoir 20 years after the peace conference concluded.",
+    requiredSources: "Contemporaneous national telegram archives, official government conference minutes, and earliest printed newspaper dispatches.",
+    criteria: "Locate earliest verified primary dispatch and document specific embellishments introduced in secondary retellings.",
+    stakeCents: 1000,
+    creationBondCents: 500,
+    durationSeconds: 1500,
+    acceptanceDeadlineTs: Date.now() + 86400000,
     researchDeadlineTs: 0,
     status: "FINALIZED",
-    challenger: "0xF2912D0F31DE631E58b236c8543AB66996d56659",
+    challenger: "0x9c2F11b8405e631E58b236c8543AB66996d56659",
     investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473",
     verdict: "INVESTIGATOR_WINS",
-    verdictScore: 95,
-    verdictRationale: "Heterogeneous validator rotation unanimously confirmed: Evidence dossier from catalog.afi.com contains authentic quotes for Linda Hunt (1982/1985), John Travolta (1978/2007), and Cate Blanchett (2007/2022), satisfies frozen criteria, and resolves claim without speculative bias.",
-    txHash: "0x9d044a4d7631bd2e1bb1a12fbab2600c80e0edf4020d4e10ae08ff579640c887"
+    verdictScore: 96,
+    verdictRationale: "National archive telegram registers confirm original text differed substantively from memoir embellishments. Criteria verified unanimously by GenLayer Equivalence validators.",
+    txHash: "0x7d93a11b058fe8402a11b2d49c81b37492c63810f48572183c50938bf7482619"
   }
 ];
 
@@ -240,18 +281,7 @@ export function loadDaresFromStorage(): Dare[] {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((d: Dare) => {
-            if (d.id === 1 && d.status !== 'FINALIZED') {
-              return {
-                ...d,
-                status: 'FINALIZED',
-                verdict: 'CHALLENGER_WINS',
-                verdictScore: 26,
-                verdictRationale: "Heterogeneous validator rotation rejected unverified forum evidence under Equivalence Principle. Criteria unsatisfied. Escrow pool awarded to Challenger."
-              };
-            }
-            return d;
-          });
+          return parsed;
         }
       }
     } catch (e) {

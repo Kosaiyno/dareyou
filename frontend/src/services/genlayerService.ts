@@ -453,3 +453,40 @@ export async function getOnChainAdjudication(dareId: number): Promise<any> {
     return null;
   }
 }
+
+/**
+ * Executes a REAL on-chain transaction from the user's connected MetaMask wallet
+ * transferring genuine GEN testnet tokens to the StakeEscrow smart contract.
+ */
+export async function sendMetaMaskStakeDeposit(amountGen: string): Promise<string> {
+  if (typeof window === 'undefined' || !(window as any).ethereum) {
+    throw new Error('MetaMask is not available in this browser window.');
+  }
+  const eth = (window as any).ethereum;
+  const accounts = await eth.request({ method: 'eth_accounts' });
+  if (!accounts || accounts.length === 0) {
+    throw new Error('Please connect your MetaMask wallet first.');
+  }
+
+  // Calculate wei (18 decimals)
+  const numGen = parseFloat(amountGen);
+  if (isNaN(numGen) || numGen <= 0) {
+    throw new Error('Invalid stake amount.');
+  }
+  const weiAmount = BigInt(Math.floor(numGen * 1e18));
+  const hexValue = '0x' + weiAmount.toString(16);
+
+  console.log(`[MetaMask Staking] Prompting user to transfer ${amountGen} GEN to ${GENLAYER_ESCROW_ADDRESS}...`);
+  const txHash = await eth.request({
+    method: 'eth_sendTransaction',
+    params: [{
+      from: accounts[0],
+      to: GENLAYER_ESCROW_ADDRESS,
+      value: hexValue
+    }]
+  });
+
+  console.log(`[MetaMask Staking] Transaction confirmed on StudioNet: ${txHash}`);
+  return txHash;
+}
+

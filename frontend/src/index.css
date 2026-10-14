@@ -2,7 +2,7 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-emerald-500 selection:text-black;
+    @apply bg-[#020618] text-slate-100 min-h-screen antialiased selection:bg-[#08C38E] selection:text-black;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   }
 }
