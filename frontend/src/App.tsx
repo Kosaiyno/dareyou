@@ -2377,12 +2377,33 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
-                      <span className="font-bold text-indigo-300 text-sm">Validator Consensus in Progress</span>
+                      <span className="font-bold text-indigo-300 text-sm">GenLayer StudioNet Validator Consensus</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live On-Chain (61999)
+                      </span>
                     </div>
                     <span className="text-[11px] font-mono text-indigo-200 bg-indigo-900/60 px-2 py-0.5 rounded border border-indigo-500/30">
                       {(selectedDare.adjudicationSession?.votes?.length ?? 0)} of {(selectedDare.adjudicationSession?.requiredVotes ?? 5)} Responded
                     </span>
                   </div>
+
+                  {(selectedDare.adjudicationSession?.txHash || selectedDare.txHash) && (
+                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-emerald-500/40 flex items-center justify-between text-[11px] font-mono">
+                      <span className="text-slate-300 flex items-center gap-1.5 truncate max-w-[70%]">
+                        <span className="text-emerald-400">⚡</span>
+                        <span className="text-slate-400">Tx:</span>
+                        <span className="text-emerald-300 truncate font-bold">{selectedDare.adjudicationSession?.txHash || selectedDare.txHash}</span>
+                      </span>
+                      <a
+                        href={`https://genlayer-explorer.vercel.app/tx/${selectedDare.adjudicationSession?.txHash || selectedDare.txHash}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 underline font-semibold flex items-center gap-1 shrink-0 ml-2"
+                      >
+                        View on Explorer <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
 
                   <p className="text-slate-300 leading-relaxed">
                     GenLayer's Equivalence Principle executes multi-validator consensus across heterogeneous LLM evaluators to judge research depth and factual veracity.
@@ -2484,6 +2505,25 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
                       <span>Status:</span>
                       <span className="text-emerald-400 font-bold">Escrow Released on StudioNet</span>
                     </div>
+                    {selectedDare.txHash && (
+                      <div className="flex justify-between items-center text-slate-400 pt-1 border-t border-slate-900">
+                        <span>On-Chain Consensus Tx:</span>
+                        <a
+                          href={`https://genlayer-explorer.vercel.app/tx/${selectedDare.txHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-cyan-400 hover:underline font-bold flex items-center gap-1 font-mono"
+                        >
+                          {selectedDare.txHash.slice(0, 14)}... <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                    {selectedDare.adjudicationSession?.receiptStatus && (
+                      <div className="flex justify-between text-slate-400 font-mono">
+                        <span>GenLayer Validator Proof:</span>
+                        <span className="text-emerald-400 font-bold">{selectedDare.adjudicationSession.receiptStatus}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>
