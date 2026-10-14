@@ -5,8 +5,18 @@ import {
   GENLAYER_ADJUDICATOR_ADDRESS,
   depositChallengerStakeOnChain,
   depositInvestigatorStakeOnChain,
-  settleWinnerPayoutOnChain
+  settleWinnerPayoutOnChain,
+  createDareOnChain,
+  fetchOnChainDares,
+  getOrCreateGenLayerAccount
 } from '../services/genlayerService';
+
+export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
+  if (dare.status === 'EXPIRED') return true;
+  if (dare.status === 'ACCEPTED' && dare.researchDeadlineTs > 0 && now > dare.researchDeadlineTs) return true;
+  if (dare.status === 'OPEN' && dare.acceptanceDeadlineTs > 0 && now > dare.acceptanceDeadlineTs) return true;
+  return false;
+}
 
 export type DareCategory = 
   | "CONFLICTING_SOURCE_INVESTIGATION" 
@@ -126,6 +136,7 @@ export interface AppState {
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
   processAllExpiredDares: () => number;
+  loadOnChainDares: () => Promise<void>;
 
   // History & Persistence
   undo: () => boolean;
@@ -148,197 +159,7 @@ export interface AppState {
   };
 }
 
-export const INITIAL_DARES: Dare[] = [
-  {
-    id: 1,
-    isBenchmark: true,
-    title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION",
-    claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
-    requiredSources: "Official club annual audited financial reports and official federation registration filings.",
-    criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xChallengerAlpha...81"
-  },
-  {
-    id: 2,
-    isBenchmark: true,
-    title: "Dare you to trace a widely repeated football story to its earliest verifiable source, compare the original account with later retellings, and expose which details were changed, exaggerated, or never supported by evidence within 25 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "The widely repeated dressing room altercation narrative was embellished over decades and lacks support in contemporary reports.",
-    requiredSources: "Contemporary matchday newspaper archives (within 48 hours of event) versus modern retrospective memoirs.",
-    criteria: "Identify earliest verifiable primary dispatch and document specific embellishments introduced in secondary retellings.",
-    stakeCents: 2000,
-    creationBondCents: 500,
-    durationSeconds: 1500,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: Date.now() + 1500 * 1000, // Live 25-minute countdown running now!
-    status: "ACCEPTED",
-    challenger: "0xTacticalOracle...94",
-    investigator: "0xInvestigatorBeta...42"
-  },
-  {
-    id: 3,
-    isBenchmark: true,
-    title: "Dare you to investigate why two established football statistics providers report different numbers for the same metric in a completed match, identify the methodological or factual source of the discrepancy, and support your conclusion with evidence within 20 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION",
-    claim: "Provider A logged 4 big chances created while Provider B logged 2 due to differing definitions of open-play vs set-piece pass sequences.",
-    requiredSources: "Official event definition documentation from Opta/StatsBomb and timestamped event logs for the match.",
-    criteria: "Demonstrate exact event timestamp causing the divergence and map to published provider methodology rules.",
-    stakeCents: 3000,
-    creationBondCents: 500,
-    durationSeconds: 1200,
-    acceptanceDeadlineTs: Date.now() - 3600000,
-    researchDeadlineTs: Date.now() - 100000,
-    status: "FINALIZED",
-    challenger: "0xArchiveMaster...55",
-    investigator: "0xDataForensic...19",
-    evidence: {
-      conclusion: "CLAIM_VERIFIED_TRUE",
-      primaryUrl: "https://web.archive.org/web/20231015001200id_/https://theanalyst.com/eu/2023/10/football-metrics-definitions-opta",
-      secondaryUrl: "https://web.archive.org/web/20231120001500id_/https://statsbomb.com/what-we-do/specifications-and-metrics",
-      quotes: "Opta Event Glossary defines 'Big Chance' as a situation where a player is reasonably expected to score. StatsBomb evaluates post-shot xG excluding deflection variations under separate event IDs.",
-      reasoning: "The 2-chance disparity arose at minute 67:14 when an open-play cross glanced off a defender. Opta classified it as open-play creation, whereas StatsBomb registered it under deflected transition."
-    },
-    verdict: "INVESTIGATOR_WINS",
-    verdictScore: 96,
-    verdictRationale: "Investigator provided authoritative timestamped archive definitions from both data providers, successfully isolating the exact event divergence and reconciling the methodological definitions."
-  },
-  {
-    id: 4,
-    isBenchmark: true,
-    title: "Dare you to reconstruct the exact timeline and decision chain behind a controversial VAR intervention, documenting each official communication and rule application using primary broadcast and federation sources within 35 minutes.",
-    category: "EVIDENCE_SYNTHESIS",
-    claim: "The on-field referee was not alerted to the offside phase until after the restart protocol had been initiated.",
-    requiredSources: "Official federation audio releases, published match delegate reports, and unedited broadcast timestamp logs.",
-    criteria: "Document minute-by-minute communication chain and substantiate whether protocol deviation occurred under IFAB Law 5.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 2100,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xRefereeAudit...77"
-  },
-  {
-    id: 5,
-    isBenchmark: true,
-    title: "Dare you to audit a club's reported financial compliance figure against published regulatory filings, identifying the accounting distinctions between official figures, league calculations, and credible reporting without presenting speculation as fact within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "The allowable loss deduction for infrastructure investment was calculated differently by the independent commission versus the club's submission.",
-    requiredSources: "Published independent commission written reasons and club statutory financial statements registered at Companies House.",
-    criteria: "Reconcile reported EBITDA with league PSR allowable deductions under profit and sustainability rules.",
-    stakeCents: 3500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xFiscalForensic...12"
-  },
-  {
-    id: 6,
-    isBenchmark: true,
-    title: "Dare you to reconstruct a professional footballer's journey from academy football to the first team, uncovering overlooked loans, development milestones, key appearances, and documented turning points using reliable sources within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "Player's senior debut occurred during an emergency unrecorded youth loan prior to their official league debut.",
-    requiredSources: "Regional league match registers, youth tournament logs, and federation registration filings.",
-    criteria: "Compile chronological trajectory of all competitive appearances with date, opponent, and official tournament records.",
-    stakeCents: 2000,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xAcademyScout...33"
-  },
-  {
-    id: 7,
-    isBenchmark: true,
-    title: "Dare you to investigate a completed football transfer saga with conflicting reports, reconstruct the sequence of reported negotiations, establish what the clubs and player actually confirmed, and distinguish verified events from anonymous-source claims within 30 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION",
-    claim: "The formal bid was submitted 48 hours after media claimed talks collapsed, verified by club stock exchange disclosure.",
-    requiredSources: "Club regulatory stock market disclosures, verified club press releases, and timestamped Tier-1 reports.",
-    criteria: "Reconstruct sequence of documented bids and distinguish verifiable filings from uncorroborated transfer rumors.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xTransferAuditor...90"
-  },
-  {
-    id: 8,
-    isBenchmark: true,
-    title: "Dare you to explain how an unexpected football club reached the latter stages of a European competition by investigating its opponents, tactical adjustments, squad availability, and decisive match events, then rank the explanations by evidence strength within 40 minutes.",
-    category: "EVIDENCE_SYNTHESIS",
-    claim: "Progress was primarily determined by opponent suspension/injury crises rather than tactical formation shifts.",
-    requiredSources: "Official UEFA tournament technical reports, match-by-match squad sheets, and tactical heat maps.",
-    criteria: "Correlate opponent availability with match outcomes and rank explanatory hypotheses by empirical documentation.",
-    stakeCents: 3000,
-    creationBondCents: 500,
-    durationSeconds: 2400,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xTacticalSynthesizer...61"
-  },
-  {
-    id: 9,
-    isBenchmark: true,
-    title: "Dare you to determine whether a high-profile signing genuinely changed a football team's performance by comparing relevant before-and-after data, examining tactical roles and alternative explanations, and presenting a defensible conclusion supported by credible evidence within 40 minutes.",
-    category: "EVIDENCE_SYNTHESIS",
-    claim: "Team points per game improved by 0.6 solely during matches where the player started in a specific hybrid role.",
-    requiredSources: "Historical league statistical archives, lineup records, and tactical tracking databases.",
-    criteria: "Synthesize team metrics before vs after signing, controlling for strength of schedule and concurrent tactical adjustments.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 2400,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xStatsVerifier...48"
-  },
-  {
-    id: 10,
-    isBenchmark: true,
-    title: "Dare you to investigate the origin of a disputed historical football claim by locating contemporary reports, comparing independent accounts, checking primary records where available, and establishing which parts of the claim are supported, contradicted, or impossible to verify within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "The legendary 1954 World Cup ball pressure controversy originated from a single misattributed radio commentary.",
-    requiredSources: "Archived contemporary radio transcripts, tournament organizing committee minutes, and contemporaneous press reports.",
-    criteria: "Isolate earliest mention of claim and contrast against official tournament records to establish veracity.",
-    stakeCents: 3000,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: 0,
-    status: "OPEN",
-    challenger: "0xHistoryAdjudicator...02"
-  },
-  {
-    id: 11,
-    isBenchmark: false,
-    title: "Dare you to trace an unrecorded disciplinary suspension overturned on appeal during the 1998 season within 20 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "The regional disciplinary panel overturned the red card suspension within 48 hours on procedural appeal grounds.",
-    requiredSources: "Contemporary matchday disciplinary logs and federation registers.",
-    criteria: "Locate formal regional notice confirming rescission of match suspension.",
-    stakeCents: 2000,
-    creationBondCents: 500,
-    durationSeconds: 1200,
-    acceptanceDeadlineTs: Date.now() - 3600000,
-    researchDeadlineTs: Date.now() - 600000, // Expired 10 minutes ago — Ready for immediate forfeit claim!
-    status: "EXPIRED",
-    challenger: "0xChallengerAlpha...81",
-    investigator: "0xDelinquentAgent...99"
-  }
-];
+export const INITIAL_DARES: Dare[] = [];
 
 function extractDomain(url?: string): string {
   if (!url) return "primary archive";
@@ -581,13 +402,13 @@ const activeAdjudicationTimers: Record<number, any[]> = {};
 
 export const useStore = create<AppState>((set, get) => ({
   dares: INITIAL_DARES,
-  selectedDareId: 1,
+  selectedDareId: null,
   activeTab: 'arena',
   categoryFilter: 'ALL',
   lifecycleFilter: 'ALL',
   benchmarkFilter: 'ALL',
   walletConnected: true,
-  walletAddress: '0xAgentInvestigatorBeta...F442',
+  walletAddress: typeof window !== 'undefined' ? getOrCreateGenLayerAccount().address : '0xGenLayerStudioNet...61999',
   activeRole: 'INVESTIGATOR',
   lastActionMessage: null,
 
@@ -620,7 +441,7 @@ export const useStore = create<AppState>((set, get) => ({
       acceptanceDeadlineTs: Date.now() + 86400000,
       researchDeadlineTs: 0,
       status: "OPEN",
-      challenger: item.challenger || state.walletAddress || "0xAgentChallenger...Auto"
+      challenger: item.challenger || state.walletAddress
     };
 
     const newDares = [newDare, ...state.dares];
@@ -628,6 +449,18 @@ export const useStore = create<AppState>((set, get) => ({
       ...pushSnapshot(state, newDares),
       selectedDareId: nextId,
       lastActionMessage: `Created Dare #${nextId} "${newDare.title.substring(0, 40)}..."`
+    });
+
+    createDareOnChain({
+      title: newDare.title,
+      category: newDare.category,
+      claim: newDare.claim,
+      requiredSources: newDare.requiredSources,
+      criteria: newDare.criteria,
+      stakeCents: newDare.stakeCents,
+      durationSeconds: newDare.durationSeconds
+    }).catch((err) => {
+      console.warn('[DareRegistry] create_dare on-chain fallback:', err);
     });
 
     depositChallengerStakeOnChain(nextId, newDare.challenger, newDare.stakeCents).catch((err) => {
@@ -1018,6 +851,29 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
+  loadOnChainDares: async () => {
+    try {
+      const onChain = await fetchOnChainDares();
+      if (onChain && onChain.length > 0) {
+        const state = get();
+        const existingIds = new Set(state.dares.map(d => d.id));
+        const newDares = [...state.dares];
+        for (const d of onChain) {
+          if (!existingIds.has(d.id)) {
+            newDares.push(d);
+          }
+        }
+        set({
+          dares: newDares,
+          selectedDareId: state.selectedDareId || newDares[0]?.id || null,
+          lastActionMessage: `Synchronized ${onChain.length} verified challenge(s) from DareRegistry contract.`
+        });
+      }
+    } catch (err) {
+      console.warn('[loadOnChainDares] Could not fetch on-chain dares:', err);
+    }
+  },
+
   processAllExpiredDares: () => {
     const state = get();
     const now = Date.now();
@@ -1158,12 +1014,12 @@ export const useStore = create<AppState>((set, get) => ({
   validateState: () => {
     const state = get();
     const now = Date.now();
-    const expiredCount = state.dares.filter(d => d.status === "ACCEPTED" && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs).length;
+    const expiredCount = state.dares.filter(d => isDareExpired(d, now) && d.status !== "FINALIZED").length;
     
     const summary = {
       totalDares: state.dares.length,
-      open: state.dares.filter(d => d.status === "OPEN").length,
-      accepted: state.dares.filter(d => d.status === "ACCEPTED" && now <= d.researchDeadlineTs).length,
+      open: state.dares.filter(d => d.status === "OPEN" && !isDareExpired(d, now)).length,
+      accepted: state.dares.filter(d => d.status === "ACCEPTED" && !isDareExpired(d, now)).length,
       submitted: state.dares.filter(d => d.status === "SUBMITTED").length,
       finalized: state.dares.filter(d => d.status === "FINALIZED").length,
       expired: expiredCount
@@ -1173,8 +1029,8 @@ export const useStore = create<AppState>((set, get) => ({
     const recommendations: string[] = [];
 
     state.dares.forEach(d => {
-      if (d.status === "ACCEPTED" && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
-        issues.push(`Dare #${d.id} research window expired (${Math.round((now - d.researchDeadlineTs) / 60000)} mins ago) without evidence. Eligible for timeout forfeit claim.`);
+      if (isDareExpired(d, now) && d.status !== "FINALIZED") {
+        issues.push(`Dare #${d.id} research window expired without evidence. Eligible for timeout forfeit claim.`);
       }
       if (d.status === "SUBMITTED" && !d.evidence) {
         issues.push(`Dare #${d.id} marked as SUBMITTED but has no evidence dossier attached.`);

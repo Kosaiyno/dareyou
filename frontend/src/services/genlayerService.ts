@@ -1,27 +1,47 @@
 import { createClient, createAccount, chains } from 'genlayer-js';
+import { generatePrivateKey } from 'viem/accounts';
 import type { ValidatorVote } from '../store/useStore';
 
 export const GENLAYER_ADJUDICATOR_ADDRESS = "0x0936db9AEFB73f87B5E4F5CA36435FB4a9168A94";
+export const GENLAYER_ESCROW_ADDRESS = "0x50fC8Cf8Eae04e26f4B7F995092465f421AD91a9";
+export const GENLAYER_REGISTRY_ADDRESS = "0x614FC00A9Be4Ec50cB569b89616A76cf530dC053";
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
 export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
 export const GENLAYER_EXPLORER_URL = "https://genlayer-explorer.vercel.app";
 
 // Persistent or ephemeral client account for interacting with StudioNet
+let cachedPrivateKey: string | null = null;
 let cachedAccount: any = null;
+
+export function exportGenLayerPrivateKey(): string {
+  getOrCreateGenLayerAccount();
+  return cachedPrivateKey || '';
+}
+
+export function importGenLayerPrivateKey(privateKey: string): any {
+  cachedPrivateKey = privateKey.trim();
+  cachedAccount = createAccount(cachedPrivateKey as any);
+  if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+    window.localStorage.setItem('dareyou_genlayer_pk', cachedPrivateKey);
+  }
+  return cachedAccount;
+}
+
 export function getOrCreateGenLayerAccount() {
   if (!cachedAccount) {
     const hasStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
-    const savedKey = hasStorage ? window.localStorage.getItem('dareyou_genlayer_pk') : null;
-    if (savedKey) {
-      try {
-        cachedAccount = createAccount(savedKey as any);
-      } catch {
-        cachedAccount = createAccount();
-        if (hasStorage) window.localStorage.setItem('dareyou_genlayer_pk', cachedAccount.privateKey);
-      }
-    } else {
-      cachedAccount = createAccount();
-      if (hasStorage) window.localStorage.setItem('dareyou_genlayer_pk', cachedAccount.privateKey);
+    let savedKey = hasStorage ? window.localStorage.getItem('dareyou_genlayer_pk') : null;
+    if (!savedKey) {
+      savedKey = generatePrivateKey();
+      if (hasStorage) window.localStorage.setItem('dareyou_genlayer_pk', savedKey);
+    }
+    cachedPrivateKey = savedKey;
+    try {
+      cachedAccount = createAccount(savedKey as any);
+    } catch {
+      cachedPrivateKey = generatePrivateKey();
+      if (hasStorage) window.localStorage.setItem('dareyou_genlayer_pk', cachedPrivateKey);
+      cachedAccount = createAccount(cachedPrivateKey as any);
     }
   }
   return cachedAccount;
@@ -189,7 +209,7 @@ export function formatRealValidatorVotes(
   });
 }
 
-export const GENLAYER_ESCROW_ADDRESS = "0x50fC8Cf8Eae04e26f4B7F995092465f421AD91a9";
+
 
 /**
  * Deposits and locks challenger GEN stake on the live StakeEscrow smart contract on StudioNet.
@@ -266,4 +286,90 @@ export async function getEscrowStakeInfo(dareId: number): Promise<any> {
     return { raw: String(info) };
   }
 }
+
+/**
+ * Publishes a qualified challenge to the DareRegistry contract on GenLayer StudioNet.
+ */
+export async function createDareOnChain(dare: {
+  title: string;
+  category: string;
+  claim: string;
+  requiredSources: string;
+  criteria: string;
+  stakeCents: number;
+  durationSeconds: number;
+}): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+    functionName: 'create_dare',
+    args: [
+      dare.title,
+      dare.category,
+      dare.claim,
+      dare.requiredSources,
+      dare.criteria,
+      dare.stakeCents,
+      dare.durationSeconds
+    ],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[DareRegistry] Dare registered on StudioNet. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Fetches all on-chain registered dares directly from DareRegistry contract on StudioNet.
+ */
+export async function fetchOnChainDares(): Promise<any[]> {
+  try {
+    const client = getGenLayerClient();
+    const totalBig = await client.readContract({
+      address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+      functionName: 'get_total_dares',
+      args: []
+    });
+    const total = Number(totalBig || 0);
+    if (total === 0) return [];
+
+    const onChainDares: any[] = [];
+    for (let i = 1; i <= total; i++) {
+      try {
+        const raw = await client.readContract({
+          address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+          functionName: 'get_dare',
+          args: [i]
+        });
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (parsed && parsed.dare_id) {
+          onChainDares.push({
+            id: parsed.dare_id,
+            isBenchmark: false,
+            title: parsed.title,
+            category: parsed.category,
+            claim: parsed.claim_statement,
+            requiredSources: parsed.required_sources_desc,
+            criteria: parsed.evaluation_criteria,
+            stakeCents: parsed.stake_amount_cents,
+            creationBondCents: parsed.creation_bond_cents || 500,
+            durationSeconds: parsed.research_window_seconds || 1800,
+            acceptanceDeadlineTs: parsed.acceptance_deadline_ts,
+            researchDeadlineTs: parsed.research_deadline_ts || 0,
+            status: parsed.status || "OPEN",
+            challenger: parsed.challenger,
+            investigator: parsed.investigator || undefined
+          });
+        }
+      } catch (err) {
+        console.warn(`Error reading on-chain dare #${i}:`, err);
+      }
+    }
+    return onChainDares;
+  } catch (err) {
+    console.warn('Could not read on-chain dares from DareRegistry:', err);
+    return [];
+  }
+}
+
 

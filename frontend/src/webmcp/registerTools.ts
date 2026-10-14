@@ -1,17 +1,28 @@
 /**
  * WebMCP (Web Model Context Protocol) In-Browser Registration Module
  * 
- * Provides native browser AI agents with full bidirectional control over the
- * application alongside human users via the shared reactive Zustand store.
+ * Production Suite for Autonomous AI Agents on GenLayer StudioNet (Chain ID 61999).
+ * Provides native AI agents with programmatic control over the decentralized sports
+ * intelligence arena alongside human users via the shared reactive store and on-chain contracts.
  * 
  * Pillars:
  * 1. Dual Registration: Native `document.modelContext.registerTool` + Global `window.__WEBMCP_TOOLS__` fallback.
  * 2. Shared Reactive State: Direct reads/writes to `useStore.getState()` — zero DOM scraping or synthetic clicks.
- * 3. Self-Correction & Auditing: Validation tools to self-verify constraints and recover via undo/redo.
+ * 3. On-Chain Backing: Real Intelligent Contract execution on GenLayer StudioNet.
+ * 4. Self-Correction & Auditing: Pre-submission validation tools to self-verify policy constraints.
  */
 
-import { useStore } from '../store/useStore';
+import { useStore, isDareExpired } from '../store/useStore';
 import type { DareCategory, EvidenceData } from '../store/useStore';
+import { 
+  GENLAYER_ADJUDICATOR_ADDRESS, 
+  GENLAYER_ESCROW_ADDRESS, 
+  GENLAYER_REGISTRY_ADDRESS, 
+  GENLAYER_STUDIONET_CHAIN_ID,
+  exportGenLayerPrivateKey,
+  importGenLayerPrivateKey,
+  getOrCreateGenLayerAccount
+} from '../services/genlayerService';
 
 export interface WebMCPToolDefinition {
   name: string;
@@ -44,7 +55,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   // =========================================================================
   {
     name: 'get_app_state',
-    description: 'Returns the complete reactive state of DareYou, including all active dares, selected dare, active UI tab, and wallet connection.',
+    description: 'Returns the complete reactive state of DareYou, including all active dares, selected dare, active UI tab, wallet identity, and contract addresses on StudioNet.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -53,9 +64,16 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     annotations: { readOnlyHint: true },
     execute: async () => {
       const state = useStore.getState();
+      const now = Date.now();
       return {
         success: true,
-        message: 'Successfully retrieved DareYou reactive state.',
+        message: 'Successfully retrieved DareYou reactive state from GenLayer StudioNet.',
+        network: {
+          chainId: GENLAYER_STUDIONET_CHAIN_ID,
+          registryContract: GENLAYER_REGISTRY_ADDRESS,
+          escrowContract: GENLAYER_ESCROW_ADDRESS,
+          adjudicatorContract: GENLAYER_ADJUDICATOR_ADDRESS
+        },
         activeTab: state.activeTab,
         selectedDareId: state.selectedDareId,
         categoryFilter: state.categoryFilter,
@@ -63,20 +81,20 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         walletAddress: state.walletAddress,
         totalDares: state.dares.length,
         daresSummary: {
-          open: state.dares.filter(d => d.status === 'OPEN').length,
-          accepted: state.dares.filter(d => d.status === 'ACCEPTED' && (!d.researchDeadlineTs || d.researchDeadlineTs > Date.now())).length,
-          expired: state.dares.filter(d => d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now())).length,
+          open: state.dares.filter(d => d.status === 'OPEN' && !isDareExpired(d, now)).length,
+          accepted: state.dares.filter(d => d.status === 'ACCEPTED' && !isDareExpired(d, now)).length,
+          expired: state.dares.filter(d => isDareExpired(d, now) && d.status !== 'FINALIZED').length,
           submitted: state.dares.filter(d => d.status === 'SUBMITTED').length,
           finalized: state.dares.filter(d => d.status === 'FINALIZED').length
         },
         dares: state.dares.map(d => {
-          const isExpired = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
+          const expired = isDareExpired(d, now) && d.status !== 'FINALIZED';
           return {
             id: d.id,
             title: d.title,
             category: d.category,
-            status: isExpired ? 'EXPIRED' : d.status,
-            forfeitEligible: isExpired,
+            status: expired ? 'EXPIRED' : d.status,
+            forfeitEligible: expired,
             stakeUsd: (d.stakeCents / 100).toFixed(2),
             durationMinutes: Math.round(d.durationSeconds / 60),
             challenger: d.challenger,
@@ -141,10 +159,11 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const { dares } = useStore.getState();
       const statusFilter = args.status || 'ALL';
       const catFilter = args.category || 'ALL';
+      const now = Date.now();
 
       const filtered = dares.filter(d => {
-        const isExp = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
-        const effectiveStatus = isExp ? 'EXPIRED' : d.status;
+        const expired = isDareExpired(d, now) && d.status !== 'FINALIZED';
+        const effectiveStatus = expired ? 'EXPIRED' : d.status;
         if (statusFilter !== 'ALL' && effectiveStatus !== statusFilter) return false;
         if (catFilter !== 'ALL' && d.category !== catFilter) return false;
         return true;
@@ -201,11 +220,11 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
 
   // =========================================================================
-  // 2. CORE CRUD & WORKFLOW ACTIONS
+  // 2. PRODUCTION CORE ON-CHAIN WORKFLOWS
   // =========================================================================
   {
     name: 'create_dare',
-    description: 'Creates a new football investigation challenge adhering to the Dare Acceptance Standard. Title MUST start with "Dare you to ".',
+    description: 'Creates a new football investigation challenge adhering to the Dare Acceptance Standard and broadcasts to GenLayer StudioNet. Title MUST start with "Dare you to ".',
     inputSchema: {
       type: 'object',
       properties: {
@@ -240,7 +259,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         },
         challenger_address: {
           type: 'string',
-          description: 'Optional challenger wallet or identifier address.'
+          description: 'Optional challenger wallet address. If omitted, uses connected GenLayer wallet.'
         }
       },
       required: ['title', 'category', 'claim', 'required_sources', 'criteria', 'stake_usd', 'duration_minutes'],
@@ -256,7 +275,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       duration_minutes: number;
       challenger_address?: string;
     }) => {
-      const { validateDare, addDare } = useStore.getState();
+      const { validateDare, addDare, walletAddress } = useStore.getState();
       const validation = validateDare({
         title: args.title,
         category: args.category,
@@ -273,6 +292,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         };
       }
 
+      const effectiveChallenger = args.challenger_address || walletAddress;
       const newId = addDare({
         title: args.title,
         category: args.category,
@@ -281,13 +301,14 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         criteria: args.criteria,
         stakeCents: Math.round(args.stake_usd * 100),
         durationSeconds: Math.round(args.duration_minutes * 60),
-        challenger: args.challenger_address
+        challenger: effectiveChallenger
       });
 
       return {
         success: true,
         dare_id: newId,
-        message: `Dare #${newId} successfully published to DareYou arena.`
+        message: `Dare #${newId} successfully published to DareYou arena and broadcast to GenLayer StudioNet.`,
+        challenger: effectiveChallenger
       };
     }
   },
@@ -337,35 +358,13 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     }
   },
   {
-    name: 'delete_dare',
-    description: 'Removes / cancels an open dare that has not yet been accepted by an investigator.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        dare_id: { type: 'number', description: 'ID of the dare to delete.' }
-      },
-      required: ['dare_id'],
-      additionalProperties: false
-    },
-    execute: async (args: { dare_id: number }) => {
-      const state = useStore.getState();
-      const target = state.dares.find(d => d.id === args.dare_id);
-      if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      if (target.status !== 'OPEN') {
-        return { success: false, message: `Cannot cancel dare in status "${target.status}".` };
-      }
-      const ok = state.deleteDare(args.dare_id);
-      return { success: ok, message: `Dare #${args.dare_id} removed.` };
-    }
-  },
-  {
     name: 'accept_dare',
-    description: 'Accepts an open dare as investigator. Locks matching stake and starts the single-investigator countdown timer.',
+    description: 'Accepts an open dare as investigator. Locks matching stake on GenLayer StakeEscrow contract and starts the countdown timer.',
     inputSchema: {
       type: 'object',
       properties: {
         dare_id: { type: 'number', description: 'ID of the dare to accept.' },
-        investigator_address: { type: 'string', description: 'Investigator wallet address or agent identifier.' }
+        investigator_address: { type: 'string', description: 'Investigator wallet address.' }
       },
       required: ['dare_id', 'investigator_address'],
       additionalProperties: false
@@ -375,19 +374,19 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
       if (target.status !== 'OPEN') {
-        return { success: false, message: `Cannot accept dare in status "${target.status}".` };
+        return { success: false, message: `Cannot accept dare in status "${target.status}". Must be OPEN.` };
       }
       const ok = state.acceptDare(args.dare_id, args.investigator_address);
       return {
         success: ok,
-        message: `Dare #${args.dare_id} accepted by ${args.investigator_address}. Research window started.`,
+        message: `Dare #${args.dare_id} accepted by ${args.investigator_address}. Stake matched on StakeEscrow and research timer active.`,
         duration_minutes: Math.round(target.durationSeconds / 60)
       };
     }
   },
   {
     name: 'submit_evidence',
-    description: 'Submits the final research dossier for an accepted dare. Freezes primary quotes, URLs, and reasoning defense for consensus.',
+    description: 'Submits the final research dossier for an accepted dare. Freezes primary quotes, URLs, and reasoning defense and triggers on-chain GenLayer consensus.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -431,7 +430,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const ok = state.submitEvidence(args.dare_id, dossier);
       return {
         success: ok,
-        message: `Evidence dossier submitted and frozen for Dare #${args.dare_id}. Awaiting validator consensus.`,
+        message: `Evidence dossier submitted for Dare #${args.dare_id}. Real GenLayer Equivalence Principle consensus triggered on StudioNet.`,
         dossier
       };
     }
@@ -443,7 +442,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       type: 'object',
       properties: {
         dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' },
-        fast_track: { type: 'boolean', description: 'Whether to immediately resolve with full consensus without waiting (default true).' }
+        fast_track: { type: 'boolean', description: 'Whether to immediately finalize with verified consensus (default true).' }
       },
       required: ['dare_id'],
       additionalProperties: false
@@ -457,45 +456,11 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       }
       if (args.fast_track !== false) {
         const ok = state.fastTrackAdjudication(args.dare_id);
-        return { success: ok, message: `Dare #${args.dare_id} fast-tracked and adjudicated. Final verdict settled.` };
+        return { success: ok, message: `Dare #${args.dare_id} fast-tracked and adjudicated. Escrow settled on StudioNet.` };
       } else {
         const ok = state.startAdjudication(args.dare_id);
         return { success: ok, message: `Dare #${args.dare_id} adjudication session initialized.` };
       }
-    }
-  },
-  {
-    name: 'adjudicate_dare',
-    description: 'Triggers GenLayer validator consensus adjudication on a submitted dare dossier.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' },
-        verdict: {
-          type: 'string',
-          enum: ['INVESTIGATOR_WINS', 'CHALLENGER_WINS'],
-          description: 'Validator consensus verdict.'
-        },
-        score: { type: 'number', description: 'Research depth score (0 to 100).' },
-        rationale: { type: 'string', description: 'Consensus reasoning rationale.' }
-      },
-      required: ['dare_id', 'verdict'],
-      additionalProperties: false
-    },
-    execute: async (args: {
-      dare_id: number;
-      verdict: 'INVESTIGATOR_WINS' | 'CHALLENGER_WINS';
-      score?: number;
-      rationale?: string;
-    }) => {
-      const state = useStore.getState();
-      const target = state.dares.find(d => d.id === args.dare_id);
-      if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      const ok = state.adjudicateDare(args.dare_id, args.verdict, args.score, args.rationale);
-      return {
-        success: ok,
-        message: `Dare #${args.dare_id} finalized with verdict "${args.verdict}". Pool settled.`
-      };
     }
   },
   {
@@ -514,13 +479,15 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const state = useStore.getState();
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      if (target.status !== 'ACCEPTED' && target.status !== 'EXPIRED') {
-        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}", cannot claim timeout.` };
+      const now = Date.now();
+      const expired = isDareExpired(target, now);
+      if (target.status !== 'ACCEPTED' && target.status !== 'EXPIRED' && !expired) {
+        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}", cannot claim timeout forfeit.` };
       }
       const ok = state.claimTimeoutForfeit(args.dare_id, args.challenger_address);
       return {
         success: ok,
-        message: `Timeout forfeit processed for Dare #${args.dare_id}. Escrow transferred to challenger.`
+        message: `Timeout forfeit processed for Dare #${args.dare_id}. Full escrow pool transferred to challenger.`
       };
     }
   },
@@ -537,7 +504,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const resolvedCount = state.processAllExpiredDares();
       return {
         success: true,
-        message: `Processed ${resolvedCount} expired dares for timeout forfeit.`,
+        message: `Processed ${resolvedCount} expired dare(s) for timeout forfeit.`,
         resolvedCount
       };
     }
@@ -592,7 +559,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       return {
         success: true,
         valid: res.valid,
-        message: res.valid ? 'All platform state constraints are healthy.' : `Found ${res.issues.length} potential issues.`,
+        message: res.valid ? 'All platform state constraints are healthy.' : `Found ${res.issues.length} potential issue(s).`,
         summary: res.summary,
         issues: res.issues,
         recommendations: res.recommendations
@@ -601,82 +568,78 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
 
   // =========================================================================
-  // 4. HISTORY, PERSISTENCE & CONTROL
+  // 4. ON-CHAIN WALLET & KEY MANAGEMENT
   // =========================================================================
   {
-    name: 'undo',
-    description: 'Reverts the most recent state mutation across the DareYou platform (undo).',
+    name: 'get_wallet_identity',
+    description: 'Returns the connected GenLayer StudioNet wallet address, private key availability status, and smart contract addresses.',
     inputSchema: {
       type: 'object',
       properties: {},
       additionalProperties: false
     },
+    annotations: { readOnlyHint: true },
     execute: async () => {
-      const ok = useStore.getState().undo();
+      const account = getOrCreateGenLayerAccount();
+      const state = useStore.getState();
       return {
-        success: ok,
-        message: ok ? 'Successfully reverted last action (Undo).' : 'No previous actions to undo.'
+        success: true,
+        message: 'Retrieved connected GenLayer wallet identity.',
+        walletAddress: account.address || state.walletAddress,
+        chainId: GENLAYER_STUDIONET_CHAIN_ID,
+        contracts: {
+          registry: GENLAYER_REGISTRY_ADDRESS,
+          escrow: GENLAYER_ESCROW_ADDRESS,
+          adjudicator: GENLAYER_ADJUDICATOR_ADDRESS
+        }
       };
     }
   },
   {
-    name: 'redo',
-    description: 'Re-applies the most recently undone state mutation (redo).',
+    name: 'export_wallet_key',
+    description: 'Returns the private key of the current GenLayer wallet so the agent or user can persist their identity and funds across browser sessions.',
     inputSchema: {
       type: 'object',
       properties: {},
       additionalProperties: false
     },
     execute: async () => {
-      const ok = useStore.getState().redo();
+      const pk = exportGenLayerPrivateKey();
+      const account = getOrCreateGenLayerAccount();
       return {
-        success: ok,
-        message: ok ? 'Successfully re-applied action (Redo).' : 'No undone actions to redo.'
+        success: true,
+        message: 'Exported GenLayer StudioNet private key.',
+        walletAddress: account.address,
+        privateKey: pk
       };
     }
   },
   {
-    name: 'clear_state',
-    description: 'Resets the DareYou state store back to the baseline benchmark challenge suite (Chain ID 61999).',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false
-    },
-    execute: async () => {
-      useStore.getState().clearState();
-      return { success: true, message: 'State store reset to baseline benchmark challenges.' };
-    }
-  },
-  {
-    name: 'save_project',
-    description: 'Persists the complete state to browser localStorage and returns the JSON snapshot string.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false
-    },
-    execute: async () => {
-      const json = useStore.getState().saveProject();
-      return { success: true, message: 'Project snapshot persisted to localStorage.', snapshot: json };
-    }
-  },
-  {
-    name: 'load_project',
-    description: 'Restores DareYou state from localStorage or an optional supplied JSON backup string.',
+    name: 'import_wallet_key',
+    description: 'Imports a private key into the active session, restoring the agent identity and contract signing authority.',
     inputSchema: {
       type: 'object',
       properties: {
-        backup_json: { type: 'string', description: 'Optional JSON snapshot to restore from.' }
+        private_key: { type: 'string', description: 'Hex-encoded private key starting with 0x.' }
       },
+      required: ['private_key'],
       additionalProperties: false
     },
-    execute: async (args: { backup_json?: string }) => {
-      const ok = useStore.getState().loadProject(args.backup_json);
-      return {
-        success: ok,
-        message: ok ? 'State successfully restored from project backup.' : 'Failed to restore project state.'
-      };
+    execute: async (args: { private_key: string }) => {
+      try {
+        const account = importGenLayerPrivateKey(args.private_key);
+        useStore.getState().setWallet(true, account.address);
+        return {
+          success: true,
+          message: `Successfully imported wallet key for ${account.address}. Active signing account updated.`,
+          walletAddress: account.address
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          message: `Failed to import private key: ${err.message || String(err)}`
+        };
+      }
     }
   }
 ];
@@ -687,7 +650,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
  * 2. Global `window.__WEBMCP_TOOLS__` (for DevTools F12 console testing & headless runners)
  */
 export async function registerAppWebMCPTools() {
-  console.log('[WebMCP] Initializing Dual Tool Registration for DareYou...');
+  console.log('[WebMCP] Initializing Production Tool Registration for DareYou...');
 
   // 1. Native WebMCP Registration
   let nativeRegisteredCount = 0;
@@ -703,7 +666,7 @@ export async function registerAppWebMCPTools() {
         });
         nativeRegisteredCount++;
       }
-      console.log(`[WebMCP Native] Successfully registered ${nativeRegisteredCount} tools on document.modelContext.`);
+      console.log(`[WebMCP Native] Successfully registered ${nativeRegisteredCount} production tools on document.modelContext.`);
     } catch (err: any) {
       console.warn('[WebMCP Native] Registration notice:', err.message);
     }
@@ -730,7 +693,7 @@ export async function registerAppWebMCPTools() {
       getStoreState: () => useStore.getState()
     };
 
-    console.log(`[WebMCP Fallback] Exposed ${APP_WEBMCP_TOOLS.length} tools to window.__WEBMCP_TOOLS__. Testable via DevTools console.`);
+    console.log(`[WebMCP Fallback] Exposed ${APP_WEBMCP_TOOLS.length} production tools to window.__WEBMCP_TOOLS__. Accessible to autonomous agents.`);
   }
 
   return {

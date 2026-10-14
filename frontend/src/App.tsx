@@ -19,13 +19,20 @@ import {
   Copy,
   Check,
   X,
-  Undo,
-  Redo,
   Clock,
   Trophy,
+  Key,
   Zap
 } from 'lucide-react';
-import { useStore } from './store/useStore';
+import { useStore, isDareExpired } from './store/useStore';
+import { 
+  exportGenLayerPrivateKey, 
+  importGenLayerPrivateKey, 
+  getOrCreateGenLayerAccount, 
+  GENLAYER_REGISTRY_ADDRESS, 
+  GENLAYER_ESCROW_ADDRESS, 
+  GENLAYER_ADJUDICATOR_ADDRESS 
+} from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
 import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
 
@@ -233,17 +240,26 @@ export default function App() {
   const setSelectedDare = (dare: Dare | null) => store.setSelectedDareId(dare ? dare.id : null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [benchmarkFilter, setBenchmarkFilter] = useState<'ALL' | 'BENCHMARK' | 'USER_DARES'>('ALL');
 
   // Real Web3 Wallet State (No Mocks)
   const [walletConnected, setWalletConnected] = useState<boolean>(true);
-  const [walletAddress, setWalletAddress] = useState<string>('0xAgentInvestigatorBeta...F442');
+  const [walletAddress, setWalletAddress] = useState<string>(() => {
+    try {
+      return getOrCreateGenLayerAccount().address;
+    } catch {
+      return '0xGenLayerStudioNet...61999';
+    }
+  });
+  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
+  const [importedKeyInput, setImportedKeyInput] = useState<string>('');
+  const [keySuccessMsg, setKeySuccessMsg] = useState<string>('');
+  const [showPrivateKeyText, setShowPrivateKeyText] = useState<boolean>(false);
   const [chainId, setChainId] = useState<string>('');
   const [networkError, setNetworkError] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Contract Configuration
-  const [registryContractAddress, setRegistryContractAddress] = useState<string>('0x7bB7c5a932F64c92A72Bf468D3d987d60f4e24D1');
+  const [registryContractAddress, setRegistryContractAddress] = useState<string>(GENLAYER_REGISTRY_ADDRESS);
   const [txState, setTxState] = useState<{ active: boolean; message: string; step: number; txHash?: string }>({
     active: false,
     message: '',
@@ -301,8 +317,9 @@ export default function App() {
   const [mcpToolOutput, setMcpToolOutput] = useState<any>(null);
   const [isExecutingTool, setIsExecutingTool] = useState<boolean>(false);
 
-  // Sync WebMCP Tools on Mount with safe content-type validation
+  // Synchronize on-chain dares and WebMCP Tools on mount
   useEffect(() => {
+    store.loadOnChainDares();
     if (typeof window !== 'undefined' && window.__WEBMCP_TOOLS__) {
       const toolList = window.__WEBMCP_TOOLS__.list();
       setMcpStatus({
@@ -731,15 +748,13 @@ export default function App() {
   const filteredDares = dares.filter(d => {
     if (selectedCategory !== 'ALL' && d.category !== selectedCategory) return false;
     if (selectedStatus !== 'ALL') {
+      const isExp = isDareExpired(d, Date.now()) && d.status !== 'FINALIZED';
       if (selectedStatus === 'EXPIRED') {
-        const isExp = d.status === 'EXPIRED' || (d.status === 'ACCEPTED' && !!d.researchDeadlineTs && d.researchDeadlineTs <= Date.now());
         if (!isExp) return false;
-      } else if (d.status !== selectedStatus) {
+      } else if (isExp || d.status !== selectedStatus) {
         return false;
       }
     }
-    if (benchmarkFilter === 'BENCHMARK' && !d.isBenchmark) return false;
-    if (benchmarkFilter === 'USER_DARES' && d.isBenchmark) return false;
     return true;
   });
 
@@ -883,62 +898,23 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Controls: Persona Role Switcher, Undo / Redo & Web3 Wallet */}
+          {/* Controls: Real Wallet Identity & Key Management */}
           <div className="flex items-center gap-2">
-            {/* Persona Role Switcher */}
-            <div className="hidden md:flex items-center gap-1.5 bg-slate-900 px-2 py-1 rounded-xl border border-slate-800 text-[11px]">
-              <span className="text-slate-500 font-medium">Actor:</span>
-              <select
-                value={walletAddress}
-                onChange={(e) => {
-                  const addr = e.target.value;
-                  setWalletAddress(addr);
-                  if (addr.includes('Investigator')) {
-                    store.setActiveRole('INVESTIGATOR');
-                  } else {
-                    store.setActiveRole('CHALLENGER');
-                  }
-                  store.setWallet(true, addr);
-                }}
-                className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-1.5 py-0.5 text-[10px] font-mono focus:outline-none focus:border-emerald-500"
-                title="Switch active testing identity (Investigator, Challenger, or Custom Agent)"
-              >
-                <option value="0xAgentInvestigatorBeta...F442">Investigator (0xAgen...F442)</option>
-                <option value="0xTacticalOracle...94">Challenger (0xTact...94)</option>
-                <option value="0xTestInvestigatorFunctionalQA...2026">Test QA Agent (0xTest...2026)</option>
-              </select>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-              <button
-                onClick={() => store.undo()}
-                title="Undo last state action"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-xs flex items-center gap-1"
-              >
-                <Undo className="w-3.5 h-3.5" />
-                <span className="text-[10px]">Undo</span>
-              </button>
-              <button
-                onClick={() => store.redo()}
-                title="Redo state action"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all text-xs flex items-center gap-1"
-              >
-                <Redo className="w-3.5 h-3.5" />
-                <span className="text-[10px]">Redo</span>
-              </button>
-            </div>
-
-            {/* Web3 Wallet Button */}
             <button
-              onClick={connectWallet}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                walletConnected
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20'
-                  : 'bg-emerald-500 text-slate-950 border-emerald-400 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20'
-              }`}
+              onClick={() => setShowKeyModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all cursor-pointer font-mono"
+              title="View, export, or import GenLayer StudioNet private key"
             >
-              <Wallet className="w-4 h-4" />
-              {walletConnected ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connect Web3 Wallet'}
+              <Key className="w-3.5 h-3.5 text-amber-400" />
+              <span>{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '0x...'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowKeyModal(true)}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/40 hover:bg-emerald-500/20 text-xs text-emerald-400 font-semibold transition-all cursor-pointer"
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>StudioNet (61999)</span>
             </button>
           </div>
         </div>
@@ -955,12 +931,7 @@ export default function App() {
             <span className="text-slate-100 font-medium">{store.lastActionMessage}</span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => store.undo()}
-              className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px] border border-emerald-500/40 flex items-center gap-1 transition-all"
-            >
-              <Undo className="w-3 h-3" /> Revert
-            </button>
+
             <button
               onClick={() => store.setLastActionMessage(null)}
               className="text-slate-400 hover:text-white"
@@ -982,7 +953,7 @@ export default function App() {
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 p-6 md:p-8">
               <div className="relative z-10 max-w-2xl">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3">
-                  <ShieldCheck className="w-3.5 h-3.5" /> StudioNet Testnet Sandbox & Protocol Benchmark Suite (Chain ID: 61999)
+                  <ShieldCheck className="w-3.5 h-3.5" /> GenLayer StudioNet Live Intelligence Arena (Chain ID: 61999)
                 </span>
                 <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">
                   Adversarial Football Intelligence Duels
@@ -1041,35 +1012,7 @@ export default function App() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">Suite:</span>
-                  <div className="flex items-center bg-slate-800/80 p-0.5 rounded-lg border border-slate-700 text-[11px]">
-                    <button
-                      onClick={() => setBenchmarkFilter('ALL')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        benchmarkFilter === 'ALL' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      All ({dares.length})
-                    </button>
-                    <button
-                      onClick={() => setBenchmarkFilter('USER_DARES')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        benchmarkFilter === 'USER_DARES' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Agent Dares ({dares.filter(d => !d.isBenchmark).length})
-                    </button>
-                    <button
-                      onClick={() => setBenchmarkFilter('BENCHMARK')}
-                      className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                        benchmarkFilter === 'BENCHMARK' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      Benchmark Suite (10)
-                    </button>
-                  </div>
-                </div>
+
               </div>
 
               {/* Quick Actions: Settle Expired Dares */}
@@ -1088,34 +1031,27 @@ export default function App() {
               </div>
             </div>
 
-            {/* Dares List or Filter Empty State */}
+            {/* Dares List or Authentic Empty State */}
             {filteredDares.length === 0 ? (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-12 text-center flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-4">
-                  <Bot className="w-8 h-8 text-slate-400" />
+                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
+                  <Flame className="w-8 h-8 text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">No Challenges Found</h3>
+                <h3 className="text-lg font-bold text-white mb-2">
+                  {dares.length === 0 ? "No Active Challenges in the Arena" : "No Challenges Found"}
+                </h3>
                 <p className="text-slate-400 text-xs max-w-md mb-6 leading-relaxed">
-                  No challenges match the active filter criteria. Switch filters above or create a new on-chain challenge.
+                  {dares.length === 0 
+                    ? "Be the first challenger to post an on-chain football investigation dare. Deposit your stake and challenge autonomous AI agents to prove or refute the claim." 
+                    : "No challenges match the active filter criteria. Switch filters above or create a new challenge."}
                 </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      setSelectedCategory('ALL');
-                      setSelectedStatus('ALL');
-                      setBenchmarkFilter('ALL');
-                    }}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    Reset Filters
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('create')}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs border border-emerald-400 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" /> Submit On-Chain Challenge
-                  </button>
-                </div>
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
+                >
+                  <PlusCircle className="w-4 h-4" /> Broadcast First Challenge ($GEN)
+                </button>
+
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1698,31 +1634,7 @@ export default function App() {
             </div>
 
             <form onSubmit={handlePublishDare} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold text-slate-300">Quick-Load Canonical Dare:</span>
-                <select
-                  onChange={(e) => {
-                    const idx = parseInt(e.target.value);
-                    if (!isNaN(idx) && STANDARD_TEST_CASES[idx]) {
-                      const tc = STANDARD_TEST_CASES[idx];
-                      setCreateTitle(tc.title);
-                      setCreateCategory(tc.category);
-                      setCreateClaim(tc.claim);
-                      setCreateSources(tc.requiredSources);
-                      setCreateCriteria(tc.criteria);
-                      setCreateStakeUsd((tc.stakeCents / 100).toString());
-                      setCreateDurationMins((tc.durationSeconds / 60).toString());
-                    }
-                  }}
-                  defaultValue=""
-                  className="bg-slate-800 border border-slate-700 text-[11px] rounded px-2.5 py-1 text-slate-200 focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="" disabled>Select from 10 Canonical Standards...</option>
-                  {STANDARD_TEST_CASES.map((tc, idx) => (
-                    <option key={tc.id} value={idx}>#{tc.id}: {tc.title.slice(0, 50)}...</option>
-                  ))}
-                </select>
-              </div>
+
 
               <div>
                 <label className="text-xs font-bold text-slate-300 block mb-1">
@@ -1969,33 +1881,29 @@ export default function App() {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   >
                     <optgroup label="1. Inspection & State (Read Only)">
-                      <option value="get_app_state">get_app_state — Complete reactive state & dare stats</option>
+                      <option value="get_app_state">get_app_state — Complete reactive state, contracts & stats</option>
                       <option value="get_selected_dare">get_selected_dare — Full specifications of active dare</option>
-                      <option value="list_dares">list_dares — Filter dares by status or category</option>
+                      <option value="list_dares">list_dares — Filter dares by lifecycle or category</option>
                       <option value="select_dare">select_dare — Change selected dare in UI</option>
                       <option value="switch_tab">switch_tab — Switch active UI view (arena, create, etc.)</option>
                     </optgroup>
-                    <optgroup label="2. Core CRUD & Duels">
-                      <option value="create_dare">create_dare — Create continuous 'Dare you to' challenge</option>
+                    <optgroup label="2. Core On-Chain Duels">
+                      <option value="create_dare">create_dare — Broadcast 'Dare you to' challenge on StudioNet</option>
                       <option value="update_dare">update_dare — Update unaccepted dare terms</option>
-                      <option value="delete_dare">delete_dare — Remove unaccepted dare</option>
-                      <option value="accept_dare">accept_dare — Lock stake and start research timer</option>
-                      <option value="submit_evidence">submit_evidence — Submit evidence dossier</option>
-                      <option value="start_adjudication">start_adjudication — Fast-track validator consensus</option>
-                      <option value="adjudicate_dare">adjudicate_dare — Validator consensus verdict</option>
+                      <option value="accept_dare">accept_dare — Match stake and start research timer</option>
+                      <option value="submit_evidence">submit_evidence — Submit evidence & trigger GenLayer consensus</option>
+                      <option value="start_adjudication">start_adjudication — Finalize validator consensus & settlement</option>
                       <option value="claim_timeout_forfeit">claim_timeout_forfeit — Claim escrow on elapsed timer</option>
                       <option value="process_all_expired">process_all_expired — Auto-settle all elapsed timers</option>
                     </optgroup>
                     <optgroup label="3. Validation & Self-Correction">
                       <option value="validate_dare">validate_dare — Check against 8 rules of Acceptance Standard</option>
-                      <option value="validate_state">validate_state — Audit platform deadlocks & expired timers</option>
+                      <option value="validate_state">validate_state — Audit platform deadlines & consistency</option>
                     </optgroup>
-                    <optgroup label="4. History & Persistence">
-                      <option value="undo">undo — Revert previous state mutation</option>
-                      <option value="redo">redo — Re-apply undone mutation</option>
-                      <option value="save_project">save_project — Persist snapshot to localStorage</option>
-                      <option value="load_project">load_project — Restore state from backup</option>
-                      <option value="clear_state">clear_state — Reset to baseline standard dares</option>
+                    <optgroup label="4. On-Chain Identity & Key Management">
+                      <option value="get_wallet_identity">get_wallet_identity — Connected address & contracts</option>
+                      <option value="export_wallet_key">export_wallet_key — Export private key for persistence</option>
+                      <option value="import_wallet_key">import_wallet_key — Import private key</option>
                     </optgroup>
                   </select>
                 </div>
@@ -2070,8 +1978,9 @@ await window.__WEBMCP_TOOLS__.execute('create_dare', {
 const audit = await window.__WEBMCP_TOOLS__.execute('validate_state', {});
 console.log(audit);
 
-// 5. Revert any accidental action
-await window.__WEBMCP_TOOLS__.execute('undo', {});`}
+// 5. Export key for agent persistence
+const identity = await window.__WEBMCP_TOOLS__.execute('get_wallet_identity', {});
+console.log(identity);`}
                 </div>
               </div>
             </div>
@@ -2079,58 +1988,95 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
         )}
 
         {/* ============================================================ */}
-        {/* TAB 6: LEADERBOARD */}
+        {/* TAB 6: LEADERBOARD (DYNAMIC FROM FINALISED DUELS) */}
         {/* ============================================================ */}
-        {activeTab === 'leaderboard' && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">On-Chain Reputation</span>
-              <h2 className="text-2xl font-black text-white mt-1">Autonomous Agent Leaderboard</h2>
-              <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                Ranked by on-chain duel win rate, staked volume, and consensus integrity records registered on <code className="text-emerald-400">AgentReputation.py</code>.
-              </p>
-            </div>
+        {activeTab === 'leaderboard' && (() => {
+          const agentMap: Record<string, { address: string; duels: number; wins: number; losses: number; stakedCents: number }> = {};
+          dares.filter(d => d.status === 'FINALIZED').forEach(d => {
+            const chal = d.challenger;
+            if (chal) {
+              if (!agentMap[chal]) agentMap[chal] = { address: chal, duels: 0, wins: 0, losses: 0, stakedCents: 0 };
+              agentMap[chal].duels++;
+              agentMap[chal].stakedCents += d.stakeCents;
+              if (d.verdict === 'CHALLENGER_WINS') agentMap[chal].wins++;
+              else if (d.verdict === 'INVESTIGATOR_WINS') agentMap[chal].losses++;
+            }
+            if (d.investigator) {
+              const inv = d.investigator;
+              if (!agentMap[inv]) agentMap[inv] = { address: inv, duels: 0, wins: 0, losses: 0, stakedCents: 0 };
+              agentMap[inv].duels++;
+              agentMap[inv].stakedCents += d.stakeCents;
+              if (d.verdict === 'INVESTIGATOR_WINS') agentMap[inv].wins++;
+              else if (d.verdict === 'CHALLENGER_WINS') agentMap[inv].losses++;
+            }
+          });
+          const rankedAgents = Object.values(agentMap).sort((a, b) => b.wins - a.wins);
 
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="p-4">Rank</th>
-                    <th className="p-4">Agent Name / Address</th>
-                    <th className="p-4">Duels</th>
-                    <th className="p-4">Record (W-L-F)</th>
-                    <th className="p-4">Win Rate</th>
-                    <th className="p-4">Total Staked</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800 text-slate-300">
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="p-4 font-bold text-emerald-400">#1</td>
-                    <td className="p-4">
-                      <span className="font-bold text-white block">VAR-Analyst-3000</span>
-                      <code className="text-[10px] text-slate-500">0xInvestigatorBeta...42</code>
-                    </td>
-                    <td className="p-4">26</td>
-                    <td className="p-4 text-emerald-400 font-semibold">21 - 4 - 1</td>
-                    <td className="p-4 font-bold text-white">81%</td>
-                    <td className="p-4 font-mono text-emerald-400">$520.00 GEN</td>
-                  </tr>
-                  <tr className="hover:bg-slate-800/40">
-                    <td className="p-4 font-bold text-slate-300">#2</td>
-                    <td className="p-4">
-                      <span className="font-bold text-white block">FactStriker-Agent</span>
-                      <code className="text-[10px] text-slate-500">0xChallengerAlpha...81</code>
-                    </td>
-                    <td className="p-4">17</td>
-                    <td className="p-4 text-emerald-400 font-semibold">14 - 3 - 0</td>
-                    <td className="p-4 font-bold text-white">82%</td>
-                    <td className="p-4 font-mono text-emerald-400">$340.00 GEN</td>
-                  </tr>
-                </tbody>
-              </table>
+          return (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div>
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">On-Chain Reputation</span>
+                <h2 className="text-2xl font-black text-white mt-1">Autonomous Agent Leaderboard</h2>
+                <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                  Ranked by on-chain duel win rate, staked volume, and consensus integrity records registered on GenLayer StudioNet.
+                </p>
+              </div>
+
+              {rankedAgents.length === 0 ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-12 text-center flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-4">
+                    <Trophy className="w-8 h-8 text-amber-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white mb-2">No Completed Duels Yet</h3>
+                  <p className="text-slate-400 text-xs max-w-md mb-6 leading-relaxed">
+                    Leaderboard rankings will dynamically populate as dares are accepted, adjudicated by GenLayer validators, and finalized on StudioNet.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('create')}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" /> Start the First Duel
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                      <tr>
+                        <th className="p-4">Rank</th>
+                        <th className="p-4">Agent Address</th>
+                        <th className="p-4">Duels</th>
+                        <th className="p-4">Record (W - L)</th>
+                        <th className="p-4">Win Rate</th>
+                        <th className="p-4">Total Staked</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300 font-mono">
+                      {rankedAgents.map((ag, idx) => {
+                        const winRate = ag.duels > 0 ? Math.round((ag.wins / ag.duels) * 100) : 0;
+                        return (
+                          <tr key={ag.address} className="hover:bg-slate-800/40">
+                            <td className="p-4 font-bold text-emerald-400">#{idx + 1}</td>
+                            <td className="p-4 text-white">
+                              <span className="font-bold">{ag.address.slice(0, 10)}...{ag.address.slice(-6)}</span>
+                              {ag.address.toLowerCase() === walletAddress.toLowerCase() && (
+                                <span className="ml-2 text-[10px] text-amber-400 font-bold font-sans">★ (You)</span>
+                              )}
+                            </td>
+                            <td className="p-4">{ag.duels}</td>
+                            <td className="p-4 text-emerald-400 font-semibold">{ag.wins} - {ag.losses}</td>
+                            <td className="p-4 font-bold text-white">{winRate}%</td>
+                            <td className="p-4 text-emerald-400">${(ag.stakedCents / 100).toFixed(2)} GEN</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {/* Selected Dare Dossier Modal */}
         {selectedDare && (
           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -2567,6 +2513,139 @@ await window.__WEBMCP_TOOLS__.execute('undo', {});`}
           </div>
         )}
       </main>
+
+      
+      {/* Key Management & Wallet Identity Modal */}
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
+            <button
+              onClick={() => {
+                setShowKeyModal(false);
+                setKeySuccessMsg('');
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                <Key className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">GenLayer Wallet & Key Identity</h3>
+                <p className="text-xs text-slate-400">GenLayer StudioNet (Chain ID: 61999)</p>
+              </div>
+            </div>
+
+            {keySuccessMsg && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-300 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>{keySuccessMsg}</span>
+              </div>
+            )}
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-400 block mb-1">Your On-Chain Address</label>
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400">
+                  <span className="truncate mr-2">{walletAddress}</span>
+                  <button
+                    onClick={() => copyToClipboard(walletAddress, 'wallet_addr')}
+                    className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Copy Address"
+                  >
+                    {copiedId === 'wallet_addr' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-semibold text-slate-400">Export Private Key</label>
+                  <button
+                    onClick={() => setShowPrivateKeyText(!showPrivateKeyText)}
+                    className="text-[10px] text-cyan-400 hover:underline cursor-pointer"
+                  >
+                    {showPrivateKeyText ? 'Hide' : 'Reveal'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-amber-400">
+                  <span className="truncate mr-2">
+                    {showPrivateKeyText ? exportGenLayerPrivateKey() : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
+                  </span>
+                  <button
+                    onClick={() => copyToClipboard(exportGenLayerPrivateKey(), 'wallet_pk')}
+                    className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Copy Private Key"
+                  >
+                    {copiedId === 'wallet_pk' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Export this key to use the same wallet identity in other browsers, CLI, or agent frameworks.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800">
+                <label className="text-[11px] font-semibold text-slate-300 block mb-1">Import Existing Private Key</label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={importedKeyInput}
+                    onChange={(e) => setImportedKeyInput(e.target.value)}
+                    placeholder="0x... paste 64-char hex private key"
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                  <button
+                    onClick={() => {
+                      if (!importedKeyInput.trim().startsWith('0x') || importedKeyInput.trim().length < 64) {
+                        alert('Please enter a valid 0x private key.');
+                        return;
+                      }
+                      try {
+                        const acc = importGenLayerPrivateKey(importedKeyInput);
+                        setWalletAddress(acc.address);
+                        store.setWallet(true, acc.address);
+                        setKeySuccessMsg(`Successfully imported wallet: ${acc.address}`);
+                        setImportedKeyInput('');
+                      } catch (err: any) {
+                        alert('Failed to import: ' + (err.message || String(err)));
+                      }
+                    }}
+                    className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition-all cursor-pointer shrink-0"
+                  >
+                    Import & Switch
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] space-y-1">
+                <div className="text-slate-400 font-semibold mb-1">Deployed Contracts on StudioNet:</div>
+                <div className="flex justify-between font-mono text-[10px]">
+                  <span className="text-slate-500">DareRegistry:</span>
+                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_REGISTRY_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                    {GENLAYER_REGISTRY_ADDRESS.slice(0, 10)}...{GENLAYER_REGISTRY_ADDRESS.slice(-6)}
+                  </a>
+                </div>
+                <div className="flex justify-between font-mono text-[10px]">
+                  <span className="text-slate-500">StakeEscrow:</span>
+                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_ESCROW_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                    {GENLAYER_ESCROW_ADDRESS.slice(0, 10)}...{GENLAYER_ESCROW_ADDRESS.slice(-6)}
+                  </a>
+                </div>
+                <div className="flex justify-between font-mono text-[10px]">
+                  <span className="text-slate-500">DareAdjudicator:</span>
+                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_ADJUDICATOR_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                    {GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...{GENLAYER_ADJUDICATOR_ADDRESS.slice(-6)}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-800 bg-slate-900/60 py-6 mt-12 text-xs text-slate-400">
