@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import { submitRealGenLayerAdjudication, formatRealValidatorVotes, GENLAYER_ADJUDICATOR_ADDRESS } from '../services/genlayerService';
+import { 
+  submitRealGenLayerAdjudication, 
+  formatRealValidatorVotes, 
+  GENLAYER_ADJUDICATOR_ADDRESS,
+  depositChallengerStakeOnChain,
+  depositInvestigatorStakeOnChain,
+  settleWinnerPayoutOnChain
+} from '../services/genlayerService';
 
 export type DareCategory = 
   | "CONFLICTING_SOURCE_INVESTIGATION" 
@@ -622,6 +629,11 @@ export const useStore = create<AppState>((set, get) => ({
       selectedDareId: nextId,
       lastActionMessage: `Created Dare #${nextId} "${newDare.title.substring(0, 40)}..."`
     });
+
+    depositChallengerStakeOnChain(nextId, newDare.challenger, newDare.stakeCents).catch((err) => {
+      console.warn('[StakeEscrow] Deposit challenger stake fallback:', err);
+    });
+
     return nextId;
   },
 
@@ -674,6 +686,11 @@ export const useStore = create<AppState>((set, get) => ({
       selectedDareId: id,
       lastActionMessage: `Investigator ${investigatorAddress.substring(0, 10)} accepted Dare #${id}. Research countdown started.`
     });
+
+    depositInvestigatorStakeOnChain(id, investigatorAddress, target.stakeCents).catch((err) => {
+      console.warn('[StakeEscrow] Deposit investigator stake fallback:', err);
+    });
+
     return true;
   },
 
@@ -932,6 +949,14 @@ export const useStore = create<AppState>((set, get) => ({
       selectedDareId: id,
       lastActionMessage: `Consensus Reached for Dare #${id}: ${dynamicAdj.finalVerdict} (${dynamicAdj.averageScore}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
     });
+
+    const winnerAddress = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" 
+      ? (target.investigator || state.walletAddress) 
+      : target.challenger;
+    settleWinnerPayoutOnChain(id, winnerAddress).catch((err) => {
+      console.warn('[StakeEscrow] Settle winner payout fallback:', err);
+    });
+
     return true;
   },
 

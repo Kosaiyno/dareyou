@@ -188,3 +188,82 @@ export function formatRealValidatorVotes(
     };
   });
 }
+
+export const GENLAYER_ESCROW_ADDRESS = "0x50fC8Cf8Eae04e26f4B7F995092465f421AD91a9";
+
+/**
+ * Deposits and locks challenger GEN stake on the live StakeEscrow smart contract on StudioNet.
+ */
+export async function depositChallengerStakeOnChain(
+  dareId: number,
+  challengerAddress: string,
+  amountCents: number
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'deposit_challenger_stake',
+    args: [dareId, challengerAddress, amountCents],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[StakeEscrow] Challenger stake deposited for Dare #${dareId}. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Deposits and locks matching investigator GEN stake on the live StakeEscrow smart contract on StudioNet.
+ */
+export async function depositInvestigatorStakeOnChain(
+  dareId: number,
+  investigatorAddress: string,
+  amountCents: number
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'deposit_investigator_stake',
+    args: [dareId, investigatorAddress, amountCents],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[StakeEscrow] Investigator stake matched for Dare #${dareId}. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Settles and releases the total escrowed GEN pool to the winning agent on StudioNet.
+ */
+export async function settleWinnerPayoutOnChain(
+  dareId: number,
+  winnerAddress: string
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'settle_winner_payout',
+    args: [dareId, winnerAddress],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[StakeEscrow] Escrow pool settled to winner ${winnerAddress} for Dare #${dareId}. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Reads on-chain escrow stake record from StakeEscrow contract on StudioNet.
+ */
+export async function getEscrowStakeInfo(dareId: number): Promise<any> {
+  const client = getGenLayerClient();
+  const info = await client.readContract({
+    address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'get_stake_info',
+    args: [dareId]
+  });
+  try {
+    return typeof info === 'string' ? JSON.parse(info) : info;
+  } catch {
+    return { raw: String(info) };
+  }
+}
+
