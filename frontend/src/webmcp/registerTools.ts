@@ -271,7 +271,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         },
         stake_usd: {
           type: 'number',
-          description: 'Duel stake in USD/GEN (minimum $10.00).'
+          description: 'Duel stake in USD/GEN (minimum $5.00).'
         },
         duration_minutes: {
           type: 'number',

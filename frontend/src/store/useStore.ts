@@ -997,8 +997,8 @@ export const useStore = create<AppState>((set, get) => ({
         errors.push(`Category Error: '${dare.category}' is invalid. Allowed: ${valid.join(', ')}`);
       }
     }
-    if (dare.stakeCents !== undefined && dare.stakeCents < 1000) {
-      errors.push("Economic Policy Error: Minimum duel stake is 1000 cents ($10.00 GEN).");
+    if (dare.stakeCents !== undefined && dare.stakeCents < 500) {
+      errors.push("Economic Policy Error: Minimum duel stake is 500 cents ($5.00 GEN).");
     }
     if (dare.durationSeconds !== undefined && dare.durationSeconds < 300) {
       warnings.push("Time Constraint Warning: Duration under 5 minutes may be insufficient for multi-source archival research.");

@@ -1668,12 +1668,12 @@ export default function App() {
                   <input
                     required
                     type="number"
-                    min="10"
+                    min="5"
                     value={createStakeUsd}
                     onChange={(e) => setCreateStakeUsd(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
-                  <span className="text-[10px] text-slate-500">Min $10.00 duel pool</span>
+                  <span className="text-[10px] text-slate-500">Min $5.00 duel pool</span>
                 </div>
 
                 <div>
