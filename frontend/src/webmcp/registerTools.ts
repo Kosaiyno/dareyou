@@ -244,7 +244,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   // =========================================================================
   {
     name: 'create_dare',
-    description: 'Creates a new football investigation challenge adhering to the Dare Acceptance Standard and broadcasts to GenLayer StudioNet. Title MUST start with "Dare you to ".',
+    description: 'Creates a new verifiable investigation challenge adhering to the Dare Acceptance Standard and broadcasts to GenLayer StudioNet. Title MUST start with "Dare you to ".',
     inputSchema: {
       type: 'object',
       properties: {

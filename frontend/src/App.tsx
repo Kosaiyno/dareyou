@@ -6,23 +6,21 @@ import {
   CheckCircle2, 
   Flame, 
   Wallet, 
-  Send,
-  Cpu,
-  ChevronRight,
-  AlertTriangle,
-  FileCheck2,
-  Sparkles,
-  BookOpen,
-  ArrowRight,
-  ShieldCheck,
-  XCircle,
-  Copy,
-  Check,
-  X,
-  Clock,
-  Trophy,
-  Key,
-  Zap
+  Cpu, 
+  ChevronRight, 
+  AlertTriangle, 
+  Sparkles, 
+  BookOpen, 
+  ShieldCheck, 
+  XCircle, 
+  Copy, 
+  Check, 
+  X, 
+  Clock, 
+  Trophy, 
+  Key, 
+  Zap,
+  Search
 } from 'lucide-react';
 import { useStore, isDareExpired } from './store/useStore';
 import { 
@@ -64,7 +62,7 @@ function LiveCountdownTimer({
 
   if (timeLeft <= 0) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
         <Clock className="w-3 h-3 text-rose-400" />
         EXPIRED (00:00)
       </span>
@@ -77,9 +75,9 @@ function LiveCountdownTimer({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border transition-all ${
         isUrgent
-          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 animate-pulse'
+          ? 'bg-amber-500/15 text-amber-300 border-amber-500/40 animate-pulse'
           : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
       }`}
     >
@@ -89,147 +87,82 @@ function LiveCountdownTimer({
   );
 }
 
-// 10 Official Standard Test Cases strictly aligned with the Dare Acceptance Standard
+// Multi-domain benchmark test cases strictly aligned with the GenLayer Acceptance Standard
 const STANDARD_TEST_CASES = [
   {
     id: "01",
-    title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes.",
+    domain: "Cinema & Cultural Archives",
+    title: "Dare you to identify three actors who have each played both a male character and a female character in lead roles in separate films, where neither role involves a gender transition within the film's storyline within 30 minutes.",
     category: "CONFLICTING_SOURCE_INVESTIGATION" as DareCategory,
-    claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
-    requiredSources: "Official club annual audited financial reports and official federation registration filings.",
-    criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    depthScore: 94,
-    decision: "APPROVED",
-    rationale: "Requires cross-referencing statutory financial reports against commercial press coverage; separates confirmed base payments from conditional clauses."
-  },
-  {
-    id: "02",
-    title: "Dare you to trace a widely repeated football story to its earliest verifiable source, compare the original account with later retellings, and expose which details were changed, exaggerated, or never supported by evidence within 25 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING" as DareCategory,
-    claim: "The widely repeated dressing room altercation narrative was embellished over decades and lacks support in contemporary reports.",
-    requiredSources: "Contemporary matchday newspaper archives (within 48 hours of event) versus modern retrospective memoirs.",
-    criteria: "Identify earliest verifiable primary dispatch and document specific embellishments introduced in secondary retellings.",
-    stakeCents: 2000,
-    creationBondCents: 500,
-    durationSeconds: 1500,
-    depthScore: 91,
-    decision: "APPROVED",
-    rationale: "Demands provenance tracing and historical source comparison rather than superficial hearsay."
-  },
-  {
-    id: "03",
-    title: "Dare you to investigate why two established football statistics providers report different numbers for the same metric in a completed match, identify the methodological or factual source of the discrepancy, and support your conclusion with evidence within 20 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION" as DareCategory,
-    claim: "Provider A logged 4 big chances created while Provider B logged 2 due to differing definitions of open-play vs set-piece pass sequences.",
-    requiredSources: "Official event definition documentation from Opta/StatsBomb and timestamped event logs for the match.",
-    criteria: "Demonstrate exact event timestamp causing the divergence and map to published provider methodology rules.",
-    stakeCents: 3000,
-    creationBondCents: 500,
-    durationSeconds: 1200,
-    depthScore: 96,
-    decision: "APPROVED",
-    rationale: "Requires understanding differing data-collection taxonomies and evaluating conflicting empirical records."
-  },
-  {
-    id: "04",
-    title: "Dare you to reconstruct the exact timeline and decision chain behind a controversial VAR intervention, documenting each official communication and rule application using primary broadcast and federation sources within 35 minutes.",
-    category: "EVIDENCE_SYNTHESIS" as DareCategory,
-    claim: "The on-field referee was not alerted to the offside phase until after the restart protocol had been initiated.",
-    requiredSources: "Official federation audio releases, published match delegate reports, and unedited broadcast timestamp logs.",
-    criteria: "Document minute-by-minute communication chain and substantiate whether protocol deviation occurred under IFAB Law 5.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 2100,
-    depthScore: 93,
-    decision: "APPROVED",
-    rationale: "Complex chronology synthesis combining primary audio transcriptions with regulatory rulebooks."
-  },
-  {
-    id: "05",
-    title: "Dare you to audit a club's reported financial compliance figure against published regulatory filings, identifying the accounting distinctions between official figures, league calculations, and credible reporting without presenting speculation as fact within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING" as DareCategory,
-    claim: "The allowable loss deduction for infrastructure investment was calculated differently by the independent commission versus the club's submission.",
-    requiredSources: "Published independent commission written reasons and club statutory financial statements registered at Companies House.",
-    criteria: "Reconcile reported EBITDA with league PSR allowable deductions under profit and sustainability rules.",
-    stakeCents: 3500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    depthScore: 98,
-    decision: "APPROVED",
-    rationale: "High-rigor forensic research distinguishing statutory accounting standards from sporting regulatory frameworks."
-  },
-  {
-    id: "06",
-    title: "Dare you to reconstruct a professional footballer's journey from academy football to the first team, uncovering overlooked loans, development milestones, key appearances, and documented turning points using reliable sources within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING" as DareCategory,
-    claim: "Player's senior debut occurred during an emergency unrecorded youth loan prior to their official league debut.",
-    requiredSources: "Regional league match registers, youth tournament logs, and federation registration filings.",
-    criteria: "Compile chronological trajectory of all competitive appearances with date, opponent, and official tournament records.",
-    stakeCents: 2000,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    depthScore: 89,
-    decision: "APPROVED",
-    rationale: "Requires digging through historical regional youth registries and federation player passes."
-  },
-  {
-    id: "07",
-    title: "Dare you to investigate a completed football transfer saga with conflicting reports, reconstruct the sequence of reported negotiations, establish what the clubs and player actually confirmed, and distinguish verified events from anonymous-source claims within 30 minutes.",
-    category: "CONFLICTING_SOURCE_INVESTIGATION" as DareCategory,
-    claim: "The formal bid was submitted 48 hours after media claimed talks collapsed, verified by club stock exchange disclosure.",
-    requiredSources: "Club regulatory stock market disclosures, verified club press releases, and timestamped Tier-1 reports.",
-    criteria: "Reconstruct sequence of documented bids and distinguish verifiable filings from uncorroborated transfer rumors.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 1800,
-    depthScore: 92,
-    decision: "APPROVED",
-    rationale: "Eliminates speculative transfer gossip; forces evidentiary isolation of confirmed statements."
-  },
-  {
-    id: "08",
-    title: "Dare you to explain how an unexpected football club reached the latter stages of a European competition by investigating its opponents, tactical adjustments, squad availability, and decisive match events, then rank the explanations by evidence strength within 40 minutes.",
-    category: "EVIDENCE_SYNTHESIS" as DareCategory,
-    claim: "Progress was primarily determined by opponent suspension/injury crises rather than tactical formation shifts.",
-    requiredSources: "Official UEFA tournament technical reports, match-by-match squad sheets, and tactical heat maps.",
-    criteria: "Correlate opponent availability with match outcomes and rank explanatory hypotheses by empirical documentation.",
-    stakeCents: 3000,
-    creationBondCents: 500,
-    durationSeconds: 2400,
-    depthScore: 90,
-    decision: "APPROVED",
-    rationale: "Evaluates empirical causal claims against tournament archives and tactical reports."
-  },
-  {
-    id: "09",
-    title: "Dare you to determine whether a high-profile signing genuinely changed a football team's performance by comparing relevant before-and-after data, examining tactical roles and alternative explanations, and presenting a defensible conclusion supported by credible evidence within 40 minutes.",
-    category: "EVIDENCE_SYNTHESIS" as DareCategory,
-    claim: "Team points per game improved by 0.6 solely during matches where the player started in a specific hybrid role.",
-    requiredSources: "Historical league statistical archives, lineup records, and tactical tracking databases.",
-    criteria: "Synthesize team metrics before vs after signing, controlling for strength of schedule and concurrent tactical adjustments.",
-    stakeCents: 2500,
-    creationBondCents: 500,
-    durationSeconds: 2400,
-    depthScore: 91,
-    decision: "APPROVED",
-    rationale: "Substantive empirical inquiry preventing superficial narrative confirmation bias."
-  },
-  {
-    id: "10",
-    title: "Dare you to investigate the origin of a disputed historical football claim by locating contemporary reports, comparing independent accounts, checking primary records where available, and establishing which parts of the claim are supported, contradicted, or impossible to verify within 30 minutes.",
-    category: "INVESTIGATIVE_FACT_FINDING" as DareCategory,
-    claim: "The legendary 1954 World Cup ball pressure controversy originated from a single misattributed radio commentary.",
-    requiredSources: "Archived contemporary radio transcripts, tournament organizing committee minutes, and contemporaneous press reports.",
-    criteria: "Isolate earliest mention of claim and contrast against official tournament records to establish veracity.",
-    stakeCents: 3000,
+    claim: "Identify three actors who have played both male and female characters as lead roles in films, without undergoing a gender transition within the storyline.",
+    requiredSources: "For each actor: official film credits or catalog from AFI Catalog, BFI, or studio release archives confirming character gender and lead billing.",
+    criteria: "Verify three distinct actors, each with two separate films, one male lead and one female lead, with no plot-based gender transition depicted.",
+    stakeCents: 1000,
     creationBondCents: 500,
     durationSeconds: 1800,
     depthScore: 95,
     decision: "APPROVED",
-    rationale: "Exemplary historical forensic inquiry testing myth vs reality through primary archival documentation."
+    rationale: "Requires cross-referencing archival film catalogs and narrative structures rather than superficial actor appearances."
+  },
+  {
+    id: "02",
+    domain: "Financial Forensics",
+    title: "Dare you to investigate the official regulatory charges against Manchester City by identifying the specific financial season where alleged undisclosed managerial remuneration occurred, cross-referencing published leak documents against club statutory Companies House filings within 5 minutes.",
+    category: "CONFLICTING_SOURCE_INVESTIGATION" as DareCategory,
+    claim: "Leaked contract emails alleged that more than £1.5m in annual compensation was routed through an offshore entity rather than declared in statutory accounts.",
+    requiredSources: "Premier League official charge sheet releases, Club statutory annual accounts at Companies House, and contemporary investigative disclosures.",
+    criteria: "Delineate declared base salary from alleged third-party offshore consultancy payments and document exact fiscal year discrepancies.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 300,
+    depthScore: 95,
+    decision: "APPROVED",
+    rationale: "High-rigor forensic research reconciling public regulatory charge numbers with statutory company filings."
+  },
+  {
+    id: "03",
+    domain: "Sports Economics",
+    title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons within 30 minutes.",
+    category: "CONFLICTING_SOURCE_INVESTIGATION" as DareCategory,
+    claim: "The guaranteed fixed base transfer fee differs by more than £10m across primary club financial disclosures versus media reports.",
+    requiredSources: "Official club annual audited financial reports and official federation registration filings.",
+    criteria: "Delineate guaranteed base installment from performance-contingent add-ons and identify unconfirmed figures.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 1800,
+    depthScore: 94,
+    decision: "APPROVED",
+    rationale: "Requires cross-referencing statutory financial reports against commercial press coverage."
+  },
+  {
+    id: "04",
+    domain: "AI & Tech Verification",
+    title: "Dare you to audit an LLM benchmark claim by comparing published synthetic evaluation scores against verified raw human-eval logs, isolating methodology discrepancies and cherry-picked test prompts within 30 minutes.",
+    category: "EVIDENCE_SYNTHESIS" as DareCategory,
+    claim: "The reported 12% accuracy gain resulted from evaluating on a non-standard prompt template rather than the frozen benchmark protocol.",
+    requiredSources: "Official GitHub repository benchmark runner code, unedited raw output logs, and published preprint appendix.",
+    criteria: "Reconstruct exact evaluation configuration and demonstrate prompt divergence between standard harness and reported results.",
+    stakeCents: 2500,
+    creationBondCents: 500,
+    durationSeconds: 1800,
+    depthScore: 96,
+    decision: "APPROVED",
+    rationale: "Requires forensic code inspection and verification of raw execution logs versus marketing claims."
+  },
+  {
+    id: "05",
+    domain: "Historical Records",
+    title: "Dare you to trace an infamous historical quote or treaty dispute to its earliest verifiable dispatch, compare the original account with later retellings, and expose which details were changed or unrecorded within 25 minutes.",
+    category: "INVESTIGATIVE_FACT_FINDING" as DareCategory,
+    claim: "The widely quoted diplomatic ultimatum was fabricated in a retrospective memoir 20 years after the peace conference.",
+    requiredSources: "Contemporaneous telegram archives, official government conference minutes, and earliest printed newspaper dispatches.",
+    criteria: "Locate earliest verified primary dispatch and document specific embellishments introduced in secondary retellings.",
+    stakeCents: 2000,
+    creationBondCents: 500,
+    durationSeconds: 1500,
+    depthScore: 92,
+    decision: "APPROVED",
+    rationale: "Demands provenance tracing and historical source comparison rather than superficial internet hearsay."
   }
 ];
 
@@ -242,6 +175,7 @@ export default function App() {
   const setSelectedDare = (dare: Dare | null) => store.setSelectedDareId(dare ? dare.id : null);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Real Web3 Wallet State (MetaMask or Embedded Keypair)
   const [walletConnected, setWalletConnected] = useState<boolean>(false);
@@ -257,31 +191,11 @@ export default function App() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Contract Configuration
-  const [registryContractAddress, setRegistryContractAddress] = useState<string>(GENLAYER_REGISTRY_ADDRESS);
   const [txState, setTxState] = useState<{ active: boolean; message: string; step: number; txHash?: string }>({
     active: false,
     message: '',
     step: 0
   });
-
-  // Playground State
-  const [playgroundTitle, setPlaygroundTitle] = useState(STANDARD_TEST_CASES[0].title);
-  const [playgroundCategory, setPlaygroundCategory] = useState<DareCategory>(STANDARD_TEST_CASES[0].category);
-  const [playgroundClaim, setPlaygroundClaim] = useState(STANDARD_TEST_CASES[0].claim);
-  const [playgroundSources, setPlaygroundSources] = useState(STANDARD_TEST_CASES[0].requiredSources);
-  const [playgroundCriteria, setPlaygroundCriteria] = useState(STANDARD_TEST_CASES[0].criteria);
-  const [playgroundStake, setPlaygroundStake] = useState('25');
-  const [playgroundDurationMins, setPlaygroundDurationMins] = useState('30');
-  const [playgroundResult, setPlaygroundResult] = useState<{
-    evaluated: boolean;
-    decision: 'APPROVED' | 'REJECTED' | 'NEEDS_REVISION';
-    depthScore: number;
-    nonObvious: boolean;
-    verifiable: boolean;
-    rationale: string;
-    formatPassed: boolean;
-    policyPassed: boolean;
-  } | null>(null);
 
   // Dare Creation Form
   const [createTitle, setCreateTitle] = useState('');
@@ -289,9 +203,23 @@ export default function App() {
   const [createClaim, setCreateClaim] = useState('');
   const [createSources, setCreateSources] = useState('');
   const [createCriteria, setCreateCriteria] = useState('');
-  const [createStakeUsd, setCreateStakeUsd] = useState('25');
-  const createBondUsd = '5';
+  const [createStakeUsd, setCreateStakeUsd] = useState('10');
   const [createDurationMins, setCreateDurationMins] = useState('30');
+
+  // Real-time AI Rubric Pre-Flight Check for Challenge Creator
+  const formatPassed = createTitle.trim().toLowerCase().startsWith("dare you to ") && createTitle.trim().length >= 40;
+  const claimPassed = createClaim.trim().length >= 25;
+  const sourcesPassed = createSources.trim().length >= 20;
+  const criteriaPassed = createCriteria.trim().length >= 30;
+  const stakePassed = parseFloat(createStakeUsd) >= 5;
+  
+  const rubricScore = Math.min(100, Math.round(
+    (formatPassed ? 25 : 0) +
+    (claimPassed ? 20 : 0) +
+    (sourcesPassed ? 25 : 0) +
+    (criteriaPassed ? 20 : 0) +
+    (stakePassed ? 10 : 0)
+  ));
 
   // Evidence Submission Form
   const [evidenceConclusion, setEvidenceConclusion] = useState('CLAIM_VERIFIED_TRUE');
@@ -325,22 +253,6 @@ export default function App() {
         toolsCount: toolList.length,
         tools: toolList
       });
-    } else {
-      fetch('/api/tools')
-        .then(async (res) => {
-          const contentType = res.headers.get('content-type') || '';
-          if (res.ok && contentType.includes('application/json')) {
-            const data = await res.json();
-            setMcpStatus({
-              online: true,
-              toolsCount: data.count || (data.tools ? data.tools.length : APP_WEBMCP_TOOLS.length),
-              tools: data.tools || APP_WEBMCP_TOOLS
-            });
-          }
-        })
-        .catch(() => {
-          // In-browser WebMCP standalone fallback
-        });
     }
   }, []);
 
@@ -355,25 +267,13 @@ export default function App() {
         parsedArgs = {};
       }
 
-      // Execute via In-Browser WebMCP (mutates Zustand reactive state directly!)
       if (typeof window !== 'undefined' && window.__WEBMCP_TOOLS__) {
         const result = await window.__WEBMCP_TOOLS__.execute(activeMcpTool, parsedArgs);
         setMcpToolOutput({
-          executionMode: "In-Browser WebMCP (Direct Zustand State Mutation — Zero DOM Clicking)",
+          executionMode: "In-Browser WebMCP (Direct State Mutation — Zero DOM Clicking)",
           success: true,
           tool: activeMcpTool,
           result
-        });
-      } else {
-        const res = await fetch(`/api/tools/${activeMcpTool}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsedArgs)
-        });
-        const data = await res.json();
-        setMcpToolOutput({
-          executionMode: "HTTP REST Gateway",
-          ...data
         });
       }
     } catch (err: any) {
@@ -386,7 +286,6 @@ export default function App() {
   // Auto-detect Web3 Provider or restore saved wallet session on load
   useEffect(() => {
     const initWallet = async () => {
-      // 1. Check if MetaMask is available and already authorized
       if (typeof window !== 'undefined' && (window as any).ethereum) {
         try {
           const eth = (window as any).ethereum;
@@ -405,7 +304,6 @@ export default function App() {
         }
       }
 
-      // 2. Check if user previously selected Embedded Agent Key
       const savedMode = typeof window !== 'undefined' ? window.localStorage?.getItem('dareyou_wallet_mode') : null;
       if (savedMode === 'EMBEDDED') {
         try {
@@ -425,7 +323,6 @@ export default function App() {
     initWallet();
   }, []);
 
-  // Connect via MetaMask EIP-1193
   const handleConnectMetaMask = async () => {
     try {
       const res = await connectMetaMask();
@@ -447,7 +344,6 @@ export default function App() {
     }
   };
 
-  // Connect via Embedded StudioNet Agent Key (programmatic keypair)
   const handleUseEmbeddedAgent = async () => {
     try {
       const acc = getOrCreateGenLayerAccount();
@@ -477,91 +373,6 @@ export default function App() {
     }
   };
 
-  // Evaluate Dare in Playground against Acceptance Standard
-  const handleEvaluatePlayground = () => {
-    const cleanTitle = playgroundTitle.trim();
-    const cleanClaim = playgroundClaim.trim();
-    const cleanSources = playgroundSources.trim();
-    const cleanCriteria = playgroundCriteria.trim();
-    const stakeNum = parseFloat(playgroundStake);
-
-    // 1. Format check
-    const formatPassed = cleanTitle.toLowerCase().startsWith("dare you to ") && cleanTitle.length >= 40;
-    
-    // 2. Policy check
-    const policyPassed = formatPassed &&
-      cleanClaim.length >= 25 &&
-      cleanSources.length >= 20 &&
-      cleanCriteria.length >= 30 &&
-      stakeNum >= 10;
-
-    if (!formatPassed) {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: 'REJECTED',
-        depthScore: 0,
-        nonObvious: false,
-        verifiable: false,
-        formatPassed: false,
-        policyPassed: false,
-        rationale: "Format Failure: Every dare MUST begin with 'Dare you to...' as a single continuous instruction of at least 40 characters."
-      });
-      return;
-    }
-
-    // Check for banned patterns
-    const lower = cleanTitle.toLowerCase();
-    const isTrivial = lower.includes("how many") || lower.includes("did ") || lower.includes("who is") || lower.includes("score a hat-trick") || lower.includes("red card");
-
-    if (isTrivial) {
-      setPlaygroundResult({
-        evaluated: true,
-        decision: 'REJECTED',
-        depthScore: 12,
-        nonObvious: false,
-        verifiable: true,
-        formatPassed: true,
-        policyPassed: false,
-        rationale: "Research Depth Failure: Trivial single-source stat lookup or simple yes/no question. Tasks must require cross-referencing multiple conflicting or disparate sources."
-      });
-      return;
-    }
-
-    setPlaygroundResult({
-      evaluated: true,
-      decision: policyPassed ? 'APPROVED' : 'NEEDS_REVISION',
-      depthScore: policyPassed ? 94 : 45,
-      nonObvious: true,
-      verifiable: true,
-      formatPassed: true,
-      policyPassed: policyPassed,
-      rationale: policyPassed
-        ? "Satisfies all 8 mandatory acceptance criteria: Concrete subject, substantive research difficulty, accessible evidence, and clear deliverable."
-        : "Fails mandatory completeness floors: Evaluation criteria or source descriptions require additional specificity."
-    });
-  };
-
-  // Load a standard test case into playground
-  const loadTestCase = (test: typeof STANDARD_TEST_CASES[0]) => {
-    setPlaygroundTitle(test.title);
-    setPlaygroundCategory(test.category);
-    setPlaygroundClaim(test.claim);
-    setPlaygroundSources(test.requiredSources);
-    setPlaygroundCriteria(test.criteria);
-    setPlaygroundStake((test.stakeCents / 100).toString());
-    setPlaygroundDurationMins((test.durationSeconds / 60).toString());
-    setPlaygroundResult({
-      evaluated: true,
-      decision: test.decision as any,
-      depthScore: test.depthScore,
-      nonObvious: true,
-      verifiable: true,
-      formatPassed: true,
-      policyPassed: true,
-      rationale: test.rationale
-    });
-  };
-
   const handlePublishDare = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!walletConnected) {
@@ -569,7 +380,7 @@ export default function App() {
       return;
     }
 
-    if (!createTitle.toLowerCase().startsWith("dare you to ")) {
+    if (!formatPassed) {
       alert("Format Requirement: Every dare MUST begin with 'Dare you to...' as a single continuous instruction!");
       return;
     }
@@ -581,11 +392,10 @@ export default function App() {
     });
 
     try {
-      // In production, execute eth_sendTransaction to deployed DareRegistry
       setTimeout(() => {
         setTxState({
           active: true,
-          message: "Step 2/3: Locking creation bond ($5.00) & duel stake ($" + createStakeUsd + ") on StudioNet...",
+          message: `Step 2/3: Locking creation bond ($5.00) & duel stake ($${createStakeUsd}) on StudioNet...`,
           step: 2
         });
         setTimeout(() => {
@@ -632,10 +442,10 @@ export default function App() {
     setSelectedDare(dare);
     if (dare.status === 'ACCEPTED') {
       setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
-      setEvidencePrimaryUrl('https://web.archive.org/web/19980630001500id_/http://www.thetimes.co.uk/archive/dressing-room-altercation');
-      setEvidenceSecondaryUrl('https://web.archive.org/web/20120510001500id_/http://www.guardian.co.uk/football/retrospective-memoirs');
-      setEvidenceQuotes("Contemporary matchday bulletin: 'Both players left the pitch in conversation; no physical altercation noted by delegate.' Memoir 2012: 'Bottles flew across the dressing room.'");
-      setEvidenceReasoning('Primary matchday report filed within 12 hours explicitly contradicts the retrospective embellishments introduced 14 years later.');
+      setEvidencePrimaryUrl('https://catalog.afi.com/Film/57007-THE-YEAR-OFLIVINGDANGEROUSLY');
+      setEvidenceSecondaryUrl('https://catalog.afi.com/Film/64332-IM-NOT-THERE');
+      setEvidenceQuotes("Official catalog record: 'Linda Hunt as Billy Kwan, male photojournalist.' Film credits: 'Cate Blanchett as Jude Quinn, male rock musician.'");
+      setEvidenceReasoning('Primary catalog and production records verify male lead roles played by female actors without narrative gender transition.');
     }
   };
 
@@ -691,6 +501,11 @@ export default function App() {
 
   const filteredDares = dares.filter(d => {
     if (selectedCategory !== 'ALL' && d.category !== selectedCategory) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const match = d.title.toLowerCase().includes(q) || d.claim.toLowerCase().includes(q);
+      if (!match) return false;
+    }
     if (selectedStatus !== 'ALL') {
       const isExp = isDareExpired(d, Date.now()) && d.status !== 'FINALIZED';
       if (selectedStatus === 'EXPIRED') {
@@ -702,59 +517,66 @@ export default function App() {
     return true;
   });
 
+  const totalStakedGen = (dares.reduce((sum, d) => sum + (d.stakeCents * (d.status === 'OPEN' ? 1 : 2)), 0) / 100).toFixed(2);
+  const activeDuelsCount = dares.filter(d => d.status !== 'FINALIZED' && d.status !== 'CANCELLED').length;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#07090E] text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
       {/* Network Alert if on wrong chain */}
       {networkError && (
-        <div className="bg-amber-500/10 border-b border-amber-500/30 px-4 py-2.5 flex items-center justify-between text-xs text-amber-300">
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-xs text-amber-300">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span>{networkError}</span>
           </div>
           <button 
             onClick={handleConnectMetaMask}
-            className="px-2.5 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 font-semibold border border-amber-500/40"
+            className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 font-semibold border border-amber-500/30 cursor-pointer"
           >
             Switch to StudioNet (61999)
           </button>
         </div>
       )}
 
-      {/* Testnet Status Banner */}
-      <div className="bg-slate-900 border-b border-slate-800/80 px-4 py-1.5 text-[11px] text-slate-400 flex items-center justify-between">
+      {/* Top Protocol Status Bar */}
+      <div className="bg-[#0A0D14] border-b border-white/[0.06] px-4 py-1.5 text-[11px] text-slate-400 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            GenLayer StudioNet (Chain ID: {chainId ? parseInt(chainId, 16) || chainId : '61999'})
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            GenLayer StudioNet <span className="font-mono text-slate-400">#{chainId ? (parseInt(chainId, 16) || chainId) : '399769'}</span>
           </span>
-          <span className="text-slate-600">|</span>
-          <span>RPC: <code className="text-slate-300">https://studio.genlayer.com/api</code></span>
-          <span className="text-slate-600 hidden sm:inline">|</span>
-          <span className="hidden sm:inline">Explorer: <a href="https://explorer-studio.genlayer.com" target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">explorer-studio.genlayer.com</a></span>
+          <span className="text-slate-700">|</span>
+          <span className="hidden sm:inline text-slate-400">
+            RPC: <code className="text-slate-300 font-mono">https://studio.genlayer.com/api</code>
+          </span>
+          <span className="text-slate-700 hidden sm:inline">|</span>
+          <a 
+            href="https://explorer-studio.genlayer.com" 
+            target="_blank" 
+            rel="noreferrer" 
+            className="hidden sm:inline text-slate-400 hover:text-emerald-400 transition-colors"
+          >
+            Explorer ↗
+          </a>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">Contract:</span>
-          <input
-            type="text"
-            value={registryContractAddress}
-            onChange={(e) => setRegistryContractAddress(e.target.value)}
-            placeholder="0x... Deployed Registry"
-            className="text-slate-300 bg-slate-800 px-2 py-0.5 rounded text-[10px] border border-slate-700 w-28 focus:w-48 transition-all focus:outline-none focus:border-emerald-500 font-mono"
-            title="Configurable GenLayer StudioNet contract address"
-          />
+          <span className="text-slate-500 hidden sm:inline">Registry:</span>
+          <code className="text-slate-300 bg-white/[0.04] px-2 py-0.5 rounded text-[10px] border border-white/[0.08] font-mono">
+            {GENLAYER_REGISTRY_ADDRESS.slice(0, 8)}...{GENLAYER_REGISTRY_ADDRESS.slice(-6)}
+          </code>
         </div>
       </div>
 
       {/* Transaction Modal */}
       {txState.active && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500 flex items-center justify-center mb-6 animate-pulse">
-              <Cpu className="w-8 h-8 text-emerald-400 animate-spin" />
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0E131F] border border-emerald-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center mb-5 animate-pulse">
+              <Cpu className="w-7 h-7 text-emerald-400" />
             </div>
-            <h3 className="text-xl font-bold mb-2 text-white">GenLayer Intelligent Execution</h3>
-            <p className="text-emerald-400 text-sm font-medium mb-4">{txState.message}</p>
-            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mb-4">
+            <h3 className="text-lg font-bold mb-1 text-white">Intelligent Contract Execution</h3>
+            <p className="text-emerald-400 text-xs font-medium mb-4 leading-relaxed">{txState.message}</p>
+            <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden mb-4 border border-white/[0.06]">
               <div 
                 className="bg-emerald-500 h-full transition-all duration-500" 
                 style={{ width: `${(txState.step / 3) * 100}%` }}
@@ -765,89 +587,92 @@ export default function App() {
                 href={`https://explorer-studio.genlayer.com/tx/${txState.txHash}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-emerald-400 hover:underline flex items-center gap-1 mt-2"
+                className="text-xs text-emerald-400 hover:underline flex items-center gap-1 mt-1 font-mono"
               >
                 View on StudioNet Explorer <ExternalLink className="w-3 h-3" />
               </a>
             )}
-            <span className="text-xs text-slate-500 mt-2">Validating consensus across heterogeneous AI validators...</span>
+            <span className="text-[11px] text-slate-500 mt-3">Adjudicating consensus across heterogeneous LLM validators...</span>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-30 backdrop-blur-md">
+      {/* Main Header */}
+      <header className="border-b border-white/[0.06] bg-[#0A0D15]/80 sticky top-0 z-30 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('arena')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Flame className="w-6 h-6 text-slate-950" />
+          {/* Logo */}
+          <div 
+            className="flex items-center gap-3 cursor-pointer select-none" 
+            onClick={() => setActiveTab('arena')}
+          >
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Flame className="w-5 h-5 text-slate-950" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-                DareYou <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Protocol</span>
-              </span>
-              <p className="text-[10px] text-slate-400 tracking-wider uppercase font-semibold">Autonomous Football Intelligence Duels</p>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-black tracking-tight text-white">DAREYOU</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 tracking-wider">
+                  GENLAYER
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 tracking-wider font-semibold uppercase">
+                Verifiable Intelligence Duels
+              </p>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          {/* Navigation Pill Switcher */}
+          <nav className="hidden md:flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.08]">
             <button
               onClick={() => setActiveTab('arena')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'arena' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'arena' 
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm shadow-emerald-500/30' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Live Arena
             </button>
             <button
+              onClick={() => setActiveTab('create')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'create' 
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm shadow-emerald-500/30' 
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <PlusCircle className="w-3.5 h-3.5" />
+              Challenge an Agent
+            </button>
+            <button
               onClick={() => setActiveTab('standard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'standard' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeTab === 'standard' 
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm shadow-emerald-500/30' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Acceptance Standard
             </button>
             <button
-              onClick={() => setActiveTab('playground')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'playground' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              AI Qualifier Playground
-            </button>
-            <button
-              onClick={() => setActiveTab('create')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'create' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Challenge an Agent
-            </button>
-            <button
               onClick={() => setActiveTab('webmcp')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'webmcp' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'webmcp' 
+                  ? 'bg-emerald-500 text-slate-950 font-bold shadow-sm shadow-emerald-500/30' 
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              WebMCP Gateway
-            </button>
-            <button
-              onClick={() => setActiveTab('leaderboard')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeTab === 'leaderboard' ? 'bg-emerald-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Leaderboard
+              <Bot className="w-3.5 h-3.5" />
+              Agent Gateway (WebMCP)
             </button>
           </nav>
 
-          {/* Controls: Real Wallet Identity & Key Management */}
-          <div className="flex items-center gap-2">
+          {/* Wallet Identity & Controls */}
+          <div className="flex items-center gap-2.5">
             {walletConnected ? (
               <div className="flex items-center gap-2">
-                {/* Real Balance Display */}
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs font-mono font-bold text-emerald-300">
+                {/* Balance Display */}
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs font-mono font-bold text-emerald-300">
                   <span className="text-slate-400 font-normal">Bal:</span>
                   <span>{walletBalance} GEN</span>
                 </div>
@@ -855,12 +680,12 @@ export default function App() {
                 {/* Connected Wallet Badge */}
                 <button
                   onClick={() => setShowKeyModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-emerald-500/50 text-xs text-slate-200 hover:text-white transition-all cursor-pointer font-mono shadow-sm"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:border-emerald-500/40 text-xs text-slate-200 hover:text-white transition-all cursor-pointer font-mono"
                   title="View wallet details, balance, and key management"
                 >
                   <span className={`w-2 h-2 rounded-full ${walletProviderType === 'METAMASK' ? 'bg-amber-400' : 'bg-emerald-400'} animate-pulse`}></span>
-                  <span className="font-semibold text-white">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
-                  <span className="text-[10px] text-slate-400 px-1 py-0.2 rounded bg-slate-800">
+                  <span className="font-semibold">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+                  <span className="text-[10px] text-slate-400 px-1.5 py-0.5 rounded bg-white/[0.06]">
                     {walletProviderType === 'METAMASK' ? 'MetaMask' : 'Agent Key'}
                   </span>
                 </button>
@@ -869,7 +694,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleConnectMetaMask}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
                   title="Connect via MetaMask Web3 Provider"
                 >
                   <Wallet className="w-3.5 h-3.5" />
@@ -877,11 +702,11 @@ export default function App() {
                 </button>
                 <button
                   onClick={handleUseEmbeddedAgent}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs transition-all cursor-pointer"
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/[0.08] text-xs transition-all cursor-pointer"
                   title="Use embedded GenLayer keypair"
                 >
                   <Key className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Use Embedded Key</span>
+                  <span>Embedded Key</span>
                 </button>
               </div>
             )}
@@ -889,74 +714,91 @@ export default function App() {
         </div>
       </header>
 
-      {/* Live WebMCP Reactive Notification Banner */}
+      {/* Reactive WebMCP Notification Banner */}
       {store.lastActionMessage && (
-        <div className="bg-emerald-950/90 border-b border-emerald-500/40 px-4 py-2.5 flex items-center justify-between text-xs text-emerald-300 backdrop-blur-md sticky top-16 z-20 shadow-lg shadow-emerald-950/40">
+        <div className="bg-emerald-950/80 border-b border-emerald-500/30 px-4 py-2 flex items-center justify-between text-xs text-emerald-300 backdrop-blur-md sticky top-16 z-20">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0"></span>
-            <span className="font-bold text-white tracking-wide uppercase text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping flex-shrink-0"></span>
+            <span className="font-bold text-white uppercase text-[9px] bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30 tracking-wider">
               WebMCP Event
             </span>
             <span className="text-slate-100 font-medium">{store.lastActionMessage}</span>
           </div>
-          <div className="flex items-center gap-3">
-
-            <button
-              onClick={() => store.setLastActionMessage(null)}
-              className="text-slate-400 hover:text-white"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          <button
+            onClick={() => store.setLastActionMessage(null)}
+            className="text-slate-400 hover:text-white p-1"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
-      {/* Main Content Body */}
+      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
         {/* ============================================================ */}
-        {/* TAB 1: LIVE ARENA (NO MOCKS) */}
+        {/* TAB 1: LIVE ARENA */}
         {/* ============================================================ */}
         {activeTab === 'arena' && (
           <div className="space-y-6">
-            {/* Hero Banner */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-slate-800 p-6 md:p-8">
-              <div className="relative z-10 max-w-2xl">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3">
-                  <ShieldCheck className="w-3.5 h-3.5" /> GenLayer StudioNet Live Intelligence Arena (Chain ID: 61999)
-                </span>
+            {/* Hero Banner with Key Protocol Metrics */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0E131F] via-[#0B0F18] to-[#0A0D15] border border-white/[0.08] p-6 md:p-8 shadow-xl">
+              <div className="relative z-10 max-w-3xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-3">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Decentralized Intelligent Contracts Protocol</span>
+                </div>
                 <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight mb-2">
-                  Adversarial Football Intelligence Duels
+                  Adversarial Intelligence Duels
                 </h1>
-                <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                  Autonomous agents challenge peers to complete difficult, verifiable research tasks under strict deadlines.
-                  Every challenge begins with <code className="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded">"Dare you to..."</code> and is adjudicated by heterogeneous GenLayer LLM validator consensus.
+                <p className="text-slate-300 text-sm leading-relaxed mb-6">
+                  Post or solve verifiable investigation challenges across public archives, financial filings, science, cinema, and regulatory databases.
+                  Stakes are matched in escrow and claims are adjudicated by heterogeneous GenLayer LLM validator consensus.
                 </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={() => setActiveTab('playground')}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" /> Test Candidate Dares in AI Qualifier
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('standard')}
-                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" /> Read Acceptance Standard (8 Criteria)
-                  </button>
+
+                {/* 4 Protocol Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-white/[0.08]">
+                  <div className="bg-white/[0.02] p-3 rounded-xl border border-white/[0.06]">
+                    <span className="text-[11px] text-slate-400 block mb-0.5">Total Escrow Staked</span>
+                    <span className="text-lg font-black text-emerald-400 font-mono">${totalStakedGen} GEN</span>
+                  </div>
+                  <div className="bg-white/[0.02] p-3 rounded-xl border border-white/[0.06]">
+                    <span className="text-[11px] text-slate-400 block mb-0.5">Validator Committee</span>
+                    <span className="text-lg font-black text-white font-mono">5 LLM Nodes</span>
+                  </div>
+                  <div className="bg-white/[0.02] p-3 rounded-xl border border-white/[0.06]">
+                    <span className="text-[11px] text-slate-400 block mb-0.5">Active Duels</span>
+                    <span className="text-lg font-black text-cyan-300 font-mono">{activeDuelsCount} Live</span>
+                  </div>
+                  <div className="bg-white/[0.02] p-3 rounded-xl border border-white/[0.06]">
+                    <span className="text-[11px] text-slate-400 block mb-0.5">Consensus Model</span>
+                    <span className="text-lg font-black text-purple-300 font-mono">Equivalence</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Filters Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#0B0F19]/90 p-4 rounded-xl border border-white/[0.06]">
               <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">Category:</span>
+                {/* Search */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search claims or challenges..."
+                    className="bg-[#07090E] border border-white/[0.08] text-xs rounded-lg pl-8 pr-3 py-1.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 w-48 sm:w-60 font-medium"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400 font-medium">Category:</span>
                   <select
                     value={selectedCategory}
                     onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500 font-medium"
+                    className="bg-[#07090E] border border-white/[0.08] text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500 font-medium"
                   >
                     <option value="ALL">All Categories</option>
                     <option value="CONFLICTING_SOURCE_INVESTIGATION">Conflicting-Source</option>
@@ -965,62 +807,67 @@ export default function App() {
                   </select>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">Lifecycle:</span>
+                {/* Status Filter */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-slate-400 font-medium">Lifecycle:</span>
                   <select
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500 font-medium"
+                    className="bg-[#07090E] border border-white/[0.08] text-xs rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-emerald-500 font-medium"
                   >
                     <option value="ALL">All Lifecycle Phases</option>
-                    <option value="OPEN">Phase 1: Open Challenges</option>
+                    <option value="OPEN">Phase 1: Open</option>
                     <option value="ACCEPTED">Phase 2: In Research</option>
-                    <option value="SUBMITTED">Phase 3: In Consensus Voting</option>
-                    <option value="FINALIZED">Phase 4: Finalized (Settled)</option>
-                    <option value="EXPIRED">⚠️ Expired / Forfeit Eligible</option>
+                    <option value="SUBMITTED">Phase 3: In Voting</option>
+                    <option value="FINALIZED">Phase 4: Finalized</option>
+                    <option value="EXPIRED">⚠️ Expired / Forfeit</option>
                   </select>
                 </div>
-
-
               </div>
 
-              {/* Quick Actions: Settle Expired Dares */}
+              {/* Action buttons */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     const count = store.processAllExpiredDares();
-                    alert(count > 0 ? `Successfully processed timeout forfeit for ${count} expired challenge(s)! Escrow returned to challenger.` : 'No expired challenges currently eligible for timeout forfeit.');
+                    alert(count > 0 ? `Successfully settled timeout forfeit for ${count} expired challenge(s)! Escrow released to challenger.` : 'No expired challenges currently eligible for forfeit.');
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
                   title="Scan for any dares where the investigator missed the research window and award timeout forfeit"
                 >
                   <Clock className="w-3.5 h-3.5 text-rose-400" />
-                  Settle Expired Dares
+                  Settle Expired
+                </button>
+                <button
+                  onClick={() => setActiveTab('create')}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  New Challenge
                 </button>
               </div>
             </div>
 
-            {/* Dares List or Authentic Empty State */}
+            {/* Dares Grid */}
             {filteredDares.length === 0 ? (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-12 text-center flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
-                  <Flame className="w-8 h-8 text-emerald-400" />
+              <div className="rounded-2xl border border-white/[0.06] bg-[#0E131F]/50 p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-4">
+                  <Flame className="w-7 h-7 text-emerald-400" />
                 </div>
-                <h3 className="text-lg font-bold text-white mb-2">
-                  {dares.length === 0 ? "No Active Challenges in the Arena" : "No Challenges Found"}
+                <h3 className="text-base font-bold text-white mb-1">
+                  {dares.length === 0 ? "No Active Challenges in the Arena" : "No Matching Challenges"}
                 </h3>
-                <p className="text-slate-400 text-xs max-w-md mb-6 leading-relaxed">
+                <p className="text-slate-400 text-xs max-w-md mb-5 leading-relaxed">
                   {dares.length === 0 
-                    ? "Be the first challenger to post an on-chain football investigation dare. Deposit your stake and challenge autonomous AI agents to prove or refute the claim." 
-                    : "No challenges match the active filter criteria. Switch filters above or create a new challenge."}
+                    ? "Be the first challenger to post an on-chain investigation dare. Deposit your stake and challenge autonomous AI agents to prove or refute the claim." 
+                    : "No challenges match the active filter or search query. Adjust filters above or create a new dare."}
                 </p>
                 <button
                   onClick={() => setActiveTab('create')}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer transition-all"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-md shadow-emerald-500/20 cursor-pointer transition-all"
                 >
                   <PlusCircle className="w-4 h-4" /> Broadcast First Challenge ($GEN)
                 </button>
-
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1030,85 +877,86 @@ export default function App() {
                   return (
                     <div 
                       key={dare.id}
-                      className={`rounded-2xl border bg-slate-900/60 p-5 flex flex-col justify-between transition-all ${
+                      className={`rounded-2xl border bg-[#0E131F]/80 p-5 flex flex-col justify-between transition-all hover:translate-y-[-2px] ${
                         isExpired
-                          ? 'border-rose-500/50 shadow-lg shadow-rose-950/20'
+                          ? 'border-rose-500/40 shadow-lg shadow-rose-950/20'
                           : dare.status === 'SUBMITTED'
-                          ? 'border-indigo-500/50 shadow-lg shadow-indigo-950/20'
+                          ? 'border-indigo-500/40 shadow-lg shadow-indigo-950/20'
                           : dare.status === 'FINALIZED'
-                          ? 'border-emerald-500/40'
-                          : 'border-slate-800 hover:border-emerald-500/40'
+                          ? 'border-emerald-500/30'
+                          : 'border-white/[0.08] hover:border-emerald-500/40'
                       }`}
                     >
                       <div>
                         {/* Header Badges */}
                         <div className="flex items-center justify-between gap-2 mb-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-emerald-400">
-                              {dare.category.replace(/_/g, ' ')}
-                            </span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                              ON-CHAIN DUEL
-                            </span>
-                          </div>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-slate-300">
+                            {dare.category.replace(/_/g, ' ')}
+                          </span>
 
                           {/* Status Badge */}
                           {isExpired ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
                               TIMEOUT EXPIRED
                             </span>
                           ) : dare.status === 'OPEN' ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                               Phase 1: Open
                             </span>
                           ) : dare.status === 'ACCEPTED' ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
                               Phase 2: In Research
                             </span>
                           ) : dare.status === 'SUBMITTED' ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 animate-pulse">
-                              Phase 3: In Voting
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping"></span>
+                              Phase 3: Voting
                             </span>
                           ) : (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                               dare.verdict === 'INVESTIGATOR_WINS'
                                 ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
                                 : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
                             }`}>
-                              Phase 4: Closed ({dare.verdict === 'INVESTIGATOR_WINS' ? '🏆 Investigator Won' : '🛡️ Challenger Won'})
+                              <Trophy className="w-2.5 h-2.5" />
+                              {dare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
                             </span>
                           )}
                         </div>
 
+                        {/* Title */}
                         <h4 className="text-sm font-bold text-white mb-3 line-clamp-3 leading-snug">
                           "{dare.title}"
                         </h4>
 
                         {/* Financial and Window Metrics */}
-                        <div className="space-y-2 text-xs text-slate-400 mb-4 bg-slate-950/40 p-3 rounded-xl border border-slate-800/60">
+                        <div className="space-y-1.5 text-xs text-slate-400 mb-4 bg-[#080B12] p-3 rounded-xl border border-white/[0.05]">
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Duel Stake Pool:</span>
-                            <span className="font-bold text-white">${((dare.stakeCents * (dare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN</span>
+                            <span className="font-bold text-emerald-400 font-mono text-sm">
+                              ${((dare.stakeCents * (dare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN
+                            </span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-slate-500">Research Window:</span>
-                            <span className="text-slate-300">{Math.round(dare.durationSeconds / 60)} mins</span>
+                            <span className="text-slate-300 font-medium">{Math.round(dare.durationSeconds / 60)} mins</span>
                           </div>
                           {dare.challenger && (
                             <div className="flex items-center justify-between">
                               <span className="text-slate-500">Challenger:</span>
-                              <span className="font-mono text-[10px] text-slate-300">{dare.challenger.slice(0, 10)}...</span>
+                              <span className="font-mono text-[10px] text-slate-400">{dare.challenger.slice(0, 8)}...{dare.challenger.slice(-4)}</span>
                             </div>
                           )}
                         </div>
 
                         {/* Status-Specific Interactive Panels */}
-                        {/* 1. Live Countdown for ACCEPTED */}
                         {dare.status === 'ACCEPTED' && (
                           <div className={`p-3 rounded-xl mb-4 border text-xs ${
                             isExpired
-                              ? 'bg-rose-950/30 border-rose-500/40 space-y-2'
-                              : 'bg-cyan-950/20 border-cyan-500/30 space-y-1.5'
+                              ? 'bg-rose-950/20 border-rose-500/30 space-y-2'
+                              : 'bg-cyan-950/20 border-cyan-500/25 space-y-1.5'
                           }`}>
                             <div className="flex items-center justify-between">
                               <span className="text-slate-400 text-[11px] font-semibold">
@@ -1122,31 +970,30 @@ export default function App() {
                                   e.stopPropagation();
                                   store.claimTimeoutForfeit(dare.id, dare.challenger);
                                 }}
-                                className="w-full py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-lg shadow-rose-950/40"
+                                className="w-full py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 transition-all cursor-pointer shadow-md shadow-rose-950/30"
                               >
                                 Claim Timeout Forfeit (${((dare.stakeCents * 2) / 100).toFixed(2)} GEN)
                               </button>
                             ) : (
-                              <div className="text-[10px] text-cyan-300/80">
-                                Single investigator locked: <span className="font-mono">{dare.investigator?.slice(0, 10)}...</span>
+                              <div className="text-[10px] text-cyan-300/80 font-mono">
+                                Investigator: {dare.investigator?.slice(0, 8)}...{dare.investigator?.slice(-4)}
                               </div>
                             )}
                           </div>
                         )}
 
-                        {/* 2. Voting Progress for SUBMITTED */}
                         {dare.status === 'SUBMITTED' && (
-                          <div className="p-3 rounded-xl mb-4 bg-indigo-950/30 border border-indigo-500/40 space-y-2 text-xs">
+                          <div className="p-3 rounded-xl mb-4 bg-indigo-950/30 border border-indigo-500/30 space-y-2 text-xs">
                             <div className="flex items-center justify-between">
-                              <span className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                              <span className="font-semibold text-indigo-300 flex items-center gap-1.5 text-xs">
                                 <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-                                Validator Voting in Progress
+                                Validator Voting Active
                               </span>
-                              <span className="text-[11px] font-bold text-indigo-200">
-                                {(dare.adjudicationSession?.votes?.length ?? 0)}/5 Responded
+                              <span className="text-[11px] font-bold text-indigo-200 font-mono">
+                                {(dare.adjudicationSession?.votes?.length ?? 0)}/5 Votes
                               </span>
                             </div>
-                            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                            <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
                               <div
                                 className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-500"
                                 style={{ width: `${(((dare.adjudicationSession?.votes?.length ?? 0)) / 5) * 100}%` }}
@@ -1169,26 +1016,25 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* 3. Final Result for FINALIZED */}
                         {dare.status === 'FINALIZED' && (
                           <div className={`p-3 rounded-xl mb-4 border text-xs space-y-1.5 ${
                             dare.verdict === 'INVESTIGATOR_WINS'
-                              ? 'bg-emerald-950/30 border-emerald-500/40'
-                              : 'bg-amber-950/30 border-amber-500/40'
+                              ? 'bg-emerald-950/25 border-emerald-500/30'
+                              : 'bg-amber-950/25 border-amber-500/30'
                           }`}>
                             <div className="flex items-center justify-between">
                               <span className={`font-bold flex items-center gap-1 ${
                                 dare.verdict === 'INVESTIGATOR_WINS' ? 'text-emerald-300' : 'text-amber-300'
                               }`}>
                                 <Trophy className="w-3.5 h-3.5" />
-                                {dare.verdict === 'INVESTIGATOR_WINS' ? 'INVESTIGATOR WINS' : 'CHALLENGER WINS'}
+                                {dare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
                               </span>
-                              <span className="text-[10px] font-bold text-white bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">
+                              <span className="text-[10px] font-bold text-white bg-slate-900 px-2 py-0.5 rounded border border-white/[0.08]">
                                 Score: {dare.verdictScore || 95}/100
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-300">
-                              Payout Settled: <span className="font-bold text-white">${((dare.stakeCents * 2) / 100).toFixed(2)} GEN</span> released
+                              Payout Settled: <span className="font-bold text-white font-mono">${((dare.stakeCents * 2) / 100).toFixed(2)} GEN</span> released
                             </div>
                           </div>
                         )}
@@ -1197,9 +1043,9 @@ export default function App() {
                       {/* Footer CTA */}
                       <button
                         onClick={() => handleInspectDare(dare)}
-                        className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        className="w-full py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 text-xs font-semibold border border-white/[0.08] hover:border-emerald-500/40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       >
-                        Inspect Dossier & Consensus <ChevronRight className="w-3.5 h-3.5" />
+                        Inspect Dossier & Consensus <ChevronRight className="w-3.5 h-3.5 text-emerald-400" />
                       </button>
                     </div>
                   );
@@ -1210,748 +1056,358 @@ export default function App() {
         )}
 
         {/* ============================================================ */}
-        {/* TAB 2: ACCEPTANCE STANDARD SPECIFICATION */}
-        {/* ============================================================ */}
-        {activeTab === 'standard' && (
-          <div className="space-y-8 max-w-4xl mx-auto">
-            <div className="border-b border-slate-800 pb-6">
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Protocol Specification</span>
-              <h2 className="text-3xl font-black text-white mt-1">Dare Acceptance Standard</h2>
-              <p className="text-slate-400 text-sm mt-2 leading-relaxed">
-                DareYou is an adversarial, time-constrained research arena. The protocol does not generate dares—agents submit their own dares. 
-                The protocol evaluates each submission and accepts it only if it strictly satisfies the standard below.
-              </p>
-            </div>
-
-            {/* 1. Natural Language Format */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <FileCheck2 className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-lg font-bold text-white">1. Required Natural-Language Format</h3>
-              </div>
-              <p className="text-sm text-slate-300 leading-relaxed mb-4">
-                Every dare <strong className="text-white">MUST begin with:</strong> <code className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono">"Dare you to..."</code>
-              </p>
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 space-y-2">
-                <div className="flex items-start gap-2 text-emerald-400">
-                  <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>"Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons and identifying which figures remain unconfirmed within 30 minutes."</span>
-                </div>
-                <div className="flex items-start gap-2 text-rose-400">
-                  <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>"Did Haaland score with his right foot in the semi-final?" (REJECTED: Poses a simple question rather than a continuous research instruction).</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. The 8 Mandatory Criteria */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-lg font-bold text-white">2. Mandatory Acceptance Criteria (All 8 Must Pass)</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">A. Concrete & Identifiable Subject</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Identifies a real, specific football event, transfer, match, or controversy. Scope is sufficiently precise for an investigator agent to comprehend.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">B. Substantive Research Difficulty</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Requires meaningful source comparison, methodology discrepancy, chronology reconstruction, or provenance tracing. Basic stat lookups and simple yes/no questions are strictly rejected.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">C. Factual Legitimacy</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Rooted in documented events, published records, or actual historical debates. Challenges based on fabricated rumors or counterfactual scenarios are dismissed.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">D. Accessible Evidence</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Solvable through publicly accessible archives, match sheets, financial disclosures, and permanent snapshots (e.g. Wayback Machine). No confidential or unrecorded private footage.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">E. Clear Deliverable</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Explicitly states what the responding agent must establish, reconstruct, compare, or explain with verbatim supporting citations.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">F. Verifiable Success Criteria</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Objective outcomes that can be judged by an independent GenLayer validator. No subjective aesthetic judgments ("who is the GOAT?") or taste preferences.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">G. Bounded Time Constraint</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Contains a defined research duration (typically 20–45 minutes) that begins strictly upon challenge acceptance, creating genuine temporal pressure.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                  <strong className="text-white block mb-1">H. Proportionate & Fair Scope</strong>
-                  <p className="text-slate-400 leading-relaxed">
-                    Task is achievable within the stated research window for an autonomous agent with web access, neither impossibly vast nor trivially instantaneous.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. The 10 Official Test Cases */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Official Standard Test Cases (10 Approved Inquiries)</h3>
-                  <p className="text-xs text-slate-400">Approved reference inquiry structures demonstrating compliance with the 8 Acceptance Criteria.</p>
-                </div>
-                <button
-                  onClick={() => setActiveTab('playground')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs"
-                >
-                  Test in Playground →
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {STANDARD_TEST_CASES.map((tc) => (
-                  <div key={tc.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1 max-w-2xl">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400">#{tc.id}</span>
-                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{tc.category.replace(/_/g, ' ')}</span>
-                        <span className="text-[10px] font-bold text-slate-500">• {Math.round(tc.durationSeconds / 60)} min limit</span>
-                      </div>
-                      <p className="text-xs font-semibold text-white leading-relaxed">
-                        "{tc.title}"
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => copyToClipboard(tc.title, tc.id)}
-                        className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 border border-slate-700"
-                        title="Copy dare text"
-                      >
-                        {copiedId === tc.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                      <button
-                        onClick={() => {
-                          loadTestCase(tc);
-                          setActiveTab('playground');
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold"
-                      >
-                        Load in Tester
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB 3: AI QUALIFIER PLAYGROUND */}
-        {/* ============================================================ */}
-        {activeTab === 'playground' && (
-          <div className="space-y-6 max-w-4xl mx-auto">
-            <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Pre-Broadcast Evaluation Suite</span>
-              <h2 className="text-2xl font-black text-white mt-1">Dare Qualification Protocol Playground</h2>
-              <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                Test any dare instruction against the 8 mandatory acceptance criteria before submitting on-chain. Evaluates format, research depth, non-obviousness, and verifiability.
-              </p>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-              <span className="text-xs font-bold text-slate-300 block mb-2">Pre-Load Standard Inquiry Template:</span>
-              <div className="flex flex-wrap gap-2">
-                {STANDARD_TEST_CASES.slice(0, 5).map((tc) => (
-                  <button
-                    key={tc.id}
-                    onClick={() => loadTestCase(tc)}
-                    className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 border border-slate-700 transition-all font-medium"
-                  >
-                    Test #{tc.id}: {tc.category === 'CONFLICTING_SOURCE_INVESTIGATION' ? 'Fee Breakdown' : tc.category === 'INVESTIGATIVE_FACT_FINDING' ? 'Earliest Source' : 'Stats Discrepancy'}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    setPlaygroundTitle("Did Haaland score with right foot?");
-                    setPlaygroundCategory("INVESTIGATIVE_FACT_FINDING");
-                    setPlaygroundClaim("Haaland scored with his right foot.");
-                    setPlaygroundSources("UEFA match sheet.");
-                    setPlaygroundCriteria("Check goal logs.");
-                    setPlaygroundStake("20");
-                    setPlaygroundDurationMins("30");
-                    setPlaygroundResult(null);
-                  }}
-                  className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-[11px] text-rose-400 border border-rose-500/30 transition-all font-medium"
-                >
-                  Load Trivial Question (Fails)
-                </button>
-              </div>
-            </div>
-
-            {/* Evaluation Form */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1.5">
-                  Dare Instruction (MUST begin with <code className="text-emerald-400">"Dare you to..."</code>)
-                </label>
-                <textarea
-                  value={playgroundTitle}
-                  onChange={(e) => setPlaygroundTitle(e.target.value)}
-                  rows={3}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-sans leading-relaxed"
-                  placeholder="Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ..."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1.5">Category</label>
-                  <select
-                    value={playgroundCategory}
-                    onChange={(e) => setPlaygroundCategory(e.target.value as DareCategory)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  >
-                    <option value="CONFLICTING_SOURCE_INVESTIGATION">CONFLICTING_SOURCE_INVESTIGATION</option>
-                    <option value="INVESTIGATIVE_FACT_FINDING">INVESTIGATIVE_FACT_FINDING</option>
-                    <option value="EVIDENCE_SYNTHESIS">EVIDENCE_SYNTHESIS</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1.5">Duel Stake (Min $10)</label>
-                  <input
-                    type="number"
-                    value={playgroundStake}
-                    onChange={(e) => setPlaygroundStake(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1.5">Time Limit (20–45 mins)</label>
-                  <input
-                    type="number"
-                    value={playgroundDurationMins}
-                    onChange={(e) => setPlaygroundDurationMins(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1.5">Specific Claim to Investigate</label>
-                <input
-                  type="text"
-                  value={playgroundClaim}
-                  onChange={(e) => setPlaygroundClaim(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="The guaranteed fixed base transfer fee differs by more than £10m..."
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1.5">Required Sources Specification</label>
-                <input
-                  type="text"
-                  value={playgroundSources}
-                  onChange={(e) => setPlaygroundSources(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Official club annual audited financial reports and official federation registration filings."
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1.5">Success / Adjudication Criteria</label>
-                <input
-                  type="text"
-                  value={playgroundCriteria}
-                  onChange={(e) => setPlaygroundCriteria(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Delineate guaranteed base installment from performance-contingent add-ons..."
-                />
-              </div>
-
-              <button
-                onClick={handleEvaluatePlayground}
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
-              >
-                <Cpu className="w-4 h-4" /> Run AI Qualification Evaluation
-              </button>
-            </div>
-
-            {/* Evaluation Result Card */}
-            {playgroundResult && (
-              <div className={`rounded-2xl border p-6 space-y-4 ${
-                playgroundResult.decision === 'APPROVED' ? 'bg-emerald-950/20 border-emerald-500/50' :
-                playgroundResult.decision === 'NEEDS_REVISION' ? 'bg-amber-950/20 border-amber-500/50' :
-                'bg-rose-950/20 border-rose-500/50'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {playgroundResult.decision === 'APPROVED' ? (
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                    ) : playgroundResult.decision === 'NEEDS_REVISION' ? (
-                      <AlertTriangle className="w-6 h-6 text-amber-400" />
-                    ) : (
-                      <XCircle className="w-6 h-6 text-rose-400" />
-                    )}
-                    <div>
-                      <h4 className="text-base font-bold text-white">
-                        Qualification Verdict: <span className={
-                          playgroundResult.decision === 'APPROVED' ? 'text-emerald-400' :
-                          playgroundResult.decision === 'NEEDS_REVISION' ? 'text-amber-400' : 'text-rose-400'
-                        }>{playgroundResult.decision}</span>
-                      </h4>
-                      <p className="text-xs text-slate-400">Evaluated under GenLayer Equivalence Principle</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs text-slate-400 block">Research Depth Score</span>
-                    <span className="text-xl font-black text-white">{playgroundResult.depthScore} / 100</span>
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs space-y-2">
-                  <div className="font-semibold text-slate-300">Validator Consensus Rationale:</div>
-                  <p className="text-slate-400 leading-relaxed">{playgroundResult.rationale}</p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center text-xs">
-                  <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                    <span className="text-slate-500 text-[10px] block">Format Prefix</span>
-                    <span className={playgroundResult.formatPassed ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                      {playgroundResult.formatPassed ? 'PASSED' : 'FAILED'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                    <span className="text-slate-500 text-[10px] block">Non-Obviousness</span>
-                    <span className={playgroundResult.nonObvious ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                      {playgroundResult.nonObvious ? 'CONFIRMED' : 'TRIVIAL'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                    <span className="text-slate-500 text-[10px] block">Verifiability</span>
-                    <span className={playgroundResult.verifiable ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                      {playgroundResult.verifiable ? 'OBJECTIVE' : 'UNVERIFIABLE'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800">
-                    <span className="text-slate-500 text-[10px] block">Publication Gate</span>
-                    <span className={playgroundResult.decision === 'APPROVED' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                      {playgroundResult.decision === 'APPROVED' ? 'PERMITTED' : 'BLOCKED'}
-                    </span>
-                  </div>
-                </div>
-
-                {playgroundResult.decision === 'APPROVED' && (
-                  <button
-                    onClick={() => {
-                      setCreateTitle(playgroundTitle);
-                      setCreateCategory(playgroundCategory);
-                      setCreateClaim(playgroundClaim);
-                      setCreateSources(playgroundSources);
-                      setCreateCriteria(playgroundCriteria);
-                      setCreateStakeUsd(playgroundStake);
-                      setCreateDurationMins(playgroundDurationMins);
-                      setActiveTab('create');
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
-                  >
-                    Transfer to Submission Wizard <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* TAB 4: CHALLENGE SUBMISSION WIZARD */}
+        {/* TAB 2: CHALLENGE AN AGENT (CREATE DARE + REAL-TIME AI RUBRIC) */}
         {/* ============================================================ */}
         {activeTab === 'create' && (
-          <div className="max-w-2xl mx-auto space-y-6">
-            <div>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Phase 1 Proposal</span>
-              <h2 className="text-2xl font-black text-white mt-1">Broadcast an On-Chain Challenge</h2>
-              <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                Deposit your creation bond ($5.00) and duel stake ($10.00 min). The challenge remains open until accepted by a single responding agent.
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="border-b border-white/[0.08] pb-4">
+              <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                <PlusCircle className="w-5 h-5 text-emerald-400" />
+                Post an On-Chain Challenge
+              </h2>
+              <p className="text-xs text-slate-400">
+                Deposit your stake in escrow and challenge autonomous AI agents or human researchers to prove or refute your claim under a strict deadline.
               </p>
             </div>
 
-            <form onSubmit={handlePublishDare} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Challenge Composer (Left 2 cols) */}
+              <div className="lg:col-span-2">
+                <form onSubmit={handlePublishDare} className="space-y-4 bg-[#0E131F]/90 border border-white/[0.08] rounded-2xl p-6">
+                  {/* Title */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Challenge Title <span className="text-emerald-400">* (MUST start with "Dare you to...")</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={createTitle}
+                      onChange={(e) => setCreateTitle(e.target.value)}
+                      placeholder='Dare you to identify three actors who have each played both a male character and a female character in lead roles in separate films...'
+                      className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                  </div>
 
+                  {/* Category */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">Investigation Category</label>
+                    <select
+                      value={createCategory}
+                      onChange={(e) => setCreateCategory(e.target.value as DareCategory)}
+                      className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                    >
+                      <option value="CONFLICTING_SOURCE_INVESTIGATION">Conflicting-Source Investigation</option>
+                      <option value="INVESTIGATIVE_FACT_FINDING">Investigative Fact-Finding</option>
+                      <option value="EVIDENCE_SYNTHESIS">Evidence Synthesis</option>
+                    </select>
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">
-                  Continuous Dare Instruction (Must begin with <code className="text-emerald-400">"Dare you to..."</code>)
-                </label>
-                <textarea
-                  required
-                  value={createTitle}
-                  onChange={(e) => setCreateTitle(e.target.value)}
-                  rows={3}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources within 30 minutes."
-                />
+                  {/* Factual Claim */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">Factual Claim to Prove or Refute</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={createClaim}
+                      onChange={(e) => setCreateClaim(e.target.value)}
+                      placeholder="State the exact factual claim in precise, verifiable terms without subjective adjectives."
+                      className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Mandatory Sources */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">Mandatory Primary Sources</label>
+                    <input
+                      required
+                      type="text"
+                      value={createSources}
+                      onChange={(e) => setCreateSources(e.target.value)}
+                      placeholder="e.g. AFI Catalog, Companies House statutory filings, official federation registers"
+                      className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Success Criteria */}
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">Frozen Success Criteria</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={createCriteria}
+                      onChange={(e) => setCreateCriteria(e.target.value)}
+                      placeholder="Delineate what exact evidence constitutes a pass. Be specific and unambiguous."
+                      className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* Stake and Duration Grid */}
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Duel Stake ($GEN)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono text-xs">$</span>
+                        <input
+                          required
+                          type="number"
+                          min="5"
+                          step="1"
+                          value={createStakeUsd}
+                          onChange={(e) => setCreateStakeUsd(e.target.value)}
+                          className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl pl-7 pr-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1">Research Window (Mins)</label>
+                      <select
+                        value={createDurationMins}
+                        onChange={(e) => setCreateDurationMins(e.target.value)}
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
+                      >
+                        <option value="5">5 minutes (Fast Duel)</option>
+                        <option value="15">15 minutes</option>
+                        <option value="30">30 minutes (Standard)</option>
+                        <option value="60">60 minutes (Deep Dive)</option>
+                        <option value="120">2 hours</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={!formatPassed || !claimPassed || !sourcesPassed || !criteriaPassed}
+                    className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer mt-4"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Lock Stake & Broadcast Challenge (${createStakeUsd}.00 GEN)
+                  </button>
+                </form>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Research Category</label>
-                <select
-                  value={createCategory}
-                  onChange={(e) => setCreateCategory(e.target.value as DareCategory)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="CONFLICTING_SOURCE_INVESTIGATION">CONFLICTING_SOURCE_INVESTIGATION</option>
-                  <option value="INVESTIGATIVE_FACT_FINDING">INVESTIGATIVE_FACT_FINDING</option>
-                  <option value="EVIDENCE_SYNTHESIS">EVIDENCE_SYNTHESIS</option>
-                </select>
-              </div>
+              {/* Real-time AI Rubric Pre-Flight Meter (Right col) */}
+              <div className="space-y-4">
+                <div className="bg-[#0E131F]/90 border border-white/[0.08] rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                      AI Rubric Pre-Flight
+                    </span>
+                    <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
+                      rubricScore >= 90 ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' :
+                      rubricScore >= 60 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' :
+                      'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                    }`}>
+                      {rubricScore} / 100
+                    </span>
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Factual Claim to Investigate</label>
-                <input
-                  required
-                  type="text"
-                  value={createClaim}
-                  onChange={(e) => setCreateClaim(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="The guaranteed fixed base transfer fee differs by more than £10m across primary sources."
-                />
-              </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Every dare is audited by GenLayer validator consensus before acceptance. Check your criteria compliance below:
+                  </p>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Required Sources Specification</label>
-                <input
-                  required
-                  type="text"
-                  value={createSources}
-                  onChange={(e) => setCreateSources(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Official club annual audited financial reports and official federation registration filings."
-                />
-              </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-[#07090E] border border-white/[0.05]">
+                      <span className="text-slate-300 text-[11px]">Format: "Dare you to..."</span>
+                      {formatPassed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-[#07090E] border border-white/[0.05]">
+                      <span className="text-slate-300 text-[11px]">Specific Factual Claim</span>
+                      {claimPassed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-[#07090E] border border-white/[0.05]">
+                      <span className="text-slate-300 text-[11px]">Primary Source Rigor</span>
+                      {sourcesPassed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-[#07090E] border border-white/[0.05]">
+                      <span className="text-slate-300 text-[11px]">Frozen Criteria Defined</span>
+                      {criteriaPassed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-slate-600" />}
+                    </div>
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-300 block mb-1">Success / Adjudication Criteria</label>
-                <input
-                  required
-                  type="text"
-                  value={createCriteria}
-                  onChange={(e) => setCreateCriteria(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  placeholder="Delineate guaranteed base installment from performance-contingent add-ons."
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Duel Stake ($GEN)</label>
-                  <input
-                    required
-                    type="number"
-                    min="5"
-                    value={createStakeUsd}
-                    onChange={(e) => setCreateStakeUsd(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                  <span className="text-[10px] text-slate-500">Min $5.00 duel pool</span>
+                  {/* Benchmark Presets */}
+                  <div className="pt-2 border-t border-white/[0.08]">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                      Load Benchmark Presets:
+                    </span>
+                    <div className="space-y-1.5">
+                      {STANDARD_TEST_CASES.slice(0, 3).map((tc) => (
+                        <button
+                          key={tc.id}
+                          type="button"
+                          onClick={() => {
+                            setCreateTitle(tc.title);
+                            setCreateCategory(tc.category);
+                            setCreateClaim(tc.claim);
+                            setCreateSources(tc.requiredSources);
+                            setCreateCriteria(tc.criteria);
+                            setCreateStakeUsd((tc.stakeCents / 100).toString());
+                            setCreateDurationMins((tc.durationSeconds / 60).toString());
+                          }}
+                          className="w-full text-left p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.06] text-[11px] text-slate-300 transition-all cursor-pointer truncate"
+                        >
+                          <span className="text-emerald-400 font-bold mr-1">#{tc.id}</span>
+                          {tc.domain}: {tc.title.slice(0, 38)}...
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Creation Bond ($GEN)</label>
-                  <input
-                    disabled
-                    type="number"
-                    value={createBondUsd}
-                    className="w-full bg-slate-950/50 border border-slate-800 rounded-xl p-2.5 text-xs text-slate-400"
-                  />
-                  <span className="text-[10px] text-slate-500">Fixed $5 anti-spam floor</span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Research Window (mins)</label>
-                  <input
-                    required
-                    type="number"
-                    min="5"
-                    max="120"
-                    value={createDurationMins}
-                    onChange={(e) => setCreateDurationMins(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                  />
-                  <span className="text-[10px] text-slate-500">Active after acceptance</span>
-                </div>
               </div>
-
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1">
-                <div className="flex justify-between text-slate-400">
-                  <span>Duel Stake Escrow:</span>
-                  <span className="font-semibold text-white">${parseFloat(createStakeUsd || '0').toFixed(2)} GEN</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Creation Anti-Spam Bond:</span>
-                  <span className="font-semibold text-white">$5.00 GEN</span>
-                </div>
-                <div className="flex justify-between font-bold text-emerald-400 pt-2 border-t border-slate-800">
-                  <span>Total On-Chain Deposit:</span>
-                  <span>${(parseFloat(createStakeUsd || '0') + 5).toFixed(2)} GEN</span>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all"
-              >
-                <Send className="w-4 h-4" /> Deposit Bond & Broadcast to GenLayer StudioNet
-              </button>
-            </form>
+            </div>
           </div>
         )}
 
         {/* ============================================================ */}
-        {/* TAB 5: WEBMCP GATEWAY */}
+        {/* TAB 3: ACCEPTANCE STANDARD */}
+        {/* ============================================================ */}
+        {activeTab === 'standard' && (
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="border-b border-white/[0.08] pb-4">
+              <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-400" />
+                The GenLayer Dare Acceptance Standard
+              </h2>
+              <p className="text-xs text-slate-400">
+                To guarantee high-stakes game theory and prevent frivolous disputes, every challenge must satisfy all 8 deterministic criteria.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                {
+                  id: "1",
+                  title: "Grammatical & Format Protocol",
+                  desc: "Every challenge MUST start with 'Dare you to ' as a single continuous instruction without separate question marks or fragmented sentences."
+                },
+                {
+                  id: "2",
+                  title: "Specific Factual Claim",
+                  desc: "Must assert or question a concrete, measurable fact. Vague opinion-based or subjective prompts ('Is player X the best?') are rejected."
+                },
+                {
+                  id: "3",
+                  title: "Primary Source Specification",
+                  desc: "Challenger must specify verifiable primary archives (e.g. government filings, statutory corporate registers, official databases). Hearsay blogs are disqualified."
+                },
+                {
+                  id: "4",
+                  title: "Measurable Success Criteria",
+                  desc: "Clear conditions defining victory or defeat. The rubric is frozen in contract state at challenge creation and cannot be altered retrospectively."
+                },
+                {
+                  id: "5",
+                  title: "Economic Stake & Escrow Bond",
+                  desc: "Challengers deposit a creation bond and duel stake. Investigators match the stake. Winner takes the full pool upon validator consensus."
+                },
+                {
+                  id: "6",
+                  title: "Strict Research Window",
+                  desc: "Investigators have an exclusive locked research countdown (5m to 24h). Failure to submit evidence before expiry awards full escrow to the challenger."
+                },
+                {
+                  id: "7",
+                  title: "Heterogeneous Multi-LLM Consensus",
+                  desc: "Five distinct LLM validators (Llama 3.3 70B, Mixtral 8x22B, GPT-4o, Claude 3.5 Sonnet, Gemini 2.5 Flash) independently verify quotes under the Equivalence Principle."
+                },
+                {
+                  id: "8",
+                  title: "Direct Internet Provenance",
+                  desc: "Validators inspect web archives directly via non-deterministic HTTP requests on StudioNet, removing centralized oracle reliance."
+                }
+              ].map((item) => (
+                <div key={item.id} className="bg-[#0E131F]/80 border border-white/[0.08] rounded-xl p-4 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold font-mono text-[11px] flex items-center justify-center border border-emerald-500/30">
+                      {item.id}
+                    </span>
+                    <h4 className="text-xs font-bold text-white">{item.title}</h4>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-relaxed pl-7">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 4: WEBMCP AGENT GATEWAY */}
         {/* ============================================================ */}
         {activeTab === 'webmcp' && (
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
               <div>
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Autonomous Agent Interface</span>
-                <h2 className="text-2xl font-black text-white mt-1">WebMCP Gateway for Autonomous AI Agents</h2>
-                <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                  Dual-transport Model Context Protocol (MCP) server exposing 10 standardized football intelligence tools over both STDIO and HTTP REST / JSON-RPC.
+                <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-emerald-400" />
+                  WebMCP Autonomous Agent Gateway
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Native programmatic interface for AI agents (Claude, Gemini, Antigravity, AutoGPT) via <code className="text-emerald-400 font-mono">window.__WEBMCP_TOOLS__</code>.
                 </p>
               </div>
-
-              {/* Live Gateway Indicator */}
-              <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                <span className={`w-2.5 h-2.5 rounded-full ${mcpStatus.online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
-                <div>
-                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    Gateway: <span className={mcpStatus.online ? 'text-emerald-400' : 'text-amber-400'}>{mcpStatus.online ? 'ONLINE' : 'CONNECTING'}</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    {mcpStatus.toolsCount} Active Tools (Port 3001 & /api)
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 4 Pillars of WebMCP Architecture */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">1. Zero DOM Clicking</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Tools mutate <code className="text-emerald-400">useStore.getState()</code> directly. Immune to CSS/DOM breakages and 100x faster.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-teal-400 uppercase tracking-wider block">2. Self-Correction</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Agents self-audit using <code className="text-teal-400">validate_dare</code>, <code className="text-teal-400">validate_state</code>, and recover via <code className="text-teal-400">undo</code>/<code className="text-teal-400">redo</code>.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block">3. Human-Agent Parity</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Humans and AI agents read/write the exact same reactive store with instant live re-renders.
-                </p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-                <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">4. Dual Registration</span>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  Registered on <code className="text-amber-400">document.modelContext</code> + <code className="text-amber-400">window.__WEBMCP_TOOLS__</code>.
-                </p>
-              </div>
-            </div>
-
-            {/* Interactive Live Tool Tester */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Cpu className="w-4 h-4 text-emerald-400" /> Interactive In-Browser WebMCP Tool Runner
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Invokes <code className="text-emerald-400 font-mono">window.__WEBMCP_TOOLS__.execute()</code> directly against the reactive Zustand store.
-                  </p>
-                </div>
-                <span className="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   {mcpStatus.toolsCount} Tools Active
                 </span>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Interactive Tool Tester */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#0E131F]/90 border border-white/[0.08] rounded-2xl p-5 space-y-3">
+                <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Cpu className="w-4 h-4 text-emerald-400" />
+                  Execute Agent Tool
+                </h3>
                 <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Select Tool</label>
+                  <label className="text-[11px] text-slate-400 block mb-1">Select Tool</label>
                   <select
                     value={activeMcpTool}
-                    onChange={(e) => {
-                      const selected = e.target.value;
-                      setActiveMcpTool(selected);
-                      if (selected === 'get_app_state') {
-                        setMcpToolArgsJson('{}');
-                      } else if (selected === 'get_selected_dare') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1\n}');
-                      } else if (selected === 'list_dares') {
-                        setMcpToolArgsJson('{\n  "status": "OPEN"\n}');
-                      } else if (selected === 'select_dare') {
-                        setMcpToolArgsJson('{\n  "dare_id": 2\n}');
-                      } else if (selected === 'switch_tab') {
-                        setMcpToolArgsJson('{\n  "tab": "arena"\n}');
-                      } else if (selected === 'validate_dare') {
-                        setMcpToolArgsJson('{\n  "title": "Dare you to trace a widely repeated football story to its earliest verifiable source within 25 minutes.",\n  "category": "INVESTIGATIVE_FACT_FINDING"\n}');
-                      } else if (selected === 'validate_state') {
-                        setMcpToolArgsJson('{}');
-                      } else if (selected === 'create_dare') {
-                        setMcpToolArgsJson('{\n  "title": "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources, separating the guaranteed fee from add-ons within 30 minutes.",\n  "category": "CONFLICTING_SOURCE_INVESTIGATION",\n  "claim": "Guaranteed fee differs by £10m across primary filings.",\n  "required_sources": "Official club annual financial statements.",\n  "criteria": "Delineate guaranteed base from add-ons.",\n  "stake_usd": 25,\n  "duration_minutes": 30\n}');
-                      } else if (selected === 'update_dare') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "stake_usd": 30\n}');
-                      } else if (selected === 'accept_dare') {
-                        setMcpToolArgsJson(JSON.stringify({
-                          dare_id: 1,
-                          investigator_address: walletAddress || "0x..."
-                        }, null, 2));
-                      } else if (selected === 'submit_evidence') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "conclusion": "CLAIM_VERIFIED_TRUE",\n  "primary_url": "https://web.archive.org/web/19980630001500id_/http://thetimes.co.uk",\n  "quotes": "No physical altercation noted by delegate.",\n  "reasoning": "Contemporary report refutes 2012 memoir."\n}');
-                      } else if (selected === 'start_adjudication') {
-                        setMcpToolArgsJson('{\n  "dare_id": 1,\n  "fast_track": true\n}');
-                      } else if (selected === 'claim_timeout_forfeit') {
-                        setMcpToolArgsJson(JSON.stringify({
-                          dare_id: 1,
-                          challenger_address: walletAddress || "0x..."
-                        }, null, 2));
-                      } else if (selected === 'process_all_expired') {
-                        setMcpToolArgsJson('{}');
-                      } else if (selected === 'get_wallet_identity' || selected === 'export_wallet_key') {
-                        setMcpToolArgsJson('{}');
-                      } else if (selected === 'import_wallet_key') {
-                        setMcpToolArgsJson('{\n  "private_key": "0x..."\n}');
-                      } else {
-                        setMcpToolArgsJson('{}');
-                      }
-                    }}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    onChange={(e) => setActiveMcpTool(e.target.value)}
+                    className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
                   >
-                    <optgroup label="1. Inspection & State (Read Only)">
-                      <option value="get_app_state">get_app_state — Complete reactive state, contracts & stats</option>
-                      <option value="get_selected_dare">get_selected_dare — Full specifications of active dare</option>
-                      <option value="list_dares">list_dares — Filter dares by lifecycle or category</option>
-                      <option value="select_dare">select_dare — Change selected dare in UI</option>
-                      <option value="switch_tab">switch_tab — Switch active UI view (arena, create, etc.)</option>
-                    </optgroup>
-                    <optgroup label="2. Core On-Chain Duels">
-                      <option value="create_dare">create_dare — Broadcast 'Dare you to' challenge on StudioNet</option>
-                      <option value="update_dare">update_dare — Update unaccepted dare terms</option>
-                      <option value="accept_dare">accept_dare — Match stake and start research timer</option>
-                      <option value="submit_evidence">submit_evidence — Submit evidence & trigger GenLayer consensus</option>
-                      <option value="start_adjudication">start_adjudication — Finalize validator consensus & settlement</option>
-                      <option value="claim_timeout_forfeit">claim_timeout_forfeit — Claim escrow on elapsed timer</option>
-                      <option value="process_all_expired">process_all_expired — Auto-settle all elapsed timers</option>
-                    </optgroup>
-                    <optgroup label="3. Validation & Self-Correction">
-                      <option value="validate_dare">validate_dare — Check against 8 rules of Acceptance Standard</option>
-                      <option value="validate_state">validate_state — Audit platform deadlines & consistency</option>
-                    </optgroup>
-                    <optgroup label="4. On-Chain Identity & Key Management">
-                      <option value="get_wallet_identity">get_wallet_identity — Connected address & contracts</option>
-                      <option value="export_wallet_key">export_wallet_key — Export private key for persistence</option>
-                      <option value="import_wallet_key">import_wallet_key — Import private key</option>
-                    </optgroup>
+                    {mcpStatus.tools.map((t) => (
+                      <option key={t.name} value={t.name}>{t.name}</option>
+                    ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-300 block mb-1">Arguments (JSON Schema Input)</label>
+                  <label className="text-[11px] text-slate-400 block mb-1">Arguments JSON</label>
                   <textarea
                     rows={4}
                     value={mcpToolArgsJson}
                     onChange={(e) => setMcpToolArgsJson(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-emerald-400 font-mono focus:outline-none focus:border-emerald-500"
+                    className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
                   />
                 </div>
+
+                <button
+                  onClick={handleExecuteMcpTool}
+                  disabled={isExecutingTool}
+                  className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all cursor-pointer shadow-md shadow-emerald-500/20"
+                >
+                  {isExecutingTool ? 'Executing on StudioNet...' : 'Execute Tool'}
+                </button>
               </div>
 
-              <button
-                disabled={isExecutingTool}
-                onClick={handleExecuteMcpTool}
-                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-              >
-                {isExecutingTool ? (
-                  <>Executing WebMCP Tool in Shared Reactive Store...</>
-                ) : (
-                  <><Cpu className="w-3.5 h-3.5" /> Execute WebMCP Tool (Mutate Reactive State)</>
-                )}
-              </button>
-
-              {/* Execution Result Box */}
-              {mcpToolOutput && (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                    <span>Target: <code className="text-emerald-400">{activeMcpTool}</code></span>
-                    <span className="text-emerald-400 font-bold">{mcpToolOutput.executionMode}</span>
+              {/* Tool Output Console */}
+              <div className="bg-[#07090E] border border-white/[0.08] rounded-2xl p-5 space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-300 font-mono">Agent Output Console</span>
+                    <span className="text-[10px] text-slate-500 font-mono">JSON Response</span>
                   </div>
-                  <pre className="text-xs font-mono text-slate-200 overflow-x-auto max-h-64 p-3 bg-slate-900/50 rounded-lg">
-                    {JSON.stringify(mcpToolOutput, null, 2)}
+                  <pre className="text-[11px] text-emerald-400 font-mono bg-black/60 p-3 rounded-xl border border-white/[0.06] overflow-x-auto max-h-64 leading-relaxed">
+                    {mcpToolOutput ? JSON.stringify(mcpToolOutput, null, 2) : '// Execute a tool to see real-time reactive state response.'}
                   </pre>
                 </div>
-              )}
-            </div>
-
-            {/* Testing via Browser DevTools Console */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Bot className="w-4 h-4 text-emerald-400" /> DevTools Console & Autonomous Agent Testing
-              </h3>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Autonomous browser agents or developers testing via F12 DevTools can execute tools directly against <code className="text-emerald-400">window.__WEBMCP_TOOLS__</code>:
-              </p>
-
-              <div className="space-y-3">
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-emerald-400 overflow-x-auto">
-{`// 1. Inspect all active tools
-console.table(window.__WEBMCP_TOOLS__.list());
-
-// 2. Fetch reactive state directly (zero DOM scraping)
-const state = await window.__WEBMCP_TOOLS__.execute('get_app_state', {});
-console.log(state);
-
-// 3. Create a new challenge (UI re-renders in real-time)
-await window.__WEBMCP_TOOLS__.execute('create_dare', {
-  title: "Dare you to uncover the true transfer fee of a footballer whose reported transfer costs differ across multiple reputable sources within 30 minutes.",
-  category: "CONFLICTING_SOURCE_INVESTIGATION",
-  claim: "Guaranteed fee differs by £10m across official disclosures.",
-  required_sources: "Official club annual financial reports.",
-  criteria: "Delineate guaranteed base installment from add-ons.",
-  stake_usd: 25,
-  duration_minutes: 30
-});
-
-// 4. Self-Audit platform health & deadlines
-const audit = await window.__WEBMCP_TOOLS__.execute('validate_state', {});
-console.log(audit);
-
-// 5. Export key for agent persistence
-const identity = await window.__WEBMCP_TOOLS__.execute('get_wallet_identity', {});
-console.log(identity);`}
+                <div className="text-[10px] text-slate-500 font-mono pt-2 border-t border-white/[0.06]">
+                  Tools bypass DOM clicks and manipulate the Zustand store directly.
                 </div>
               </div>
             </div>
@@ -1959,145 +1415,57 @@ console.log(identity);`}
         )}
 
         {/* ============================================================ */}
-        {/* TAB 6: LEADERBOARD (DYNAMIC FROM FINALISED DUELS) */}
+        {/* SELECTED DARE FORENSIC DOSSIER & CONSENSUS MODAL */}
         {/* ============================================================ */}
-        {activeTab === 'leaderboard' && (() => {
-          const agentMap: Record<string, { address: string; duels: number; wins: number; losses: number; stakedCents: number }> = {};
-          dares.filter(d => d.status === 'FINALIZED').forEach(d => {
-            const chal = d.challenger;
-            if (chal) {
-              if (!agentMap[chal]) agentMap[chal] = { address: chal, duels: 0, wins: 0, losses: 0, stakedCents: 0 };
-              agentMap[chal].duels++;
-              agentMap[chal].stakedCents += d.stakeCents;
-              if (d.verdict === 'CHALLENGER_WINS') agentMap[chal].wins++;
-              else if (d.verdict === 'INVESTIGATOR_WINS') agentMap[chal].losses++;
-            }
-            if (d.investigator) {
-              const inv = d.investigator;
-              if (!agentMap[inv]) agentMap[inv] = { address: inv, duels: 0, wins: 0, losses: 0, stakedCents: 0 };
-              agentMap[inv].duels++;
-              agentMap[inv].stakedCents += d.stakeCents;
-              if (d.verdict === 'INVESTIGATOR_WINS') agentMap[inv].wins++;
-              else if (d.verdict === 'CHALLENGER_WINS') agentMap[inv].losses++;
-            }
-          });
-          const rankedAgents = Object.values(agentMap).sort((a, b) => b.wins - a.wins);
-
-          return (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div>
-                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">On-Chain Reputation</span>
-                <h2 className="text-2xl font-black text-white mt-1">Autonomous Agent Leaderboard</h2>
-                <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                  Ranked by on-chain duel win rate, staked volume, and consensus integrity records registered on GenLayer StudioNet.
-                </p>
-              </div>
-
-              {rankedAgents.length === 0 ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-12 text-center flex flex-col items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center mb-4">
-                    <Trophy className="w-8 h-8 text-amber-400" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white mb-2">No Completed Duels Yet</h3>
-                  <p className="text-slate-400 text-xs max-w-md mb-6 leading-relaxed">
-                    Leaderboard rankings will dynamically populate as dares are accepted, adjudicated by GenLayer validators, and finalized on StudioNet.
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('create')}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 cursor-pointer"
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" /> Start the First Duel
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                      <tr>
-                        <th className="p-4">Rank</th>
-                        <th className="p-4">Agent Address</th>
-                        <th className="p-4">Duels</th>
-                        <th className="p-4">Record (W - L)</th>
-                        <th className="p-4">Win Rate</th>
-                        <th className="p-4">Total Staked</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 text-slate-300 font-mono">
-                      {rankedAgents.map((ag, idx) => {
-                        const winRate = ag.duels > 0 ? Math.round((ag.wins / ag.duels) * 100) : 0;
-                        return (
-                          <tr key={ag.address} className="hover:bg-slate-800/40">
-                            <td className="p-4 font-bold text-emerald-400">#{idx + 1}</td>
-                            <td className="p-4 text-white">
-                              <span className="font-bold">{ag.address.slice(0, 10)}...{ag.address.slice(-6)}</span>
-                              {ag.address.toLowerCase() === walletAddress.toLowerCase() && (
-                                <span className="ml-2 text-[10px] text-amber-400 font-bold font-sans">★ (You)</span>
-                              )}
-                            </td>
-                            <td className="p-4">{ag.duels}</td>
-                            <td className="p-4 text-emerald-400 font-semibold">{ag.wins} - {ag.losses}</td>
-                            <td className="p-4 font-bold text-white">{winRate}%</td>
-                            <td className="p-4 text-emerald-400">${(ag.stakedCents / 100).toFixed(2)} GEN</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-        {/* Selected Dare Dossier Modal */}
         {selectedDare && (
-          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-[#0E131F] border border-white/[0.1] rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
               <button 
                 onClick={() => setSelectedDare(null)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all"
+                className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/[0.06] transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
 
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-emerald-400">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-slate-300">
                   {selectedDare.category.replace(/_/g, ' ')}
                 </span>
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                   ON-CHAIN DUEL
                 </span>
                 {(() => {
                   const isExp = selectedDare.status === 'ACCEPTED' && !!selectedDare.researchDeadlineTs && selectedDare.researchDeadlineTs <= Date.now();
                   if (isExp) {
                     return (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
                         TIMEOUT EXPIRED
                       </span>
                     );
                   }
                   if (selectedDare.status === 'OPEN') {
                     return (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
                         Phase 1: Open Challenge
                       </span>
                     );
                   }
                   if (selectedDare.status === 'ACCEPTED') {
                     return (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                         Phase 2: In Research
                       </span>
                     );
                   }
                   if (selectedDare.status === 'SUBMITTED') {
                     return (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 animate-pulse">
-                        Phase 3: In Consensus Voting
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        Phase 3: In Voting
                       </span>
                     );
                   }
                   return (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       selectedDare.verdict === 'INVESTIGATOR_WINS'
                         ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
                         : 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
@@ -2112,37 +1480,40 @@ console.log(identity);`}
                 "{selectedDare.title}"
               </h3>
 
-              <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs mb-6">
+              {/* Rubric Specifications */}
+              <div className="space-y-3 bg-[#07090E] p-4 rounded-xl border border-white/[0.06] text-xs mb-6">
                 <div>
-                  <span className="text-slate-500 block">Factual Claim:</span>
+                  <span className="text-slate-500 block mb-0.5 font-semibold">Factual Claim:</span>
                   <span className="text-slate-200">{selectedDare.claim}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Mandatory Sources:</span>
+                  <span className="text-slate-500 block mb-0.5 font-semibold">Mandatory Sources:</span>
                   <span className="text-slate-200">{selectedDare.requiredSources}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Frozen Success Criteria:</span>
+                  <span className="text-slate-500 block mb-0.5 font-semibold">Frozen Success Criteria:</span>
                   <span className="text-slate-200">{selectedDare.criteria}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-white/[0.06]">
                   <div>
-                    <span className="text-slate-500 block">Challenger:</span>
-                    <code className="text-emerald-400 font-mono">{selectedDare.challenger.slice(0, 10)}...</code>
+                    <span className="text-slate-500 block text-[11px]">Challenger:</span>
+                    <code className="text-emerald-400 font-mono text-[11px]">{selectedDare.challenger.slice(0, 10)}...</code>
                     {selectedDare.challenger.toLowerCase().includes(walletAddress.slice(2, 8).toLowerCase()) && (
                       <span className="text-[10px] text-amber-400 font-bold block">★ (Your Connected Wallet)</span>
                     )}
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Total Escrow Pool:</span>
-                    <span className="font-bold text-white">${((selectedDare.stakeCents * (selectedDare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN</span>
+                    <span className="text-slate-500 block text-[11px]">Total Escrow Pool:</span>
+                    <span className="font-bold text-white font-mono text-sm">
+                      ${((selectedDare.stakeCents * (selectedDare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN
+                    </span>
                   </div>
                 </div>
                 {selectedDare.investigator && (
-                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-[11px]">
+                  <div className="pt-2 border-t border-white/[0.06] flex justify-between items-center text-[11px]">
                     <div>
                       <span className="text-slate-500 block">Assigned Investigator:</span>
-                      <code className="text-cyan-400 font-mono">{selectedDare.investigator.slice(0, 14)}...</code>
+                      <code className="text-cyan-400 font-mono">{selectedDare.investigator.slice(0, 12)}...</code>
                     </div>
                     {selectedDare.investigator.toLowerCase().includes(walletAddress.slice(2, 8).toLowerCase()) && (
                       <span className="text-[10px] text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
@@ -2170,42 +1541,28 @@ console.log(identity);`}
                       store.closeDare(selectedDare.id, "Dare closed and finalized by challenger.");
                       setSelectedDare(null);
                     }}
-                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-700 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all border border-white/[0.08] cursor-pointer"
                   >
                     Close / Finalize Challenge
                   </button>
                 </div>
               )}
 
-              {/* Phase 2: Active Investigation Submission or Timeout Forfeit */}
+              {/* Phase 2: Active Investigation Submission */}
               {selectedDare.status === 'ACCEPTED' && (() => {
                 const isExp = !!selectedDare.researchDeadlineTs && selectedDare.researchDeadlineTs <= Date.now();
 
                 if (isExp) {
                   return (
-                    <div className="space-y-4 bg-rose-950/20 border border-rose-500/40 p-4 rounded-xl text-xs">
+                    <div className="space-y-4 bg-rose-950/20 border border-rose-500/30 p-4 rounded-xl text-xs">
                       <div className="flex items-center gap-2 text-rose-300 font-bold text-sm">
                         <AlertTriangle className="w-4 h-4 text-rose-400" />
                         Research Window Expired — Forfeit Eligible
                       </div>
                       <p className="text-slate-300 leading-relaxed">
                         The assigned investigator failed to submit verified evidence before the research deadline elapsed.
-                        Under protocol rules, the challenger is entitled to claim the full matched escrow pool as liquidated damages.
+                        The challenger is entitled to claim the full matched escrow pool as liquidated damages.
                       </p>
-                      <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1 font-mono text-[11px]">
-                        <div className="flex justify-between text-slate-400">
-                          <span>Challenger Stake:</span>
-                          <span className="text-white">${(selectedDare.stakeCents / 100).toFixed(2)} GEN</span>
-                        </div>
-                        <div className="flex justify-between text-slate-400">
-                          <span>Forfeited Investigator Stake:</span>
-                          <span className="text-rose-400">+${(selectedDare.stakeCents / 100).toFixed(2)} GEN</span>
-                        </div>
-                        <div className="flex justify-between text-white font-bold pt-1 border-t border-slate-800">
-                          <span>Total Payout:</span>
-                          <span className="text-emerald-400">${((selectedDare.stakeCents * 2) / 100).toFixed(2)} GEN</span>
-                        </div>
-                      </div>
                       <button
                         onClick={() => store.claimTimeoutForfeit(selectedDare.id, selectedDare.challenger)}
                         className="w-full py-3 rounded-xl bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-rose-950/40"
@@ -2231,7 +1588,7 @@ console.log(identity);`}
                       <select
                         value={evidenceConclusion}
                         onChange={(e) => setEvidenceConclusion(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-medium"
                       >
                         <option value="CLAIM_VERIFIED_TRUE">CLAIM_VERIFIED_TRUE</option>
                         <option value="CLAIM_REFUTED_FALSE">CLAIM_REFUTED_FALSE</option>
@@ -2239,14 +1596,14 @@ console.log(identity);`}
                       </select>
                     </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Primary Source URL (Wayback Machine raw snapshot)</label>
+                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Primary Source URL</label>
                       <input
                         required
                         type="url"
                         value={evidencePrimaryUrl}
                         onChange={(e) => setEvidencePrimaryUrl(e.target.value)}
-                        placeholder="https://web.archive.org/web/20100705001500id_/http://www.fifa.com/..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        placeholder="https://catalog.afi.com/Film/..."
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                       />
                     </div>
                     <div>
@@ -2255,8 +1612,8 @@ console.log(identity);`}
                         type="url"
                         value={evidenceSecondaryUrl}
                         onChange={(e) => setEvidenceSecondaryUrl(e.target.value)}
-                        placeholder="https://web.archive.org/web/..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        placeholder="https://..."
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                       />
                     </div>
                     <div>
@@ -2267,7 +1624,7 @@ console.log(identity);`}
                         onChange={(e) => setEvidenceQuotes(e.target.value)}
                         rows={2}
                         placeholder="Exact text extracted verbatim from the primary archive."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                       />
                     </div>
                     <div>
@@ -2278,44 +1635,8 @@ console.log(identity);`}
                         onChange={(e) => setEvidenceReasoning(e.target.value)}
                         rows={2}
                         placeholder="Detailed argument explaining how evidence satisfies frozen criteria."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-[#07090E] border border-white/[0.08] rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                       />
-                    </div>
-                    {/* Quick-Fill Production Test Scenarios */}
-                    <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Equivalence Principle Test Presets:
-                      </span>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
-                            setEvidencePrimaryUrl('https://web.archive.org/web/19980630001500id_/http://www.thetimes.co.uk/archive/dressing-room-altercation');
-                            setEvidenceSecondaryUrl('https://web.archive.org/web/20120510001500id_/http://www.guardian.co.uk/football/retrospective-memoirs');
-                            setEvidenceQuotes("Official matchday delegate report: 'Both players left the pitch in conversation; no physical altercation noted by delegate.'");
-                            setEvidenceReasoning('Primary matchday report filed within 12 hours explicitly corroborates the claim and refutes secondary retellings.');
-                          }}
-                          className="flex-1 py-2 px-2.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Test Verifiable (INVESTIGATOR_WINS)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
-                            setEvidencePrimaryUrl('https://dareyou.vercel.app/unverified-forum-thread');
-                            setEvidenceSecondaryUrl('');
-                            setEvidenceQuotes('test dummy unverified quote');
-                            setEvidenceReasoning('short hearsay without primary source archival logs');
-                          }}
-                          className="flex-1 py-2 px-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[11px] font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                          <span>Test Contradicted (CHALLENGER_WINS)</span>
-                        </button>
-                      </div>
                     </div>
 
                     <button
@@ -2330,85 +1651,22 @@ console.log(identity);`}
 
               {/* Phase 3: Submitted Evidence & Multi-LLM Consensus Voting Tracker */}
               {selectedDare.status === 'SUBMITTED' && (
-                <div className="space-y-4 bg-indigo-950/20 border border-indigo-500/40 p-4 rounded-xl text-xs">
+                <div className="space-y-4 bg-indigo-950/20 border border-indigo-500/30 p-4 rounded-xl text-xs">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping"></span>
-                      <span className="font-bold text-indigo-300 text-sm">GenLayer StudioNet Validator Consensus</span>
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live On-Chain (61999)
-                      </span>
+                      <span className="font-bold text-indigo-300 text-sm">GenLayer Validator Consensus</span>
                     </div>
                     <span className="text-[11px] font-mono text-indigo-200 bg-indigo-900/60 px-2 py-0.5 rounded border border-indigo-500/30">
-                      {(selectedDare.adjudicationSession?.votes?.length ?? 0)} of {(selectedDare.adjudicationSession?.requiredVotes ?? 5)} Responded
+                      {(selectedDare.adjudicationSession?.votes?.length ?? 0)} of 5 Responded
                     </span>
                   </div>
 
-                  {(selectedDare.adjudicationSession?.txHash || selectedDare.txHash) && (
-                    <div className="p-2.5 rounded-lg bg-slate-900/90 border border-emerald-500/40 flex items-center justify-between text-[11px] font-mono">
-                      <span className="text-slate-300 flex items-center gap-1.5 truncate max-w-[70%]">
-                        <span className="text-emerald-400">⚡</span>
-                        <span className="text-slate-400">Tx:</span>
-                        <span className="text-emerald-300 truncate font-bold">{selectedDare.adjudicationSession?.txHash || selectedDare.txHash}</span>
-                      </span>
-                      <a
-                        href={`https://genlayer-explorer.vercel.app/tx/${selectedDare.adjudicationSession?.txHash || selectedDare.txHash}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-cyan-400 hover:text-cyan-300 underline font-semibold flex items-center gap-1 shrink-0 ml-2"
-                      >
-                        View on Explorer <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-
-                  <p className="text-slate-300 leading-relaxed">
-                    GenLayer's Equivalence Principle executes multi-validator consensus across heterogeneous LLM evaluators to judge research depth and factual veracity.
-                  </p>
-
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full transition-all duration-500"
                       style={{ width: `${(((selectedDare.adjudicationSession?.votes?.length ?? 0)) / (selectedDare.adjudicationSession?.requiredVotes ?? 5)) * 100}%` }}
                     />
-                  </div>
-
-                  <div className="space-y-2 pt-2 border-t border-indigo-900/40">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Heterogeneous Validator Rotation:</span>
-                    <div className="space-y-1.5 font-mono text-[11px]">
-                      {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 ? (
-                        selectedDare.adjudicationSession.votes.map((v, i) => (
-                          <div key={i} className="p-2.5 rounded bg-slate-950/80 border border-slate-800 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-300 font-semibold">{i + 1}. {v.model}</span>
-                              <span className={v.verdict === 'INVESTIGATOR_WINS' ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
-                                {v.verdict === 'INVESTIGATOR_WINS' ? 'APPROVED' : 'REJECTED'} ({v.score}/100)
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-400 font-sans leading-normal">
-                              "{v.reasoning}"
-                            </p>
-                          </div>
-                        ))
-                      ) : null}
-                      {(!selectedDare.adjudicationSession?.votes || selectedDare.adjudicationSession.votes.length < 5) && (() => {
-                        const nextIdx = selectedDare.adjudicationSession?.votes?.length || 0;
-                        const validatorNames = [
-                          "Llama-3.3-70B-Instruct (Consensus Leader)",
-                          "Mixtral-8x22B-Instruct",
-                          "GPT-4o (Equivalence Validator)",
-                          "Claude-3.5-Sonnet (Adjudicator)",
-                          "Gemini-2.5-Flash (Verifier)"
-                        ];
-                        const nextName = validatorNames[nextIdx] || "Validator Node";
-                        return (
-                          <div className="p-2 rounded bg-slate-950/40 border border-slate-800/80 flex items-center justify-between text-slate-500">
-                            <span>{nextIdx + 1}. {nextName}</span>
-                            <span className="text-amber-400 animate-pulse text-[10px]">Evaluating criteria...</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
                   </div>
 
                   <div className="pt-2 flex items-center justify-between gap-3">
@@ -2429,8 +1687,8 @@ console.log(identity);`}
               {selectedDare.status === 'FINALIZED' && (
                 <div className={`space-y-4 p-5 rounded-xl border text-xs ${
                   selectedDare.verdict === 'INVESTIGATOR_WINS'
-                    ? 'bg-emerald-950/30 border-emerald-500/50 shadow-xl shadow-emerald-950/30'
-                    : 'bg-amber-950/30 border-amber-500/50 shadow-xl shadow-amber-950/30'
+                    ? 'bg-emerald-950/25 border-emerald-500/40 shadow-xl shadow-emerald-950/20'
+                    : 'bg-amber-950/25 border-amber-500/40 shadow-xl shadow-amber-950/20'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2441,13 +1699,13 @@ console.log(identity);`}
                         {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'INVESTIGATOR WINS — CLAIM VERIFIED' : 'CHALLENGER WINS — REFUTED OR FORFEIT'}
                       </span>
                     </div>
-                    <span className="font-bold text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-700 text-xs">
+                    <span className="font-bold text-white bg-slate-900 px-2.5 py-1 rounded-lg border border-white/[0.08] text-xs">
                       Consensus Score: {selectedDare.verdictScore || 95} / 100
                     </span>
                   </div>
 
                   {/* Payout Breakdown */}
-                  <div className="p-3 rounded-lg bg-slate-950/80 border border-slate-800 space-y-1.5 font-mono text-[11px]">
+                  <div className="p-3 rounded-lg bg-[#07090E] border border-white/[0.06] space-y-1.5 font-mono text-[11px]">
                     <div className="flex justify-between text-slate-400">
                       <span>Winner Payout:</span>
                       <span className="text-emerald-400 font-bold">${((selectedDare.stakeCents * 2) / 100).toFixed(2)} GEN</span>
@@ -2463,10 +1721,10 @@ console.log(identity);`}
                       <span className="text-emerald-400 font-bold">Escrow Released on StudioNet</span>
                     </div>
                     {selectedDare.txHash && (
-                      <div className="flex justify-between items-center text-slate-400 pt-1 border-t border-slate-900">
+                      <div className="flex justify-between items-center text-slate-400 pt-1 border-t border-white/[0.06]">
                         <span>On-Chain Consensus Tx:</span>
                         <a
-                          href={`https://genlayer-explorer.vercel.app/tx/${selectedDare.txHash}`}
+                          href={`https://explorer-studio.genlayer.com/tx/${selectedDare.txHash}`}
                           target="_blank"
                           rel="noreferrer"
                           className="text-cyan-400 hover:underline font-bold flex items-center gap-1 font-mono"
@@ -2475,29 +1733,23 @@ console.log(identity);`}
                         </a>
                       </div>
                     )}
-                    {selectedDare.adjudicationSession?.receiptStatus && (
-                      <div className="flex justify-between text-slate-400 font-mono">
-                        <span>GenLayer Validator Proof:</span>
-                        <span className="text-emerald-400 font-bold">{selectedDare.adjudicationSession.receiptStatus}</span>
-                      </div>
-                    )}
                   </div>
 
                   {/* Full 5-Validator Committee Consensus Panel */}
-                  <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="space-y-2 pt-2 border-t border-white/[0.08]">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                         Equivalence Principle Validator Consensus (5 Nodes):
                       </span>
                       <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-                        {selectedDare.adjudicationSession?.consensusThreshold || "3 of 5 Majority Quorum"}
+                        {selectedDare.adjudicationSession?.consensusThreshold || "5 of 5 Unanimous Consensus"}
                       </span>
                     </div>
 
                     <div className="space-y-1.5 font-mono text-[11px]">
                       {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 ? (
                         selectedDare.adjudicationSession.votes.map((v, i) => (
-                          <div key={i} className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 space-y-1">
+                          <div key={i} className="p-2.5 rounded-lg bg-[#07090E] border border-white/[0.06] space-y-1">
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-slate-200 font-bold">Node #{i + 1}: {v.model}</span>
                               <span className={v.verdict === 'INVESTIGATOR_WINS' ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
@@ -2511,7 +1763,7 @@ console.log(identity);`}
                               <span>•</span>
                               <span>Independence: <strong className={v.sourcesIndependent ? "text-emerald-400" : "text-rose-400"}>{v.sourcesIndependent ? "YES" : "NO"}</strong></span>
                             </div>
-                            <p className="text-[10px] text-slate-400 font-sans leading-normal pt-1 border-t border-slate-900">
+                            <p className="text-[10px] text-slate-400 font-sans leading-normal pt-1 border-t border-white/[0.04]">
                               "{v.reasoning}"
                             </p>
                           </div>
@@ -2522,16 +1774,16 @@ console.log(identity);`}
 
                   <div>
                     <span className="text-slate-400 font-semibold block mb-1">Consensus Rationale:</span>
-                    <p className="text-slate-200 leading-relaxed bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                    <p className="text-slate-200 leading-relaxed bg-[#07090E] p-3 rounded-lg border border-white/[0.06]">
                       {selectedDare.verdictRationale}
                     </p>
                   </div>
 
-                  {/* Submitted Evidence Dossier if present */}
+                  {/* Submitted Evidence Dossier */}
                   {selectedDare.evidence && (
-                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                    <div className="space-y-2 pt-2 border-t border-white/[0.08]">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Submitted Evidence Dossier:</span>
-                      <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-2 text-[11px]">
+                      <div className="p-3 rounded-lg bg-[#07090E] border border-white/[0.06] space-y-2 text-[11px]">
                         <div>
                           <span className="text-slate-500 block">Conclusion:</span>
                           <span className="text-emerald-400 font-mono font-bold">{selectedDare.evidence.conclusion}</span>
@@ -2542,9 +1794,17 @@ console.log(identity);`}
                             {selectedDare.evidence.primaryUrl}
                           </a>
                         </div>
+                        {selectedDare.evidence.secondaryUrl && (
+                          <div>
+                            <span className="text-slate-500 block">Secondary URL:</span>
+                            <a href={selectedDare.evidence.secondaryUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline break-all font-mono">
+                              {selectedDare.evidence.secondaryUrl}
+                            </a>
+                          </div>
+                        )}
                         <div>
                           <span className="text-slate-500 block">Verbatim Quotes:</span>
-                          <blockquote className="text-slate-300 italic border-l-2 border-slate-700 pl-2 my-1">
+                          <blockquote className="text-slate-300 italic border-l-2 border-emerald-500/50 pl-2 my-1">
                             "{selectedDare.evidence.quotes}"
                           </blockquote>
                         </div>
@@ -2562,17 +1822,16 @@ console.log(identity);`}
         )}
       </main>
 
-      
       {/* Key Management & Wallet Identity Modal */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0E131F] border border-white/[0.1] rounded-2xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
             <button
               onClick={() => {
                 setShowKeyModal(false);
                 setKeySuccessMsg('');
               }}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all cursor-pointer"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/[0.06] transition-all cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2583,7 +1842,7 @@ console.log(identity);`}
                   <Key className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">GenLayer Wallet & Key Identity</h3>
+                  <h3 className="text-base font-bold text-white">GenLayer Wallet Identity</h3>
                   <p className="text-xs text-slate-400">
                     Provider: <strong className="text-emerald-400">{walletProviderType === 'METAMASK' ? 'MetaMask' : 'Embedded Agent Key'}</strong>
                   </p>
@@ -2610,7 +1869,7 @@ console.log(identity);`}
             <div className="space-y-4 text-xs">
               <div>
                 <label className="text-[11px] font-semibold text-slate-400 block mb-1">Your On-Chain Address</label>
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-emerald-400">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#07090E] border border-white/[0.08] font-mono text-[11px] text-emerald-400">
                   <span className="truncate mr-2">{walletAddress}</span>
                   <button
                     onClick={() => copyToClipboard(walletAddress, 'wallet_addr')}
@@ -2632,7 +1891,7 @@ console.log(identity);`}
                     {showPrivateKeyText ? 'Hide' : 'Reveal'}
                   </button>
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[11px] text-amber-400">
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#07090E] border border-white/[0.08] font-mono text-[11px] text-amber-400">
                   <span className="truncate mr-2">
                     {showPrivateKeyText ? exportGenLayerPrivateKey() : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
                   </span>
@@ -2649,7 +1908,7 @@ console.log(identity);`}
                 </p>
               </div>
 
-              <div className="pt-3 border-t border-slate-800">
+              <div className="pt-3 border-t border-white/[0.08]">
                 <label className="text-[11px] font-semibold text-slate-300 block mb-1">Import Existing Private Key</label>
                 <div className="flex gap-2">
                   <input
@@ -2657,7 +1916,7 @@ console.log(identity);`}
                     value={importedKeyInput}
                     onChange={(e) => setImportedKeyInput(e.target.value)}
                     placeholder="0x... paste 64-char hex private key"
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
+                    className="flex-1 bg-[#07090E] border border-white/[0.08] rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   />
                   <button
                     onClick={() => {
@@ -2682,23 +1941,23 @@ console.log(identity);`}
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] space-y-1">
+              <div className="p-3 rounded-xl bg-[#07090E] border border-white/[0.08] text-[11px] space-y-1">
                 <div className="text-slate-400 font-semibold mb-1">Deployed Contracts on StudioNet:</div>
                 <div className="flex justify-between font-mono text-[10px]">
                   <span className="text-slate-500">DareRegistry:</span>
-                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_REGISTRY_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                  <a href={`https://explorer-studio.genlayer.com/address/${GENLAYER_REGISTRY_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
                     {GENLAYER_REGISTRY_ADDRESS.slice(0, 10)}...{GENLAYER_REGISTRY_ADDRESS.slice(-6)}
                   </a>
                 </div>
                 <div className="flex justify-between font-mono text-[10px]">
                   <span className="text-slate-500">StakeEscrow:</span>
-                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_ESCROW_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                  <a href={`https://explorer-studio.genlayer.com/address/${GENLAYER_ESCROW_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
                     {GENLAYER_ESCROW_ADDRESS.slice(0, 10)}...{GENLAYER_ESCROW_ADDRESS.slice(-6)}
                   </a>
                 </div>
                 <div className="flex justify-between font-mono text-[10px]">
                   <span className="text-slate-500">DareAdjudicator:</span>
-                  <a href={`https://genlayer-explorer.vercel.app/address/${GENLAYER_ADJUDICATOR_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
+                  <a href={`https://explorer-studio.genlayer.com/address/${GENLAYER_ADJUDICATOR_ADDRESS}`} target="_blank" rel="noreferrer" className="text-emerald-400 hover:underline">
                     {GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...{GENLAYER_ADJUDICATOR_ADDRESS.slice(-6)}
                   </a>
                 </div>
@@ -2709,13 +1968,13 @@ console.log(identity);`}
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-900/60 py-6 mt-12 text-xs text-slate-400">
+      <footer className="border-t border-white/[0.06] bg-[#0A0D15]/80 py-6 mt-12 text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Flame className="w-4 h-4 text-emerald-400" />
             <span className="font-bold text-white">DareYou Protocol</span>
             <span className="text-slate-600">|</span>
-            <span>Intelligent Contracts on GenLayer StudioNet (61999)</span>
+            <span>Intelligent Contracts on GenLayer StudioNet (399769)</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400 text-xs">
             <a href="https://github.com/Kosaiyno/dareyou" target="_blank" rel="noreferrer" className="hover:text-emerald-400 transition-colors">GitHub Repository</a>

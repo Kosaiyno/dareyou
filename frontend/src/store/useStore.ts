@@ -199,6 +199,27 @@ export const SEED_INITIAL_DARES: Dare[] = [
     researchDeadlineTs: 0,
     status: "OPEN",
     challenger: "0x6da2D3d6c5F95a35bfEDaa01f3602e298682405e"
+  },
+  {
+    id: 3,
+    isBenchmark: false,
+    title: "Dare you to identify three actors who have each played both a male character and a female character in lead roles in separate films, where neither role involves a gender transition within the film's storyline. Provide verifiable evidence for every actor and both roles.",
+    category: "CONFLICTING_SOURCE_INVESTIGATION",
+    claim: "Identify three actors who have played both male and female characters as lead roles in films, without undergoing a gender transition within the storyline.",
+    requiredSources: "For each of the three actors, provide: (1) official title and release year of one film in a male lead role; (2) official title and release year of a different film in a female lead role; (3) official film credits or reputable database confirming each role; and (4) independent reputable source confirming character gender and lead status.",
+    criteria: "The claim passes only if three distinct actors meet every requirement without storyline transition. Provide direct source URLs and supporting explanation for every role.",
+    stakeCents: 1000,
+    creationBondCents: 500,
+    durationSeconds: 1800,
+    acceptanceDeadlineTs: 86400,
+    researchDeadlineTs: 0,
+    status: "FINALIZED",
+    challenger: "0xF2912D0F31DE631E58b236c8543AB66996d56659",
+    investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473",
+    verdict: "INVESTIGATOR_WINS",
+    verdictScore: 95,
+    verdictRationale: "Heterogeneous validator rotation unanimously confirmed: Evidence dossier from catalog.afi.com contains authentic quotes for Linda Hunt (1982/1985), John Travolta (1978/2007), and Cate Blanchett (2007/2022), satisfies frozen criteria, and resolves claim without speculative bias.",
+    txHash: "0x9d044a4d7631bd2e1bb1a12fbab2600c80e0edf4020d4e10ae08ff579640c887"
   }
 ];
 
