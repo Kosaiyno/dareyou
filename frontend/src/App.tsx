@@ -758,7 +758,7 @@ export default function App() {
   const featuredDare = dares.find(d => d.id === 1) || dares[0] || null;
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex-1 w-full bg-[#F7F7F8] text-slate-900 flex font-sans selection:bg-[#EF4444] selection:text-white">
+    <div className="min-h-screen w-full bg-[#F7F7F8] text-slate-900 flex font-sans selection:bg-[#EF4444] selection:text-white">
       {/* ============================================================ */}
       {/* 1. LEFT SIDEBAR (OBSIDIAN DARK THEME) */}
       {/* ============================================================ */}
@@ -913,7 +913,7 @@ export default function App() {
       {/* ============================================================ */}
       {/* 2. MAIN WORKSPACE (PORCELAIN WARM LIGHT THEME) */}
       {/* ============================================================ */}
-      <div className="ml-0 md:ml-64 flex-1 min-w-0 w-full max-w-full overflow-x-hidden flex flex-col min-h-screen min-h-[100dvh] bg-[#F7F7F8]">
+      <div className="ml-0 md:ml-64 flex-1 min-w-0 w-full overflow-x-hidden flex flex-col min-h-screen bg-[#F7F7F8]">
         {/* Top Header Bar */}
         <header className="sticky top-0 z-30 bg-[#F7F7F8]/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-4 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-lg">
@@ -1025,7 +1025,7 @@ export default function App() {
         </header>
 
         {/* Main Content Stage */}
-        <main className="p-4 md:p-8 space-y-6 max-w-7xl w-full mx-auto flex-1">
+        <main className="p-4 md:p-8 space-y-6 w-full max-w-[1600px] mx-auto flex-1">
           {/* ============================================================ */}
           {/* TAB 1: LIVE ARENA & EXPLORE (MAIN DREAMS) */}
           {/* ============================================================ */}
@@ -1139,10 +1139,10 @@ export default function App() {
                 </div>
               </div>
 
-              {/* 2-Column Grid: Challenges Table (Left 2 cols) + Right Rail (Featured & Activity) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
-                {/* Left 2 Cols: Dares Market Table */}
-                <div className="lg:col-span-2 space-y-3">
+              {/* Responsive Layout: Fluid Challenges Table (Flex-1) + Fixed-width Right Rail */}
+              <div className="flex flex-col lg:flex-row gap-6 pt-2 items-start w-full">
+                {/* Left: Dares Market Table */}
+                <div className="flex-1 min-w-0 w-full space-y-3">
                   {/* My Dares Filter Banner */}
                   {myDaresOnly && (
                     <div className="bg-red-50/80 border border-red-200/90 rounded-2xl p-3.5 flex items-center justify-between text-xs shadow-xs">
@@ -1392,7 +1392,7 @@ export default function App() {
                 </div>
 
                 {/* Right Rail: Featured Dare Card + Live Activity Feed */}
-                <div className="space-y-6">
+                <div className="w-full lg:w-80 xl:w-96 flex-shrink-0 space-y-6">
                   {/* Featured Dare Card */}
                   {featuredDare && (
                     <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs text-left">
@@ -2519,7 +2519,7 @@ export default function App() {
 
         {/* StudioNet Anchored Footer */}
         <footer className="mt-auto border-t border-slate-200/80 bg-white py-6 px-4 md:px-8 text-center sm:text-left">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-lg bg-red-600/10 text-[#EF4444] flex items-center justify-center font-bold text-[10px]">
                 🔥
