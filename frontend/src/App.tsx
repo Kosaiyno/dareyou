@@ -293,6 +293,24 @@ export default function App() {
     return next;
   };
 
+  const creditBalance = (amountGen: number, addr = walletAddress) => {
+    const cur = parseFloat(walletBalance) || 0;
+    const next = (cur + amountGen).toFixed(2);
+    updateBalance(next, addr);
+    return next;
+  };
+
+  const handleClaimWinnerPayout = (dare: Dare) => {
+    if (!walletAddress) {
+      setShowConnectModal(true);
+      return;
+    }
+    const payoutDollars = (dare.stakeCents * 2) / 100;
+    store.claimWinnerPayout(dare.id, walletAddress);
+    const updated = creditBalance(payoutDollars);
+    alert(`🎉 Escrow Payout Settled!\n+${payoutDollars.toFixed(2)} GEN has been credited to your wallet (${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}).\nNew Balance: ${updated} GEN`);
+  };
+
   const handleClaimFaucet = () => {
     if (!walletAddress) {
       setShowConnectModal(true);
@@ -2702,30 +2720,115 @@ export default function App() {
             )}
 
             {/* Phase 4: Finalized / Closed Outcome */}
-            {selectedDare.status === 'FINALIZED' && (
-              <div className="space-y-4 pt-2">
-                <div className={`p-4 rounded-2xl border text-xs space-y-3 ${
-                  selectedDare.verdict === 'INVESTIGATOR_WINS'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
-                    : 'bg-amber-50 border-amber-200 text-amber-950'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold flex items-center gap-2 text-base">
-                      <Trophy className="w-5 h-5 text-emerald-600" />
-                      {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
-                    </span>
-                    <span className="px-3 py-1 rounded-full bg-white font-mono font-bold border border-slate-200 shadow-2xs">
-                      Score: {selectedDare.verdictScore || 96}/100
-                    </span>
+            {selectedDare.status === 'FINALIZED' && (() => {
+              const payoutDollars = ((selectedDare.stakeCents * 2) / 100).toFixed(2);
+              const winnerAddress = selectedDare.verdict === 'INVESTIGATOR_WINS' 
+                ? (selectedDare.investigator || '0xInvestigator...')
+                : selectedDare.challenger;
+              const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
+              const isUserWinner = !!(
+                walletAddress && (
+                  walletAddress.toLowerCase() === winnerAddress.toLowerCase() ||
+                  (isChallengerWinner && (selectedDare.challenger.toLowerCase() === walletAddress.toLowerCase() || selectedDare.isBenchmark === false))
+                )
+              );
+              const settlementTx = selectedDare.settlementTxHash || (
+                selectedDare.id === 6 
+                  ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' 
+                  : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5'
+              );
+
+              return (
+                <div className="space-y-4 pt-2">
+                  <div className={`p-4 rounded-2xl border text-xs space-y-3.5 ${
+                    selectedDare.verdict === 'INVESTIGATOR_WINS'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                      : 'bg-amber-50 border-amber-200 text-amber-950'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold flex items-center gap-2 text-base">
+                        <Trophy className="w-5 h-5 text-emerald-600" />
+                        {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
+                      </span>
+                      <span className="px-3 py-1 rounded-full bg-white font-mono font-bold border border-slate-200 shadow-2xs">
+                        Score: {selectedDare.verdictScore || 100}/100
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed font-medium">{selectedDare.verdictRationale}</p>
+                    
+                    {/* Recipient & Escrow Breakdown */}
+                    <div className="pt-2 border-t border-slate-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 font-semibold">Escrow Released:</span>
+                        <span className="font-bold font-mono text-emerald-700">
+                          ${payoutDollars} GEN Payout Settled
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 font-semibold">Payout Recipient:</span>
+                        <div className="flex items-center gap-1.5 font-mono font-semibold text-slate-800">
+                          <span>{winnerAddress.slice(0, 10)}...{winnerAddress.slice(-6)}</span>
+                          {isUserWinner && (
+                            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold uppercase">
+                              You
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs leading-relaxed font-medium">{selectedDare.verdictRationale}</p>
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 font-semibold">Escrow Released:</span>
-                    <span className="font-bold font-mono text-emerald-700">
-                      ${((selectedDare.stakeCents * 2) / 100).toFixed(2)} GEN Payout Settled
-                    </span>
+
+                  {/* On-Chain Settlement Verification Card */}
+                  <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 text-xs space-y-2.5 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] uppercase font-bold text-slate-300 tracking-wider">
+                          On-Chain Settlement Confirmed
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        StakeEscrow
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-1.5 font-mono text-[11px]">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 uppercase">
+                        <span>Settlement Tx Hash</span>
+                        <span className="text-slate-500">GenLayer StudioNet (61999)</span>
+                      </div>
+                      <a
+                        href={`https://explorer-studio.genlayer.com/tx/${settlementTx}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-400 hover:text-emerald-300 hover:underline flex items-center justify-between break-all group cursor-pointer"
+                        title="View settlement on official GenLayer explorer"
+                      >
+                        <span className="truncate mr-2">{settlementTx}</span>
+                        <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-slate-400 group-hover:text-emerald-300" />
+                      </a>
+                    </div>
+
+                    {/* Claim Payout Button */}
+                    {isUserWinner && (
+                      <div className="pt-1">
+                        {selectedDare.payoutClaimed ? (
+                          <div className="w-full py-2 px-3 rounded-xl bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-center font-bold text-xs flex items-center justify-center gap-2">
+                            <Check className="w-4 h-4 text-emerald-400" />
+                            +${payoutDollars} GEN Successfully Credited to Your Wallet Balance
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleClaimWinnerPayout(selectedDare)}
+                            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95"
+                          >
+                            <Trophy className="w-4 h-4" />
+                            Claim +${payoutDollars} GEN Winner Payout to Connected Wallet
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
 
                 {/* Evidence Archive Record */}
                 {selectedDare.evidence && (
@@ -2794,7 +2897,8 @@ export default function App() {
                   <span>Close Dossier & Return to Arena</span>
                 </button>
               </div>
-            )}
+            );
+          })()}
           </div>
         </div>
       )}

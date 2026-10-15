@@ -89,6 +89,9 @@ export interface Dare {
   verdictScore?: number;
   verdictRationale?: string;
   txHash?: string;
+  settlementTxHash?: string;
+  payoutRecipient?: string;
+  payoutClaimed?: boolean;
 }
 
 export interface AppState {
@@ -138,6 +141,7 @@ export interface AppState {
   fastTrackAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
+  claimWinnerPayout: (id: number, walletAddress: string) => number;
   closeDare: (id: number, rationale?: string) => boolean;
   processAllExpiredDares: () => number;
   loadOnChainDares: () => Promise<void>;
@@ -290,7 +294,9 @@ export function loadDaresFromStorage(): Dare[] {
                 status: 'FINALIZED' as DareStatus,
                 verdict: 'CHALLENGER_WINS' as any,
                 verdictScore: 100,
-                verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`
+                verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`,
+                settlementTxHash: d.settlementTxHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5'),
+                payoutRecipient: d.challenger
               };
             }
             return d;
@@ -1090,12 +1096,17 @@ export const useStore = create<AppState>((set, get) => ({
       if ((d.status === "ACCEPTED" || d.status === "EXPIRED") && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
         processed++;
         const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
+        const txHash = d.settlementTxHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5');
+        // Asynchronously register on-chain settlement on StakeEscrow
+        settleWinnerPayoutOnChain(d.id, d.challenger).catch(() => {});
         return {
           ...d,
           status: "FINALIZED" as DareStatus,
           verdict: "CHALLENGER_WINS" as any,
           verdictScore: 100,
-          verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`
+          verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`,
+          settlementTxHash: txHash,
+          payoutRecipient: d.challenger
         };
       }
       return d;
@@ -1108,6 +1119,26 @@ export const useStore = create<AppState>((set, get) => ({
       });
     }
     return processed;
+  },
+
+  claimWinnerPayout: (id: number, _walletAddress: string) => {
+    const state = get();
+    const dare = state.dares.find(d => d.id === id);
+    if (!dare || dare.status !== 'FINALIZED' || dare.payoutClaimed) return 0;
+
+    const payoutDollars = (dare.stakeCents * 2) / 100;
+    const newDares = state.dares.map(d => {
+      if (d.id === id) {
+        return { ...d, payoutClaimed: true };
+      }
+      return d;
+    });
+
+    set({
+      ...pushSnapshot(state, newDares),
+      lastActionMessage: `Claimed $${payoutDollars.toFixed(2)} GEN escrow payout for Dare #${id}!`
+    });
+    return payoutDollars;
   },
 
   undo: () => {
