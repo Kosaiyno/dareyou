@@ -6,9 +6,91 @@ import type { ValidatorVote } from '../store/useStore';
 export const GENLAYER_ADJUDICATOR_ADDRESS = "0x0936db9AEFB73f87B5E4F5CA36435FB4a9168A94";
 export const GENLAYER_ESCROW_ADDRESS = "0x50fC8Cf8Eae04e26f4B7F995092465f421AD91a9";
 export const GENLAYER_REGISTRY_ADDRESS = "0x76E36c8414EF9aa42fAe1990a9D7B3F1377B4d01";
+export const GENLAYER_QUALIFIER_ADDRESS = "0x4b78c9E61B21F7741F830E2Fa2eAf3f3a8b23419";
+export const GENLAYER_REPUTATION_ADDRESS = "0x892cA774E9133D14BcaA957bEF9F8316104F55b3";
+export const GENLAYER_EVIDENCE_REGISTRY_ADDRESS = "0x32A6fB06E1B68b7D071Acf0A03CDE6c4c017d29E";
+export const GENLAYER_POLICY_ADDRESS = "0x1Fa39C6D37c28F796C8Ab66fDb88019ACb86fB18";
+export const GENLAYER_PROBE_NETWORK_ADDRESS = "0x6E4c7B03eC55D28F8bBcB286Db0f70a794B3C683";
+
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
 export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
 export const GENLAYER_EXPLORER_URL = "https://genlayer-explorer.vercel.app";
+
+export interface IntelligentContractMetadata {
+  name: string;
+  filename: string;
+  address: string;
+  type: "GenLayer Intelligent Contract (Python · gl.Contract)";
+  executionEngine: "GenLayer Equivalence Principle (Multi-LLM Consensus)" | "Deterministic State Machine";
+  description: string;
+}
+
+export const GENLAYER_INTELLIGENT_CONTRACTS: IntelligentContractMetadata[] = [
+  {
+    name: "DareRegistry",
+    filename: "contracts/dare_registry.py",
+    address: GENLAYER_REGISTRY_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "Challenge publication gate, two-phase duel lifecycle manager, timeout auto-forfeit handler, and winner registry."
+  },
+  {
+    name: "DareAdjudicator",
+    filename: "contracts/dare_adjudicator.py",
+    address: GENLAYER_ADJUDICATOR_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "GenLayer Equivalence Principle (Multi-LLM Consensus)",
+    description: "Multi-validator consensus adjudication engine executing gl.eq_principle.prompt_non_comparative across LLM nodes."
+  },
+  {
+    name: "DareQualifier",
+    filename: "contracts/dare_qualifier.py",
+    address: GENLAYER_QUALIFIER_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "GenLayer Equivalence Principle (Multi-LLM Consensus)",
+    description: "AI-powered proposal gatekeeper enforcing 8 mandatory research criteria before challenges can enter the arena."
+  },
+  {
+    name: "StakeEscrow",
+    filename: "contracts/stake_escrow.py",
+    address: GENLAYER_ESCROW_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "Dual-party GEN collateral custody, matching stake locking, reentrancy protection, and winner settlement."
+  },
+  {
+    name: "AgentReputation",
+    filename: "contracts/agent_reputation.py",
+    address: GENLAYER_REPUTATION_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "On-chain track record, win/loss stats, total volume staked, and investigator credibility profiles."
+  },
+  {
+    name: "EvidenceRegistry",
+    filename: "contracts/evidence_registry.py",
+    address: GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "Cryptographic freeze for submitted investigator evidence, verbatim quotes, and permanent archival sources."
+  },
+  {
+    name: "DarePolicy",
+    filename: "contracts/dare_policy.py",
+    address: GENLAYER_POLICY_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "Protocol policy enforcement: minimum stake, acceptance/research window boundaries (1s to 7d), and anti-spam rate limits."
+  },
+  {
+    name: "NetworkProbe",
+    filename: "contracts/probe_network.py",
+    address: GENLAYER_PROBE_NETWORK_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "GenLayer Equivalence Principle (Multi-LLM Consensus)",
+    description: "Pre-execution validator connectivity probe verifying permanent archive sources (Archive.org, Wikipedia oldid)."
+  }
+];
 
 // Persistent or ephemeral client account for interacting with StudioNet
 let cachedPrivateKey: string | null = null;

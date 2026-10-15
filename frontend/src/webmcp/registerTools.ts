@@ -18,6 +18,12 @@ import {
   GENLAYER_ADJUDICATOR_ADDRESS, 
   GENLAYER_ESCROW_ADDRESS, 
   GENLAYER_REGISTRY_ADDRESS, 
+  GENLAYER_QUALIFIER_ADDRESS,
+  GENLAYER_REPUTATION_ADDRESS,
+  GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
+  GENLAYER_POLICY_ADDRESS,
+  GENLAYER_PROBE_NETWORK_ADDRESS,
+  GENLAYER_INTELLIGENT_CONTRACTS,
   GENLAYER_STUDIONET_CHAIN_ID,
   exportGenLayerPrivateKey,
   importGenLayerPrivateKey,
@@ -72,7 +78,13 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
           chainId: GENLAYER_STUDIONET_CHAIN_ID,
           registryContract: GENLAYER_REGISTRY_ADDRESS,
           escrowContract: GENLAYER_ESCROW_ADDRESS,
-          adjudicatorContract: GENLAYER_ADJUDICATOR_ADDRESS
+          adjudicatorContract: GENLAYER_ADJUDICATOR_ADDRESS,
+          qualifierContract: GENLAYER_QUALIFIER_ADDRESS,
+          reputationContract: GENLAYER_REPUTATION_ADDRESS,
+          evidenceRegistryContract: GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
+          policyContract: GENLAYER_POLICY_ADDRESS,
+          probeNetworkContract: GENLAYER_PROBE_NETWORK_ADDRESS,
+          totalIntelligentContracts: GENLAYER_INTELLIGENT_CONTRACTS.length
         },
         activeTab: state.activeTab,
         selectedDareId: state.selectedDareId,
@@ -101,6 +113,24 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
             investigator: d.investigator || null
           };
         })
+      };
+    }
+  },
+  {
+    name: 'get_intelligent_contracts',
+    description: 'Lists all 8 GenLayer Intelligent Contracts in DareYou (Python-based gl.Contract modules with Equivalence Principle multi-LLM consensus, deterministic escrow, reputation, and qualification gatekeepers).',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      additionalProperties: false
+    },
+    annotations: { readOnlyHint: true },
+    execute: async () => {
+      return {
+        success: true,
+        network: 'GenLayer StudioNet (Chain ID 61999)',
+        totalIntelligentContracts: GENLAYER_INTELLIGENT_CONTRACTS.length,
+        intelligentContracts: GENLAYER_INTELLIGENT_CONTRACTS
       };
     }
   },
