@@ -14,7 +14,7 @@ export const GENLAYER_PROBE_NETWORK_ADDRESS = "0x95D18a8e32030696083522191763Ef6
 
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
 export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
-export const GENLAYER_EXPLORER_URL = "https://genlayer-explorer.vercel.app";
+export const GENLAYER_EXPLORER_URL = "https://explorer-studio.genlayer.com";
 
 export interface IntelligentContractMetadata {
   name: string;

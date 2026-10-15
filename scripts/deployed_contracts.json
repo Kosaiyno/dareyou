@@ -13,7 +13,7 @@
       "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
       "0x3E5ee2507cc167C9925Bf10c67D7986581112024"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x95D18a8e32030696083522191763Ef6afAa5921B"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x95D18a8e32030696083522191763Ef6afAa5921B"
   },
   "DarePolicy": {
     "name": "DarePolicy",
@@ -29,7 +29,7 @@
       "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
       "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE"
   },
   "StakeEscrow": {
     "name": "StakeEscrow",
@@ -45,7 +45,7 @@
       "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
       "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x90010C348521701a01F540eAae451168adfE144c"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x90010C348521701a01F540eAae451168adfE144c"
   },
   "EvidenceRegistry": {
     "name": "EvidenceRegistry",
@@ -61,7 +61,7 @@
       "0x4404Fb70d490c935758146f42A73DC850FF95C71",
       "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9"
   },
   "AgentReputation": {
     "name": "AgentReputation",
@@ -77,7 +77,7 @@
       "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
       "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5"
   },
   "DareQualifier": {
     "name": "DareQualifier",
@@ -93,7 +93,7 @@
       "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
       "0x4404Fb70d490c935758146f42A73DC850FF95C71"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x83500594b6eAd73e578a6A2f32e642f2D578D4F2"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x83500594b6eAd73e578a6A2f32e642f2D578D4F2"
   },
   "DareAdjudicator": {
     "name": "DareAdjudicator",
@@ -109,7 +109,7 @@
       "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
       "0x90402341F0B0e97b23023c0a87de957FB7148E0F"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x34E64141C1F7101200c280Fa9b765b4b2070129c"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x34E64141C1F7101200c280Fa9b765b4b2070129c"
   },
   "DareRegistry": {
     "name": "DareRegistry",
@@ -125,6 +125,6 @@
       "0x3E5ee2507cc167C9925Bf10c67D7986581112024",
       "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
     ],
-    "explorerUrl": "https://genlayer-explorer.vercel.app/address/0x66f59361D3B810B7d83E7E67B7Cb9321970Bc450"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x66f59361D3B810B7d83E7E67B7Cb9321970Bc450"
   }
 }
