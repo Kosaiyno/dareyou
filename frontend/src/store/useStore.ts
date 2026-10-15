@@ -163,7 +163,7 @@ export interface AppState {
   };
 }
 
-export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares_v5';
+export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares_v7';
 
 export const SEED_INITIAL_DARES: Dare[] = [
   {
@@ -180,10 +180,9 @@ export const SEED_INITIAL_DARES: Dare[] = [
     creationBondCents: 500,
     durationSeconds: 1800,
     acceptanceDeadlineTs: Date.now() + 86400000,
-    researchDeadlineTs: Date.now() + 1485000,
-    status: "ACCEPTED",
-    challenger: "0xF2912D0F31DE631E58b236c8543AB66996d56659",
-    investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473"
+    researchDeadlineTs: 0,
+    status: "OPEN",
+    challenger: "0xF2912D0F31DE631E58b236c8543AB66996d56659"
   },
   {
     id: 2,
@@ -281,7 +280,21 @@ export function loadDaresFromStorage(): Dare[] {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const now = Date.now();
+          // Auto-settle any dare whose research deadline elapsed during page closure/refresh
+          return parsed.map((d: Dare) => {
+            if (d.status === 'ACCEPTED' && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
+              const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
+              return {
+                ...d,
+                status: 'FINALIZED' as DareStatus,
+                verdict: 'CHALLENGER_WINS' as any,
+                verdictScore: 100,
+                verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`
+              };
+            }
+            return d;
+          });
         }
       }
     } catch (e) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home,
   PlusCircle, 
@@ -27,7 +27,14 @@ import {
   Copy,
   LogOut,
   Key,
-  RefreshCw
+  RefreshCw,
+  BookOpen,
+  Terminal,
+  CheckCircle2,
+  XCircle,
+  Code,
+  Play,
+  HelpCircle
 } from 'lucide-react';
 import { useStore, isDareExpired } from './store/useStore';
 import { 
@@ -231,8 +238,20 @@ export default function App() {
   const [myDaresOnly, setMyDaresOnly] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Selected Dare for Dossier Modal
-  const [selectedDare, setSelectedDare] = useState<Dare | null>(null);
+  // Selected Dare for Dossier Modal (reactive lookup so status transitions update live)
+  const [selectedDareId, setSelectedDareId] = useState<number | null>(null);
+  const selectedDare = useMemo(() => {
+    return dares.find(d => d.id === selectedDareId) || null;
+  }, [dares, selectedDareId]);
+
+  // Protocol Standards Tab View
+  const [standardsView, setStandardsView] = useState<'create' | 'solve' | 'validators'>('create');
+
+  // WebMCP Interactive Console State
+  const [activeMcpTool, setActiveMcpTool] = useState<string>('list_dares');
+  const [mcpToolArgs, setMcpToolArgs] = useState<string>('{\n  "status": "ALL"\n}');
+  const [mcpResult, setMcpResult] = useState<any>(null);
+  const [mcpExecuting, setMcpExecuting] = useState<boolean>(false);
 
   // Wallet State
   const [walletConnected, setWalletConnected] = useState(false);
@@ -398,6 +417,14 @@ export default function App() {
     }
   }, []);
 
+  // Periodic background check to automatically settle and close expired research windows
+  useEffect(() => {
+    const timer = setInterval(() => {
+      store.processAllExpiredDares();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [store]);
+
   const handleConnectMetaMask = async () => {
     try {
       const res = await connectMetaMask();
@@ -549,13 +576,20 @@ export default function App() {
   };
 
   const handleInspectDare = (dare: Dare) => {
-    setSelectedDare(dare);
+    setSelectedDareId(dare.id);
     if (dare.status === 'ACCEPTED') {
       setEvidenceConclusion('CLAIM_VERIFIED_TRUE');
-      setEvidencePrimaryUrl('https://catalog.afi.com/Film/57007-THE-YEAR-OFLIVINGDANGEROUSLY');
-      setEvidenceSecondaryUrl('https://catalog.afi.com/Film/64332-IM-NOT-THERE');
-      setEvidenceQuotes("Official catalog record: 'Linda Hunt as Billy Kwan, male photojournalist.' Film credits: 'Cate Blanchett as Jude Quinn, male rock musician.'");
-      setEvidenceReasoning('Primary catalog and production records verify male lead roles played by female actors without narrative gender transition.');
+      if (dare.id === 1) {
+        setEvidencePrimaryUrl('https://catalog.afi.com/Film/57007-THE-YEAR-OFLIVINGDANGEROUSLY');
+        setEvidenceSecondaryUrl('https://catalog.afi.com/Film/64332-IM-NOT-THERE');
+        setEvidenceQuotes("Official catalog record: 'Linda Hunt as Billy Kwan, male photojournalist.' Film credits: 'Cate Blanchett as Jude Quinn, male rock musician.'");
+        setEvidenceReasoning('Primary catalog and production records verify male lead roles played by female actors without narrative gender transition.');
+      } else {
+        setEvidencePrimaryUrl('');
+        setEvidenceSecondaryUrl('');
+        setEvidenceQuotes('');
+        setEvidenceReasoning('');
+      }
     }
   };
 
@@ -748,8 +782,8 @@ export default function App() {
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <ShieldCheck className={`w-4 h-4 ${activeTab === 'standard' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
-              <span>Acceptance Standard</span>
+              <BookOpen className={`w-4 h-4 ${activeTab === 'standard' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
+              <span>How to Play & Standards</span>
             </button>
 
             <button
@@ -795,14 +829,19 @@ export default function App() {
 
             <button
               onClick={() => navigateTab('webmcp')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'webmcp'
                   ? 'bg-[#2A1116] text-white border border-red-500/20 shadow-xs'
                   : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
               }`}
             >
-              <Bot className={`w-4 h-4 ${activeTab === 'webmcp' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
-              <span>Agent Gateway (WebMCP)</span>
+              <div className="flex items-center gap-3">
+                <Bot className={`w-4 h-4 ${activeTab === 'webmcp' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
+                <span>Agent Gateway (WebMCP)</span>
+              </div>
+              <span className="px-1.5 py-0.5 rounded text-[9px] bg-red-500/20 text-red-400 font-mono font-bold">
+                LIVE
+              </span>
             </button>
           </nav>
         </div>
@@ -884,22 +923,36 @@ export default function App() {
 
           {/* Navigation Links + Wallet Identity */}
           <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0">
-            <nav className="hidden lg:flex items-center gap-6 text-xs font-semibold">
+            <nav className="hidden lg:flex items-center gap-5 text-xs font-semibold">
               <button 
                 onClick={() => navigateTab('standard')}
-                className={`transition-colors cursor-pointer ${
+                className={`transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'standard' ? 'text-[#EF4444] font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Acceptance Standard
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>How to Play & Standards</span>
               </button>
               <button 
                 onClick={() => navigateTab('create')}
-                className={`transition-colors cursor-pointer ${
+                className={`transition-colors cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'create' ? 'text-[#EF4444] font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Create Dare
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Create Dare</span>
+              </button>
+              <button 
+                onClick={() => navigateTab('webmcp')}
+                className={`transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-full border ${
+                  activeTab === 'webmcp'
+                    ? 'bg-red-50 text-[#EF4444] border-red-200 font-bold'
+                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <Bot className="w-3.5 h-3.5 text-[#EF4444]" />
+                <span>Agent Tools</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </button>
             </nav>
 
@@ -1517,6 +1570,27 @@ export default function App() {
                 </p>
               </div>
 
+              {/* How to Create Dare Guidance Banner */}
+              <div className="bg-gradient-to-r from-red-50 to-amber-50 border border-red-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-red-600/10 text-[#EF4444] flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900">Follow the Challenger Protocol Standard</h4>
+                    <p className="text-[11px] text-slate-600">Ensure your claim is falsifiable, cites independent primary archives, and sets clear pass/fail logic.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigateTab('standard')}
+                  className="px-3 py-1.5 rounded-xl bg-white border border-red-200 text-xs font-bold text-[#EF4444] hover:bg-red-50 flex items-center gap-1.5 self-start sm:self-auto cursor-pointer shadow-2xs transition-all"
+                >
+                  <span>View Standards</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Challenge Composer (Left 2 cols) */}
                 <div className="lg:col-span-2">
@@ -1792,70 +1866,502 @@ export default function App() {
           )}
 
           {/* ============================================================ */}
-          {/* TAB 3: ACCEPTANCE STANDARD & BENCHMARKS */}
+          {/* TAB 3: HOW TO PLAY & PROTOCOL STANDARDS */}
           {/* ============================================================ */}
           {activeTab === 'standard' && (
             <div className="max-w-4xl mx-auto space-y-6 text-left">
-              <div className="border-b border-slate-200 pb-4">
-                <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-[#EF4444]" />
-                  GenLayer Acceptance Standard & Policy Rules
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Every challenge and evidence dossier is evaluated under the GenLayer Equivalence Principle across heterogeneous LLMs.
-                </p>
+              {/* Header */}
+              <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-[#EF4444]" />
+                    How to Play & Protocol Standards
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Official rules and submission standards for creating, solving, and adjudicating challenges under the GenLayer Equivalence Principle.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-[#EF4444] border border-red-200">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Protocol Standard v1.2
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                {STANDARD_TEST_CASES.map((tc) => (
-                  <div key={tc.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider">
-                        {tc.domain}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Score: {tc.depthScore}/100 ({tc.decision})
-                      </span>
+              {/* Standards Sub-Navigation Pills */}
+              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl w-full sm:w-max border border-slate-200/80 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => setStandardsView('create')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    standardsView === 'create'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <PlusCircle className={`w-3.5 h-3.5 ${standardsView === 'create' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
+                  <span>How to Create a Dare</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStandardsView('solve')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    standardsView === 'solve'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Search className={`w-3.5 h-3.5 ${standardsView === 'solve' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
+                  <span>How to Solve a Dare</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStandardsView('validators')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+                    standardsView === 'validators'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Cpu className={`w-3.5 h-3.5 ${standardsView === 'validators' ? 'text-[#EF4444]' : 'text-slate-400'}`} />
+                  <span>Validator Consensus & Rubric</span>
+                </button>
+              </div>
+
+              {/* VIEW 1: HOW TO CREATE A DARE */}
+              {standardsView === 'create' && (
+                <div className="space-y-6">
+                  {/* Step-by-Step Challenger Rules */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        01
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">Must Be an Objectively Falsifiable Claim</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Every challenge title MUST start with <code className="text-[#EF4444] font-bold">Dare you to...</code> and propose a factual proposition that can be proven true or false with documentation. Subjective opinions, future predictions, or vague musings are rejected.
+                      </p>
                     </div>
 
-                    <h3 className="text-sm font-bold text-slate-900 leading-snug">{tc.title}</h3>
-                    <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <strong>Claim:</strong> {tc.claim}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      <strong>Sources:</strong> {tc.requiredSources}
-                    </p>
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        02
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">Specify Primary Source Registries</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Designate independent, authoritative records (e.g. SEC EDGAR filings, Companies House statutory accounts, BFI / AFI catalogs, GitHub commit hashes, Court Dockets). Social media, forums, and blogs are rejected by validators.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        03
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">Define Precise Pass/Fail Criteria</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Give unambiguous rules so multi-LLM validators have zero ambiguity (e.g., <em>"Provide three distinct actors with verifiable male and female lead roles where character gender was fixed within the storyline"</em>).
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        04
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">Set Window (Down to 1s) & Stake</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        You decide the research window from as little as <strong>1 second (1s)</strong> to minutes, hours, or days. Lock collateral in GEN. If no investigator proves it within the window, you reclaim 100% of your stake + escrow!
+                      </p>
+                    </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Good vs Bad Examples */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+                    <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider">Creation Standards: Benchmark Comparison</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2">
+                        <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span>APPROVED: Falsifiable with Primary Source</span>
+                        </div>
+                        <p className="text-slate-800 font-medium">
+                          "Dare you to identify three actors who have each played both a male and female character in lead roles in separate films, where neither involves a gender transition within the storyline."
+                        </p>
+                        <p className="text-emerald-900 text-[11px]">
+                          ✓ Specific, verifiable via AFI catalog archives, precise boundary rules.
+                        </p>
+                      </div>
+
+                      <div className="p-4 rounded-xl bg-red-50/70 border border-red-200 space-y-2">
+                        <div className="flex items-center gap-1.5 text-red-800 font-bold">
+                          <XCircle className="w-4 h-4 text-red-600" />
+                          <span>REJECTED: Subjective Opinion / Unverifiable</span>
+                        </div>
+                        <p className="text-slate-800 font-medium">
+                          "Dare you to prove that Manchester City is the best football club in the world."
+                        </p>
+                        <p className="text-red-900 text-[11px]">
+                          ✗ Subjective opinion, lacks primary source standard, impossible for LLM validators to objectively grade.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA Banner */}
+                  <div className="p-5 rounded-2xl bg-[#0D0D11] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Ready to challenge the world's best researchers?</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Post an on-chain challenge now and lock your stake in GenLayer smart escrow.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigateTab('create')}
+                      className="px-5 py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                    >
+                      <span>Create a Dare Now</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 2: HOW TO SOLVE A DARE */}
+              {standardsView === 'solve' && (
+                <div className="space-y-6">
+                  {/* Investigator Solving Workflow */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        01
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900">Match Stake & Start Timer</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Click "Match Stake & Accept Challenge" to lock your 1:1 matching collateral. The research window begins ticking down in real time.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        02
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900">Locate Canonical Archive URL</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Provide a verifiable HTTPS link from official archives, government registries, or Wayback Machine records. Self-referential or sandbox links are auto-flagged.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2">
+                      <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
+                        03
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900">Verbatim Quotes & Reasoning</h4>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Copy the exact excerpt from the source without alteration, and write 2-3 sentences demonstrating how your citation fulfills the criteria.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Evidence Checklist Box */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                    <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider">Investigator Submission Checklist</h4>
+                    <div className="space-y-2.5 text-xs text-slate-700">
+                      <div className="flex items-start gap-2.5">
+                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-slate-900">Primary Archive URL:</strong> Must be a direct canonical link (e.g. <code>https://catalog.afi.com/Film/57007</code>). Unverified forums, reddit posts, or LLM pastebins are scored as zero provenance.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-slate-900">Verbatim Excerpt:</strong> Must be character-for-character accurate with the cited archive. Paraphrasing reduces fidelity scores.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-slate-900">Reasoning Defense:</strong> Concisely address each sub-clause in the dare's frozen criteria.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CTA Banner */}
+                  <div className="p-5 rounded-2xl bg-[#0D0D11] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Find an open challenge in the Arena</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">Explore open duels, match the stake, prove the answer, and win 100% of the escrow pool.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigateTab('arena')}
+                      className="px-5 py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs shadow-md shadow-red-500/20 transition-all flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                    >
+                      <span>Explore Arena Dares</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW 3: VALIDATOR CONSENSUS & RUBRIC */}
+              {standardsView === 'validators' && (
+                <div className="space-y-6">
+                  {/* Rubric Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Weight: 30%</span>
+                      <h4 className="text-xs font-bold text-slate-900">Source Provenance</h4>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Independence and authority of the primary domain. Official filings, archives, and court records score max points.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Weight: 30%</span>
+                      <h4 className="text-xs font-bold text-slate-900">Verbatim Fidelity</h4>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Exact character matching between cited evidence and original source text. Zero points for hallucinations or fabricated quotes.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Weight: 25%</span>
+                      <h4 className="text-xs font-bold text-slate-900">Criteria Fulfillment</h4>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Complete satisfaction of all clauses in the frozen rubric without omitting required conditions.
+                      </p>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Weight: 15%</span>
+                      <h4 className="text-xs font-bold text-slate-900">Logical Depth</h4>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Clear, deductive synthesis showing how quotes verify the claim with zero circular logic.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Benchmark Suite Cards */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider">Standard Protocol Evaluation Benchmarks</h4>
+                    {STANDARD_TEST_CASES.map((tc) => (
+                      <div key={tc.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider">
+                            {tc.domain}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Score: {tc.depthScore}/100 ({tc.decision})
+                          </span>
+                        </div>
+
+                        <h3 className="text-sm font-bold text-slate-900 leading-snug">{tc.title}</h3>
+                        <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <strong>Claim:</strong> {tc.claim}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          <strong>Sources:</strong> {tc.requiredSources}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* ============================================================ */}
-          {/* TAB 4: AGENT GATEWAY (WEBMCP TOOLS) */}
+          {/* TAB 4: AGENT GATEWAY (WEBMCP TOOLS & INTERACTIVE RUNNER) */}
           {/* ============================================================ */}
           {activeTab === 'webmcp' && (
             <div className="max-w-4xl mx-auto space-y-6 text-left">
-              <div className="border-b border-slate-200 pb-4">
-                <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-[#EF4444]" />
-                  Autonomous Agent Gateway (WebMCP)
-                </h2>
-                <p className="text-xs text-slate-500">
-                  External AI agents can inspect, accept, and adjudicate dares programmatically via <code>window.__WEBMCP_TOOLS__</code>.
-                </p>
+              {/* Header */}
+              <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 mb-1 flex items-center gap-2">
+                    <Bot className="w-5 h-5 text-[#EF4444]" />
+                    Autonomous Agent Gateway (WebMCP)
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Live Web Model Context Protocol tools for programmatic AI agents (Claude, Cursor, Antigravity, custom LLM workers).
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    window.__WEBMCP_TOOLS__ Active ({APP_WEBMCP_TOOLS.length} Tools)
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {APP_WEBMCP_TOOLS.map((t) => (
-                  <div key={t.name} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs space-y-2">
-                    <div className="flex items-center justify-between">
-                      <code className="text-xs font-bold text-[#EF4444] font-mono">{t.name}</code>
-                      <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Tool</span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
+              {/* Status and Quick Action Strip */}
+              <div className="bg-[#121218] border border-slate-800 rounded-2xl p-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-[#EF4444]" />
+                    <span className="text-xs font-bold text-white font-mono">WebMCP In-Browser Runtime Injected</span>
                   </div>
-                ))}
+                  <p className="text-[11px] text-slate-400">
+                    Run native JavaScript queries or connect your external MCP agent client directly.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`const state = await window.__WEBMCP_TOOLS__.execute('get_app_state', {});\nconsole.log(state);`);
+                      alert("Copied JavaScript execution snippet to clipboard!");
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white border border-slate-700 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy JS Snippet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const toolsJson = JSON.stringify(APP_WEBMCP_TOOLS.map(t => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })), null, 2);
+                      navigator.clipboard.writeText(toolsJson);
+                      alert(`Copied ${APP_WEBMCP_TOOLS.length} WebMCP Tool Schemas (JSON) to clipboard!`);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-xs font-bold text-white shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Code className="w-3.5 h-3.5" />
+                    <span>Copy All Schemas</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Interactive Tool Runner Console */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Play className="w-4 h-4 text-[#EF4444]" />
+                    <h3 className="text-sm font-bold text-slate-900">Interactive Live Tool Runner</h3>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">Test tools live in browser</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Tool Selection & Arguments */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">Select WebMCP Tool</label>
+                      <select
+                        value={activeMcpTool}
+                        onChange={(e) => {
+                          const name = e.target.value;
+                          setActiveMcpTool(name);
+                          if (name === 'list_dares') {
+                            setMcpToolArgs('{\n  "status": "ALL"\n}');
+                          } else if (name === 'filter_dares') {
+                            setMcpToolArgs('{\n  "domain": "Entertainment"\n}');
+                          } else if (name === 'get_dare_dossier') {
+                            setMcpToolArgs('{\n  "dare_id": 1\n}');
+                          } else if (name === 'get_app_state') {
+                            setMcpToolArgs('{}');
+                          } else if (name === 'create_dare') {
+                            setMcpToolArgs('{\n  "title": "Dare you to verify an archival document...",\n  "category": "INVESTIGATIVE_FACT_FINDING",\n  "claim": "Official filings confirm...",\n  "required_sources": "National Archive",\n  "criteria": "Cite exact page...",\n  "stake_usd": 10,\n  "duration_seconds": 30\n}');
+                          } else {
+                            setMcpToolArgs('{}');
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono font-bold focus:outline-none focus:border-[#EF4444]"
+                      >
+                        {APP_WEBMCP_TOOLS.map(t => (
+                          <option key={t.name} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        JSON Arguments (Payload)
+                      </label>
+                      <textarea
+                        rows={6}
+                        value={mcpToolArgs}
+                        onChange={(e) => setMcpToolArgs(e.target.value)}
+                        className="w-full bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl p-3 focus:outline-none border border-slate-800"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={mcpExecuting}
+                      onClick={async () => {
+                        setMcpExecuting(true);
+                        try {
+                          const parsed = mcpToolArgs.trim() ? JSON.parse(mcpToolArgs) : {};
+                          const tool = APP_WEBMCP_TOOLS.find(t => t.name === activeMcpTool);
+                          if (!tool) throw new Error("Tool not found: " + activeMcpTool);
+                          const res = await tool.execute(parsed);
+                          setMcpResult(res);
+                        } catch (err: any) {
+                          setMcpResult({ error: err.message || String(err) });
+                        } finally {
+                          setMcpExecuting(false);
+                        }
+                      }}
+                      className="w-full py-2.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      <span>{mcpExecuting ? 'Executing...' : `Execute ${activeMcpTool} Live`}</span>
+                    </button>
+                  </div>
+
+                  {/* Output Result Screen */}
+                  <div className="space-y-1.5 flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700">Live Execution Output</label>
+                      {mcpResult && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(JSON.stringify(mcpResult, null, 2));
+                            alert("Copied result to clipboard!");
+                          }}
+                          className="text-[10px] text-slate-500 hover:text-slate-800 font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3 h-3" /> Copy Output
+                        </button>
+                      )}
+                    </div>
+                    <pre className="flex-1 bg-slate-900 text-slate-200 font-mono text-[11px] p-3 rounded-xl border border-slate-800 overflow-auto max-h-[220px]">
+                      {mcpResult ? JSON.stringify(mcpResult, null, 2) : '// Click "Execute Tool Live" to inspect response...'}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+
+              {/* Complete Registered Tools Grid */}
+              <div className="space-y-3">
+                <h4 className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                  Complete WebMCP Tool Catalog ({APP_WEBMCP_TOOLS.length} Tools)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {APP_WEBMCP_TOOLS.map((t) => (
+                    <div 
+                      key={t.name} 
+                      onClick={() => {
+                        setActiveMcpTool(t.name);
+                        setMcpToolArgs('{}');
+                      }}
+                      className={`bg-white border rounded-2xl p-4 shadow-xs space-y-1.5 transition-all cursor-pointer ${
+                        activeMcpTool === t.name ? 'border-[#EF4444] ring-1 ring-[#EF4444]/20' : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <code className="text-xs font-bold text-[#EF4444] font-mono">{t.name}</code>
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                          {t.annotations?.readOnlyHint ? 'Read Only' : 'State Mutator'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">{t.description}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -1998,7 +2504,7 @@ export default function App() {
                 </h3>
               </div>
               <button
-                onClick={() => setSelectedDare(null)}
+                onClick={() => setSelectedDareId(null)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -2040,7 +2546,17 @@ export default function App() {
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">Current Status</span>
-                <span className="font-bold text-slate-800 uppercase text-[11px]">{selectedDare.status}</span>
+                <span className={`font-bold uppercase text-[11px] px-2 py-0.5 rounded-full inline-block mt-0.5 ${
+                  selectedDare.status === 'FINALIZED'
+                    ? 'bg-slate-900 text-emerald-400'
+                    : selectedDare.status === 'ACCEPTED'
+                    ? 'bg-blue-100 text-blue-800'
+                    : selectedDare.status === 'SUBMITTED'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {selectedDare.status === 'FINALIZED' ? 'CLOSED · RESOLVED' : selectedDare.status}
+                </span>
               </div>
             </div>
 
@@ -2066,6 +2582,19 @@ export default function App() {
                   <LiveCountdownTimer deadlineTs={selectedDare.researchDeadlineTs} />
                 </div>
 
+                {/* Solver Standards Reminder */}
+                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs space-y-1">
+                  <span className="font-bold text-slate-800 flex items-center gap-1">
+                    <HelpCircle className="w-3.5 h-3.5 text-[#EF4444]" />
+                    Investigator Submission Checklist
+                  </span>
+                  <ul className="text-[11px] text-slate-600 list-disc list-inside space-y-0.5">
+                    <li><strong>Independent Archive URL:</strong> Official government, SEC, company registry, or court record.</li>
+                    <li><strong>Verbatim Quotes:</strong> Exact excerpt copied word-for-word without editing.</li>
+                    <li><strong>Reasoning Defense:</strong> Concisely prove how the excerpt fulfills the criteria.</li>
+                  </ul>
+                </div>
+
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">Conclusion</label>
@@ -2087,6 +2616,7 @@ export default function App() {
                       type="url"
                       value={evidencePrimaryUrl}
                       onChange={(e) => setEvidencePrimaryUrl(e.target.value)}
+                      placeholder="https://..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono"
                     />
                   </div>
@@ -2098,6 +2628,7 @@ export default function App() {
                       rows={2}
                       value={evidenceQuotes}
                       onChange={(e) => setEvidenceQuotes(e.target.value)}
+                      placeholder="Exact unedited text from the archival record..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
                     />
                   </div>
@@ -2109,6 +2640,7 @@ export default function App() {
                       rows={2}
                       value={evidenceReasoning}
                       onChange={(e) => setEvidenceReasoning(e.target.value)}
+                      placeholder="Explain how the quoted text satisfies the criteria..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900"
                     />
                   </div>
@@ -2123,24 +2655,144 @@ export default function App() {
               </form>
             )}
 
+            {/* Phase 3: Live Adjudication in Progress */}
+            {selectedDare.status === 'SUBMITTED' && (
+              <div className="space-y-4 pt-2">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center mx-auto animate-spin">
+                    <RefreshCw className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900">
+                      Adjudicating Evidence across GenLayer Validators...
+                    </h4>
+                    <p className="text-xs text-amber-700 mt-1">
+                      {selectedDare.adjudicationSession?.currentStage || 'Heterogeneous LLMs evaluating source provenance, verbatim fidelity, and reasoning defense...'}
+                    </p>
+                  </div>
+                  <div className="w-full bg-amber-200 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-amber-600 h-full transition-all duration-500" 
+                      style={{ width: `${selectedDare.adjudicationSession?.progressPercent || 50}%` }} 
+                    />
+                  </div>
+                </div>
+
+                {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Validator Consensus Stream</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {selectedDare.adjudicationSession.votes.map((v, i) => (
+                        <div key={i} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800 font-mono text-[11px]">{v.model}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              v.verdict === 'INVESTIGATOR_WINS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {v.verdict === 'INVESTIGATOR_WINS' ? 'VERIFIED' : 'REJECTED'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 italic">"{v.reasoning}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Phase 4: Finalized / Closed Outcome */}
             {selectedDare.status === 'FINALIZED' && (
-              <div className="space-y-3 pt-2">
-                <div className={`p-4 rounded-xl border text-xs space-y-2 ${
+              <div className="space-y-4 pt-2">
+                <div className={`p-4 rounded-2xl border text-xs space-y-3 ${
                   selectedDare.verdict === 'INVESTIGATOR_WINS'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                    : 'bg-amber-50 border-amber-200 text-amber-950'
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className="font-bold flex items-center gap-1.5 text-sm">
-                      <Trophy className="w-4 h-4 text-emerald-600" />
+                    <span className="font-extrabold flex items-center gap-2 text-base">
+                      <Trophy className="w-5 h-5 text-emerald-600" />
                       {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white font-mono font-bold border border-slate-200">
-                      Score: {selectedDare.verdictScore || 95}/100
+                    <span className="px-3 py-1 rounded-full bg-white font-mono font-bold border border-slate-200 shadow-2xs">
+                      Score: {selectedDare.verdictScore || 96}/100
                     </span>
                   </div>
-                  <p className="text-xs leading-relaxed">{selectedDare.verdictRationale}</p>
+                  <p className="text-xs leading-relaxed font-medium">{selectedDare.verdictRationale}</p>
+                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-semibold">Escrow Released:</span>
+                    <span className="font-bold font-mono text-emerald-700">
+                      ${((selectedDare.stakeCents * 2) / 100).toFixed(2)} GEN Payout Settled
+                    </span>
+                  </div>
                 </div>
+
+                {/* Evidence Archive Record */}
+                {selectedDare.evidence && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Submitted Evidence Dossier</span>
+                    {selectedDare.evidence.primaryUrl && (
+                      <div>
+                        <span className="text-slate-500 font-medium block text-[10px]">Primary Archive URL</span>
+                        <a 
+                          href={selectedDare.evidence.primaryUrl} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[#EF4444] hover:underline font-mono text-[11px] break-all flex items-center gap-1"
+                        >
+                          {selectedDare.evidence.primaryUrl} <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        </a>
+                      </div>
+                    )}
+                    {selectedDare.evidence.quotes && (
+                      <div>
+                        <span className="text-slate-500 font-medium block text-[10px]">Verbatim Quotes</span>
+                        <p className="text-slate-800 bg-white p-2.5 rounded-lg border border-slate-100 italic text-[11px]">
+                          "{selectedDare.evidence.quotes}"
+                        </p>
+                      </div>
+                    )}
+                    {selectedDare.evidence.reasoning && (
+                      <div>
+                        <span className="text-slate-500 font-medium block text-[10px]">Reasoning Defense</span>
+                        <p className="text-slate-800 text-[11px]">{selectedDare.evidence.reasoning}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 5-Validator Consensus Breakdown */}
+                {selectedDare.adjudicationSession?.votes && selectedDare.adjudicationSession.votes.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                      GenLayer Equivalence Validator Committee ({selectedDare.adjudicationSession.votes.length} Nodes)
+                    </span>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                      {selectedDare.adjudicationSession.votes.map((v, i) => (
+                        <div key={i} className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900 font-mono text-[11px]">{v.model}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              v.verdict === 'INVESTIGATOR_WINS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {v.verdict === 'INVESTIGATOR_WINS' ? 'VERIFIED' : 'REJECTED'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 leading-relaxed italic">"{v.reasoning}"</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Prominent Close Dossier Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedDareId(null)}
+                  className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                >
+                  <span>Close Dossier & Return to Arena</span>
+                </button>
               </div>
             )}
           </div>
