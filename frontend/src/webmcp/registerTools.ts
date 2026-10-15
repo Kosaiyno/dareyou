@@ -292,15 +292,17 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       required_sources: string;
       criteria: string;
       stake_usd: number;
-      duration_minutes: number;
+      duration_minutes?: number;
+      duration_seconds?: number;
       challenger_address?: string;
     }) => {
       const { validateDare, addDare, walletAddress } = useStore.getState();
+      const durSec = Math.max(1, Math.round(args.duration_seconds || (args.duration_minutes ? args.duration_minutes * 60 : 30)));
       const validation = validateDare({
         title: args.title,
         category: args.category,
         stakeCents: Math.round(args.stake_usd * 100),
-        durationSeconds: Math.round(args.duration_minutes * 60)
+        durationSeconds: durSec
       });
 
       if (!validation.valid) {
@@ -320,7 +322,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         requiredSources: args.required_sources,
         criteria: args.criteria,
         stakeCents: Math.round(args.stake_usd * 100),
-        durationSeconds: Math.round(args.duration_minutes * 60),
+        durationSeconds: durSec,
         challenger: effectiveChallenger
       });
 
