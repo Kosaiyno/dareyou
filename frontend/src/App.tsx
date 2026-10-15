@@ -1140,7 +1140,7 @@ export default function App() {
               </div>
 
               {/* Responsive Layout: Fluid Challenges Table (Flex-1) + Fixed-width Right Rail */}
-              <div className="flex flex-col lg:flex-row gap-6 pt-2 items-start w-full">
+              <div className="flex flex-col xl:flex-row gap-6 pt-2 items-start w-full">
                 {/* Left: Dares Market Table */}
                 <div className="flex-1 min-w-0 w-full space-y-3">
                   {/* My Dares Filter Banner */}
@@ -1392,7 +1392,7 @@ export default function App() {
                 </div>
 
                 {/* Right Rail: Featured Dare Card + Live Activity Feed */}
-                <div className="w-full lg:w-80 xl:w-96 flex-shrink-0 space-y-6">
+                <div className="w-full xl:w-80 2xl:w-96 flex-shrink-0 space-y-6">
                   {/* Featured Dare Card */}
                   {featuredDare && (
                     <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-2xs text-left">
