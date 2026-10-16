@@ -143,7 +143,6 @@ export interface AppState {
   acceptDare: (id: number, investigatorAddress: string) => boolean;
   submitEvidence: (id: number, evidence: EvidenceData) => boolean;
   startAdjudication: (id: number) => boolean;
-  fastTrackAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
   claimWinnerPayout: (id: number, walletAddress: string) => number;
@@ -407,231 +406,6 @@ export function loadDaresFromStorage(): Dare[] {
 
 export const INITIAL_DARES: Dare[] = loadDaresFromStorage();
 
-function extractDomain(url?: string): string {
-  if (!url) return "primary archive";
-  try {
-    const parsed = new URL(url);
-    return parsed.hostname.replace('www.', '');
-  } catch {
-    return url ? url.slice(0, 30) : "primary archive";
-  }
-}
-
-function truncateText(text?: string, maxLen = 60): string {
-  if (!text) return "";
-  const cleaned = text.trim().replace(/\s+/g, ' ');
-  return cleaned.length <= maxLen ? cleaned : cleaned.slice(0, maxLen) + '...';
-}
-
-export function evaluateEvidenceQuality(dare: Dare, evidence?: EvidenceData): {
-  isGood: boolean;
-  sourceDomain: string;
-  sourceIssue?: string;
-  quotesIssue?: string;
-  reasoningIssue?: string;
-} {
-  const url = (evidence?.primaryUrl || '').trim();
-  const quotes = (evidence?.quotes || '').trim();
-  const reasoning = (evidence?.reasoning || '').trim();
-  const sourceDomain = extractDomain(url);
-
-  // 1. Check Source URL
-  let sourceIssue: string | undefined;
-  if (!url || !url.startsWith('http')) {
-    sourceIssue = "Missing or invalid HTTP primary source URL";
-  } else {
-    const domainLower = sourceDomain.toLowerCase();
-    const selfReferential = [
-      'localhost',
-      '127.0.0.1',
-      '0.0.0.0',
-      'vercel.app',
-      'dareyou',
-      'example.com',
-      'test.com'
-    ];
-    // Reject self-referential or sandbox URLs unless dare specifically asks about the app
-    const isAppSpecificDare = dare.title.toLowerCase().includes(domainLower) || dare.claim.toLowerCase().includes(domainLower);
-    const isSelfRef = (selfReferential.some(d => domainLower.includes(d)) ||
-      (typeof window !== 'undefined' && window.location?.hostname && domainLower.includes(window.location.hostname)))
-      && !isAppSpecificDare;
-
-    if (isSelfRef) {
-      sourceIssue = `Source '${sourceDomain}' is an unverified self-referential or sandbox domain, not an independent primary record`;
-    }
-  }
-
-  // 2. Check Quotes
-  let quotesIssue: string | undefined;
-  if (!quotes || quotes.length < 20) {
-    quotesIssue = "Submitted quotes are empty or below minimum evidentiary threshold (20 chars)";
-  } else {
-    const quotesLower = quotes.toLowerCase();
-    const dummyWords = ['test', 'testing', 'asdf', 'foo', 'bar', 'i won', 'fake', 'dummy'];
-    if (dummyWords.some(w => quotesLower === w || quotesLower.startsWith(w + ' '))) {
-      quotesIssue = "Quotes contain placeholder text rather than primary documentation";
-    }
-  }
-
-  // 3. Check Reasoning
-  let reasoningIssue: string | undefined;
-  if (!reasoning || reasoning.length < 15) {
-    reasoningIssue = "Reasoning defense is empty or superficial";
-  }
-
-  const isGood = !sourceIssue && !quotesIssue && !reasoningIssue;
-  return { isGood, sourceDomain, sourceIssue, quotesIssue, reasoningIssue };
-}
-
-export function generateDynamicValidatorVotes(dare: Dare, evidence?: EvidenceData): {
-  votes: ValidatorVote[];
-  consensusRationale: string;
-  averageScore: number;
-  finalVerdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS";
-} {
-  const evalQuality = evaluateEvidenceQuality(dare, evidence);
-  const domain = evalQuality.sourceDomain;
-  const claimSnippet = truncateText(dare.claim, 55);
-  const criteriaSnippet = truncateText(dare.criteria, 55);
-  const quotesSnippet = truncateText(evidence?.quotes, 65);
-  const conclusion = evidence?.conclusion || "CLAIM_VERIFIED_TRUE";
-  const reasoningSnippet = truncateText(evidence?.reasoning, 70);
-
-  if (evalQuality.isGood) {
-    // High-quality evidence passes multi-validator scrutiny
-    const votes: ValidatorVote[] = [
-      {
-        validatorIndex: 0,
-        validatorAddress: "0xValLlama3_3_70B...11",
-        model: "Llama-3.3-70B-Instruct (Consensus Leader)",
-        verdict: "INVESTIGATOR_WINS",
-        score: 96,
-        quotesVerified: true,
-        sourcesIndependent: true,
-        reasoning: `Verified primary citations from ${domain}. Verbatim quotes directly address "${claimSnippet}". Determination '${conclusion}' is fully substantiated by source text.`,
-        timestamp: Date.now() - 4000
-      },
-      {
-        validatorIndex: 1,
-        validatorAddress: "0xValMixtral8x22B...22",
-        model: "Mixtral-8x22B-Instruct",
-        verdict: "INVESTIGATOR_WINS",
-        score: 94,
-        quotesVerified: true,
-        sourcesIndependent: true,
-        reasoning: `Source provenance check passed for ${domain}. Satisfies required source specifications '${truncateText(dare.requiredSources, 45)}' without reliance on circular hearsay.`,
-        timestamp: Date.now() - 3000
-      },
-      {
-        validatorIndex: 2,
-        validatorAddress: "0xValGPT4o...33",
-        model: "GPT-4o (Equivalence Validator)",
-        verdict: "INVESTIGATOR_WINS",
-        score: 95,
-        quotesVerified: true,
-        sourcesIndependent: true,
-        reasoning: `Adjudication criteria matched: '${criteriaSnippet}'. Reasoning defense (${reasoningSnippet}) strictly reconciles evidence against frozen protocol terms.`,
-        timestamp: Date.now() - 2000
-      },
-      {
-        validatorIndex: 3,
-        validatorAddress: "0xValClaude3_5...44",
-        model: "Claude-3.5-Sonnet (Adjudicator)",
-        verdict: "INVESTIGATOR_WINS",
-        score: 97,
-        quotesVerified: true,
-        sourcesIndependent: true,
-        reasoning: `Citation fidelity verified: "${quotesSnippet}". Investigator extracted authentic primary text satisfying factual legitimacy and deliverable standards.`,
-        timestamp: Date.now() - 1000
-      },
-      {
-        validatorIndex: 4,
-        validatorAddress: "0xValGemini2_5...55",
-        model: "Gemini-2.5-Flash (Verifier)",
-        verdict: "INVESTIGATOR_WINS",
-        score: 95,
-        quotesVerified: true,
-        sourcesIndependent: true,
-        reasoning: `Quorum consensus verified for Dare #${dare.id}. No contradictory facts discovered across independent verification sweep.`,
-        timestamp: Date.now()
-      }
-    ];
-
-    const averageScore = Math.round(votes.reduce((acc, v) => acc + v.score, 0) / votes.length);
-    const consensusRationale = `Heterogeneous validator rotation unanimously confirmed: Evidence dossier from ${domain} contains authentic quotes ("${quotesSnippet}"), satisfies frozen criteria ("${criteriaSnippet}"), and resolves "${claimSnippet}" without speculative bias.`;
-
-    return { votes, consensusRationale, averageScore, finalVerdict: "INVESTIGATOR_WINS" };
-  } else {
-    // Substandard / Self-Referential / Weak evidence is rejected by multi-validator consensus
-    const flawSummary = evalQuality.sourceIssue || evalQuality.quotesIssue || evalQuality.reasoningIssue || "Dossier fails evidentiary threshold";
-    const votes: ValidatorVote[] = [
-      {
-        validatorIndex: 0,
-        validatorAddress: "0xValLlama3_3_70B...11",
-        model: "Llama-3.3-70B-Instruct (Consensus Leader)",
-        verdict: "CHALLENGER_WINS",
-        score: 28,
-        quotesVerified: !evalQuality.quotesIssue,
-        sourcesIndependent: !evalQuality.sourceIssue,
-        reasoning: evalQuality.sourceIssue
-          ? `REJECTED: ${evalQuality.sourceIssue}. Primary citations fail independence standard.`
-          : `REJECTED: Citations fail to substantiate claim "${claimSnippet}".`,
-        timestamp: Date.now() - 4000
-      },
-      {
-        validatorIndex: 1,
-        validatorAddress: "0xValMixtral8x22B...22",
-        model: "Mixtral-8x22B-Instruct",
-        verdict: "CHALLENGER_WINS",
-        score: 24,
-        quotesVerified: !evalQuality.quotesIssue,
-        sourcesIndependent: false,
-        reasoning: `Source provenance check FAILED for ${domain}. Does not satisfy required sources '${truncateText(dare.requiredSources, 45)}'. Relying on unverified sources violates protocol standards.`,
-        timestamp: Date.now() - 3000
-      },
-      {
-        validatorIndex: 2,
-        validatorAddress: "0xValGPT4o...33",
-        model: "GPT-4o (Equivalence Validator)",
-        verdict: "CHALLENGER_WINS",
-        score: 30,
-        quotesVerified: !evalQuality.quotesIssue,
-        sourcesIndependent: !evalQuality.sourceIssue,
-        reasoning: `Criteria '${criteriaSnippet}' unsatisfied. Dossier reasoning (${reasoningSnippet || 'insufficient'}) fails to reconcile evidence against frozen protocol terms.`,
-        timestamp: Date.now() - 2000
-      },
-      {
-        validatorIndex: 3,
-        validatorAddress: "0xValClaude3_5...44",
-        model: "Claude-3.5-Sonnet (Adjudicator)",
-        verdict: "CHALLENGER_WINS",
-        score: 22,
-        quotesVerified: false,
-        sourcesIndependent: false,
-        reasoning: evalQuality.quotesIssue
-          ? `REJECTED: ${evalQuality.quotesIssue}. Verbatim citation fidelity score 0.`
-          : `REJECTED: Citation text does not substantiate claim "${claimSnippet}".`,
-        timestamp: Date.now() - 1000
-      },
-      {
-        validatorIndex: 4,
-        validatorAddress: "0xValGemini2_5...55",
-        model: "Gemini-2.5-Flash (Verifier)",
-        verdict: "CHALLENGER_WINS",
-        score: 25,
-        quotesVerified: false,
-        sourcesIndependent: false,
-        reasoning: `Unanimous rejection quorum for Dare #${dare.id}. Factual legitimacy threshold not met; challenger wins by evidentiary default.`,
-        timestamp: Date.now()
-      }
-    ];
-
-    const averageScore = Math.round(votes.reduce((acc, v) => acc + v.score, 0) / votes.length);
-    const consensusRationale = `Heterogeneous validator rotation rejected evidence dossier: ${flawSummary}. Criteria "${criteriaSnippet}" unsatisfied. Escrow pool awarded to Challenger.`;
-
-    return { votes, consensusRationale, averageScore, finalVerdict: "CHALLENGER_WINS" };
-  }
-}
 
 function pushSnapshot(state: AppState, newDares: Dare[]): Partial<AppState> {
   saveDaresToStorage(newDares);
@@ -643,9 +417,6 @@ function pushSnapshot(state: AppState, newDares: Dare[]): Partial<AppState> {
     historyIndex: newHistory.length - 1
   };
 }
-
-// Active timers for sequential validator voting progression
-const activeAdjudicationTimers: Record<number, any[]> = {};
 
 export const useStore = create<AppState>((set, get) => ({
   dares: INITIAL_DARES,
@@ -807,28 +578,16 @@ export const useStore = create<AppState>((set, get) => ({
       get().processAllExpiredDares();
       return false;
     }
-
-    // Clear any existing timers for this dare
-    if (activeAdjudicationTimers[id]) {
-      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
-      delete activeAdjudicationTimers[id];
-    }
-
-    // Evaluate evidence dynamically using realistic heuristics
-    const dynamicAdj = generateDynamicValidatorVotes(target, evidence);
     const session: AdjudicationSession = {
       dareId: id,
       status: "VOTING_IN_PROGRESS",
-      progressPercent: 15,
+      progressPercent: 20,
       currentStage: `Broadcasting transaction to GenLayer StudioNet contract (${GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...)...`,
       startedAt: Date.now(),
-      etaSeconds: 25,
+      etaSeconds: 30,
       votes: [],
       requiredVotes: 5,
-      consensusThreshold: "3 of 5 (Majority Quorum on StudioNet)",
-      finalVerdict: dynamicAdj.finalVerdict,
-      averageScore: dynamicAdj.averageScore,
-      consensusRationale: dynamicAdj.consensusRationale,
+      consensusThreshold: "Majority Quorum on StudioNet",
       isLiveOnChain: true
     };
 
@@ -847,7 +606,7 @@ export const useStore = create<AppState>((set, get) => ({
       lastActionMessage: `Broadcasting Dare #${id} evidence to GenLayer StudioNet Intelligent Contract...`
     });
 
-    // Immediately lock SUBMITTED state across all browsers so no second submission can occur
+    // Lock SUBMITTED state across all browsers so duplicate submissions are blocked
     syncDareToCanonicalApi(submittedDare).catch(() => {});
 
     // Trigger real on-chain GenLayer Intelligent Contract adjudication on StudioNet
@@ -858,7 +617,8 @@ export const useStore = create<AppState>((set, get) => ({
           ...cur.adjudicationSession,
           isLiveOnChain: true,
           txHash,
-          currentStage: `Tx ${txHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle on StudioNet...`,
+          currentStage: `Tx ${txHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle consensus on StudioNet...`,
+          progressPercent: 55,
           etaSeconds: 20
         };
         set({
@@ -866,11 +626,6 @@ export const useStore = create<AppState>((set, get) => ({
         });
       }
     }).then((onChainResult) => {
-      if (activeAdjudicationTimers[id]) {
-        activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
-        delete activeAdjudicationTimers[id];
-      }
-
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status === "FINALIZED") return;
 
@@ -891,7 +646,7 @@ export const useStore = create<AppState>((set, get) => ({
         etaSeconds: 0,
         votes: realVotes,
         requiredVotes: onChainResult.validators.length || 5,
-        consensusThreshold: "3 of 5 (Majority Quorum on StudioNet)",
+        consensusThreshold: "Majority Quorum on StudioNet",
         finalVerdict: onChainResult.verdict as any,
         averageScore: onChainResult.score,
         consensusRationale: onChainResult.rationale,
@@ -901,7 +656,6 @@ export const useStore = create<AppState>((set, get) => ({
         receiptStatus: onChainResult.receiptStatus
       };
 
-      const payoutDollars = ((cur.stakeCents * 2) / 100).toFixed(2);
       const winnerLabel = onChainResult.verdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
       const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
         ? (cur.investigator || get().walletAddress)
@@ -914,7 +668,6 @@ export const useStore = create<AppState>((set, get) => ({
         verdictScore: onChainResult.score,
         verdictRationale: onChainResult.rationale,
         txHash: onChainResult.txHash,
-        settlementTxHash: onChainResult.txHash,
         payoutRecipient: winnerAddress,
         adjudicationSession: finalizedSession
       };
@@ -924,7 +677,7 @@ export const useStore = create<AppState>((set, get) => ({
       set({
         ...pushSnapshot(get(), updatedDares),
         selectedDareId: id,
-        lastActionMessage: `Real GenLayer StudioNet Consensus Settled for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
+        lastActionMessage: `On-chain GenLayer consensus settled for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). Winner recorded in protocol: ${winnerLabel}.`
       });
 
       syncDareToCanonicalApi(finalizedDare).catch(() => {});
@@ -941,166 +694,39 @@ export const useStore = create<AppState>((set, get) => ({
         rationale: onChainResult.rationale,
         txHash: onChainResult.txHash
       }).catch(() => {});
+
+      settleWinnerPayoutOnChain(id, winnerAddress).catch((err) => {
+        console.warn('[StakeEscrow] Settle winner payout record fallback:', err);
+      });
     }).catch((err) => {
-      console.warn('[GenLayer Live Adjudication fallback]', err);
+      console.warn('[GenLayer Live Adjudication Error]', err);
+      const cur = get().dares.find(d => d.id === id);
+      if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
+        const errorSession: AdjudicationSession = {
+          ...cur.adjudicationSession,
+          status: "FAILED" as any,
+          progressPercent: 100,
+          currentStage: `StudioNet Adjudication Failed: ${err.message || String(err)}`,
+          consensusRationale: `Transaction or consensus failed on GenLayer StudioNet: ${err.message || String(err)}`
+        };
+        set({
+          dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: errorSession } : d),
+          lastActionMessage: `StudioNet Adjudication error for Dare #${id}: ${err.message || String(err)}`
+        });
+      }
     });
 
-    // Staged progression of validator votes
-    const timers: any[] = [];
-
-    timers.push(setTimeout(() => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
-      const updated: AdjudicationSession = {
-        ...cur.adjudicationSession,
-        progressPercent: 25,
-        etaSeconds: 12,
-        currentStage: "Step 2/5: Validator 2 (Mixtral-8x22B) checking source provenance & independence...",
-        votes: [dynamicAdj.votes[0]]
-      };
-      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
-    }, 2500));
-
-    timers.push(setTimeout(() => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
-      const updated: AdjudicationSession = {
-        ...cur.adjudicationSession,
-        progressPercent: 45,
-        etaSeconds: 9,
-        currentStage: "Step 3/5: Validator 3 (GPT-4o) evaluating criteria compliance against frozen terms...",
-        votes: dynamicAdj.votes.slice(0, 2)
-      };
-      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
-    }, 5500));
-
-    timers.push(setTimeout(() => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
-      const updated: AdjudicationSession = {
-        ...cur.adjudicationSession,
-        progressPercent: 65,
-        etaSeconds: 6,
-        currentStage: "Step 4/5: Majority Quorum Reached (3/5). Validator 4 (Claude-3.5) evaluating verbatim fidelity...",
-        votes: dynamicAdj.votes.slice(0, 3)
-      };
-      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
-    }, 8500));
-
-    timers.push(setTimeout(() => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
-      const updated: AdjudicationSession = {
-        ...cur.adjudicationSession,
-        progressPercent: 85,
-        etaSeconds: 3,
-        currentStage: "Step 5/5: Validator 5 (Gemini-2.5-Flash) aggregating Equivalence Principle consensus...",
-        votes: dynamicAdj.votes.slice(0, 4)
-      };
-      set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
-    }, 11500));
-
-    timers.push(setTimeout(() => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status !== "SUBMITTED") return;
-      get().fastTrackAdjudication(id);
-    }, 14500));
-
-    activeAdjudicationTimers[id] = timers;
     return true;
   },
 
   startAdjudication: (id) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target || target.status !== "SUBMITTED") return false;
-    return get().fastTrackAdjudication(id);
-  },
-
-  fastTrackAdjudication: (id) => {
-    if (activeAdjudicationTimers[id]) {
-      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
-      delete activeAdjudicationTimers[id];
-    }
-
-    const state = get();
-    const target = state.dares.find(d => d.id === id);
-    // ANTI-CHEAT LOCK: Never re-adjudicate an already FINALIZED dare!
-    if (!target || target.status !== "SUBMITTED") return false;
-
-    const dynamicAdj = generateDynamicValidatorVotes(target, target.evidence);
-    const completedVotes = dynamicAdj.votes;
-
-    const completedSession: AdjudicationSession = {
-      dareId: id,
-      status: "FINALIZED",
-      progressPercent: 100,
-      currentStage: "Consensus Finalized: 5/5 Unanimous Agreement across Rotation 0 Validators",
-      startedAt: target.adjudicationSession?.startedAt || Date.now() - 5000,
-      etaSeconds: 0,
-      votes: completedVotes,
-      requiredVotes: 5,
-      consensusThreshold: "5 of 5 Unanimous Consensus",
-      finalVerdict: dynamicAdj.finalVerdict,
-      averageScore: dynamicAdj.averageScore,
-      consensusRationale: dynamicAdj.consensusRationale
-    };
-
-    const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
-    const winnerLabel = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
-    const winnerAddress = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" 
-      ? (target.investigator || state.walletAddress) 
-      : target.challenger;
-
-    const finalizedDare: Dare = {
-      ...target,
-      status: "FINALIZED" as DareStatus,
-      adjudicationSession: completedSession,
-      verdict: dynamicAdj.finalVerdict,
-      verdictScore: dynamicAdj.averageScore,
-      verdictRationale: dynamicAdj.consensusRationale,
-      settlementTxHash: target.txHash || '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5',
-      payoutRecipient: winnerAddress
-    };
-
-    const newDares = state.dares.map(d => d.id === id ? finalizedDare : d);
-
-    set({
-      ...pushSnapshot(state, newDares),
-      selectedDareId: id,
-      lastActionMessage: `Consensus Reached for Dare #${id}: ${dynamicAdj.finalVerdict} (${dynamicAdj.averageScore}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
-    });
-
-    // Lock FINALIZED verdict across all browsers and on EvidenceRegistry
-    syncDareToCanonicalApi(finalizedDare).catch(() => {});
-    if (target.evidence) {
-      freezeEvidenceOnChain({
-        dareId: id,
-        investigator: target.investigator || '',
-        conclusion: target.evidence.conclusion,
-        primaryUrl: target.evidence.primaryUrl,
-        secondaryUrl: target.evidence.secondaryUrl,
-        quotes: target.evidence.quotes,
-        reasoning: target.evidence.reasoning,
-        verdict: dynamicAdj.finalVerdict,
-        score: dynamicAdj.averageScore,
-        rationale: dynamicAdj.consensusRationale,
-        txHash: finalizedDare.settlementTxHash
-      }).catch(() => {});
-    }
-
-    settleWinnerPayoutOnChain(id, winnerAddress).catch((err) => {
-      console.warn('[StakeEscrow] Settle winner payout fallback:', err);
-    });
-
-    return true;
+    if (!target || target.status !== "SUBMITTED" || !target.evidence) return false;
+    return get().submitEvidence(id, target.evidence);
   },
 
   adjudicateDare: (id, verdict, score = 95, rationale = "Evidence independently corroborates claim under Equivalence Principle.") => {
-    if (activeAdjudicationTimers[id]) {
-      activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
-      delete activeAdjudicationTimers[id];
-    }
     const state = get();
     const target = state.dares.find(d => d.id === id);
     if (!target || target.status === "FINALIZED") return false;
@@ -1124,21 +750,20 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
-  claimTimeoutForfeit: (id, challengerAddress) => {
+  claimTimeoutForfeit: (id, _challengerAddress) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
     if (!target) return false;
     if (target.status !== "ACCEPTED" && target.status !== "EXPIRED") return false;
     if (target.researchDeadlineTs > 0 && Date.now() <= target.researchDeadlineTs) return false;
 
-    const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
     const forfeitedDare: Dare = {
       ...target,
       status: "FINALIZED" as DareStatus,
       verdict: "CHALLENGER_WINS" as any,
       verdictScore: 100,
-      verdictRationale: `Investigator forfeited due to missed research deadline. Total escrow pool of $${payoutDollars} GEN transferred to Challenger (${challengerAddress}).`,
-      settlementTxHash: target.txHash || '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5',
+      verdictRationale: "Investigator forfeited due to elapsed research deadline without evidence submission. Protocol recorded Challenger as winner.",
+      settlementTxHash: target.txHash || undefined,
       payoutRecipient: target.challenger
     };
 
@@ -1147,7 +772,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
-      lastActionMessage: `Timeout Forfeit Settled for Dare #${id}: $${payoutDollars} GEN awarded to Challenger!`
+      lastActionMessage: `Timeout forfeit recorded for Dare #${id}: Challenger recorded as winner.`
     });
     syncDareToCanonicalApi(forfeitedDare).catch(() => {});
     return true;
@@ -1165,14 +790,6 @@ export const useStore = create<AppState>((set, get) => ({
         const orderedOnChain = [...onChain].sort((a, b) => b.id - a.id);
 
         for (const oc of orderedOnChain) {
-          if (oc.id === 1002) {
-            oc.status = 'FINALIZED';
-            oc.verdict = 'CHALLENGER_WINS';
-            oc.verdictScore = 26;
-            oc.verdictRationale = "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.";
-            oc.payoutRecipient = oc.challenger || "0xb5e5560f826d05195d252e094f1a668133effa70";
-          }
-
           const matchIdx = remainingList.findIndex(
             d => d.id === oc.id || (!d.isBenchmark && d.title.trim().toLowerCase() === oc.title.trim().toLowerCase())
           );
@@ -1185,21 +802,7 @@ export const useStore = create<AppState>((set, get) => ({
               updatedSelectedId = oc.id;
             }
 
-            if (oc.id === 1002) {
-              mergedOnChain.push({
-                ...existing,
-                ...oc,
-                id: 1002,
-                status: 'FINALIZED',
-                verdict: 'CHALLENGER_WINS',
-                verdictScore: 26,
-                verdictRationale: "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.",
-                payoutRecipient: oc.challenger || existing.challenger || "0xb5e5560f826d05195d252e094f1a668133effa70"
-              });
-              continue;
-            }
-
-            // AUTHORITATIVE LOCK: If canonical state is FINALIZED, ALWAYS enforce canonical state across all browsers!
+            // If canonical state is FINALIZED, enforce canonical state
             if (oc.status === 'FINALIZED') {
               mergedOnChain.push({
                 ...existing,
@@ -1208,7 +811,7 @@ export const useStore = create<AppState>((set, get) => ({
                 onChainId: oc.onChainId
               });
             } else if (existing.status === 'SUBMITTED' || existing.status === 'FINALIZED') {
-              // Push local progress up to canonical API so other browsers receive it immediately
+              // Push local progress up to canonical API
               const merged = {
                 ...oc,
                 ...existing,
@@ -1266,15 +869,14 @@ export const useStore = create<AppState>((set, get) => ({
     const newDares = state.dares.map(d => {
       if ((d.status === "ACCEPTED" || d.status === "EXPIRED") && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
         processed++;
-        const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
-        const txHash = d.settlementTxHash || d.txHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5');
+        const txHash = d.settlementTxHash || d.txHash || undefined;
         settleWinnerPayoutOnChain(d.id, d.challenger).catch(() => {});
         const forfeited: Dare = {
           ...d,
           status: "FINALIZED" as DareStatus,
           verdict: "CHALLENGER_WINS" as any,
           verdictScore: 100,
-          verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`,
+          verdictRationale: "Investigator forfeited due to elapsed research window without evidence submission. Protocol recorded Challenger as winner.",
           settlementTxHash: txHash,
           payoutRecipient: d.challenger
         };
@@ -1287,7 +889,7 @@ export const useStore = create<AppState>((set, get) => ({
     if (processed > 0) {
       set({
         ...pushSnapshot(state, newDares),
-        lastActionMessage: `Processed timeout forfeit settlements for ${processed} expired dare(s).`
+        lastActionMessage: `Processed timeout forfeit for ${processed} expired dare(s). Challenger recorded as winner.`
       });
     }
     return processed;

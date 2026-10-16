@@ -260,14 +260,6 @@ export function formatRealValidatorVotes(
   score: number,
   rationale: string
 ): ValidatorVote[] {
-  const models = [
-    "Llama-3.3-70B-Instruct (Node 0 Leader)",
-    "Mixtral-8x22B-Instruct (Node 1 Validator)",
-    "GPT-4o (Node 2 Equivalence Validator)",
-    "Claude-3.5-Sonnet (Node 3 Arbiter)",
-    "Gemini-2.5-Flash (Node 4 Verifier)"
-  ];
-
   return validators.map((addr, idx) => {
     const voteName = validatorVotes[idx] || "AGREE";
     const isAgree = voteName === "AGREE";
@@ -279,14 +271,14 @@ export function formatRealValidatorVotes(
     return {
       validatorIndex: idx,
       validatorAddress: addr,
-      model: models[idx] || `GenLayer Node #${idx} (${addr.substring(0, 10)}...)`,
+      model: `GenLayer Validator Node #${idx} (${addr.substring(0, 10)}...)`,
       verdict: voteVerdict,
       score: vScore,
       quotesVerified: isAgree,
       sourcesIndependent: isAgree,
       reasoning: isAgree
         ? `[On-Chain Vote: ${voteName}] Verified by validator node ${addr.substring(0, 8)}... under Equivalence Principle. ${rationale.slice(0, 120)}...`
-        : `[On-Chain Vote: ${voteName}] Validator ${addr.substring(0, 8)}... was idle or diverged during Equivalence round.`,
+        : `[On-Chain Vote: ${voteName}] Validator ${addr.substring(0, 8)}... diverged or abstained during Equivalence round.`,
       timestamp: Date.now() - ((validators.length - idx) * 1000)
     };
   });

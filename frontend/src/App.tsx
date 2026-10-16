@@ -445,7 +445,7 @@ export default function App() {
         const isChallengerWon = d.verdict === 'CHALLENGER_WINS';
         const isInvestigatorWon = d.verdict === 'INVESTIGATOR_WINS';
         const isUserRecipient = 
-          (isChallengerWon && (d.challenger.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet || d.id === 6 || d.isBenchmark === false)) ||
+          (isChallengerWon && (d.challenger.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet)) ||
           (isInvestigatorWon && (d.investigator?.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet));
 
         if (isUserRecipient) {
@@ -2696,16 +2696,14 @@ export default function App() {
             {selectedDare.status === 'FINALIZED' && (() => {
               const payoutDollars = ((selectedDare.stakeCents * 2) / 100).toFixed(2);
               const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
-              const winnerAddress = selectedDare.verdict === 'INVESTIGATOR_WINS' 
-                ? (selectedDare.investigator || '0xInvestigator...')
-                : (walletAddress && selectedDare.isBenchmark === false ? walletAddress : selectedDare.challenger);
+              const winnerAddress = selectedDare.payoutRecipient || (isChallengerWinner 
+                ? selectedDare.challenger 
+                : (selectedDare.investigator || ''));
               const isUserWinner = !!(
-                walletAddress && (
-                  walletAddress.toLowerCase() === winnerAddress.toLowerCase() ||
-                  (isChallengerWinner && (selectedDare.challenger.toLowerCase() === walletAddress.toLowerCase() || selectedDare.isBenchmark === false))
-                )
+                walletAddress && winnerAddress &&
+                walletAddress.toLowerCase() === winnerAddress.toLowerCase()
               );
-              const settlementTx = selectedDare.settlementTxHash || selectedDare.txHash || '0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6';
+              const settlementTx = selectedDare.settlementTxHash || selectedDare.txHash;
               const categoricalOutcome = selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'MET' : selectedDare.verdict === 'CHALLENGER_WINS' ? 'NOT_MET' : 'INSUFFICIENT_EVIDENCE';
 
               return (
@@ -2768,22 +2766,29 @@ export default function App() {
                       </div>
 
                       {/* On-Chain Settlement Tx Hash with direct StudioNet Explorer Link */}
-                      <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
-                        <span className="text-slate-500 font-semibold flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                          StudioNet Proof Tx:
-                        </span>
-                        <a
-                          href={`https://explorer-studio.genlayer.com/tx/${settlementTx}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-emerald-700 hover:text-emerald-900 hover:underline font-mono text-[11px] font-bold flex items-center gap-1 group"
-                          title="View on GenLayer StudioNet Explorer"
-                        >
-                          <span>{settlementTx.slice(0, 10)}...{settlementTx.slice(-6)}</span>
-                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
-                        </a>
-                      </div>
+                      {settlementTx ? (
+                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
+                          <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+                            StudioNet Proof Tx:
+                          </span>
+                          <a
+                            href={`https://explorer-studio.genlayer.com/tx/${settlementTx}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-emerald-700 hover:text-emerald-900 hover:underline font-mono text-[11px] font-bold flex items-center gap-1 group"
+                            title="View on GenLayer StudioNet Explorer"
+                          >
+                            <span>{settlementTx.slice(0, 10)}...{settlementTx.slice(-6)}</span>
+                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
+                          <span className="text-slate-500 font-semibold">StudioNet Proof Tx:</span>
+                          <span className="text-slate-400 font-mono text-[11px]">Pending / Unverified</span>
+                        </div>
+                      )}
 
                       {/* DareAdjudicator Contract Explorer Link */}
                       <div className="flex items-center justify-between text-[11px]">

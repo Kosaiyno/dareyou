@@ -380,11 +380,24 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       if (target.status !== 'OPEN') {
         return { success: false, message: `Cannot accept dare in status "${target.status}". Must be OPEN.` };
       }
-      const ok = state.acceptDare(args.dare_id, args.investigator_address);
+      if (!state.walletConnected || !state.walletAddress) {
+        return {
+          success: false,
+          message: "No Web3 wallet connected. Challenge acceptance requires matching stake collateral signed by a connected wallet. Please connect a wallet in DareYou."
+        };
+      }
+      if (args.investigator_address.toLowerCase() !== state.walletAddress.toLowerCase()) {
+        return {
+          success: false,
+          message: `Investigator address "${args.investigator_address}" does not match connected wallet "${state.walletAddress}". Autonomous unbacked staking is disabled.`
+        };
+      }
+      // Require the user to sign the transaction in their browser wallet
+      state.setSelectedDareId(args.dare_id);
       return {
-        success: ok,
-        message: `Dare #${args.dare_id} accepted by ${args.investigator_address}. Stake matched on StakeEscrow and research timer active.`,
-        duration_minutes: Math.round(target.durationSeconds / 60)
+        success: false,
+        requires_user_signature: true,
+        message: `Dare #${args.dare_id} selected in UI. To match the $${(target.stakeCents / 100).toFixed(2)} GEN stake, the user must approve the transaction prompt via their connected wallet.`
       };
     }
   },
@@ -451,7 +464,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'start_adjudication',
-    description: 'Initiates multi-LLM validator consensus adjudication on a submitted challenge.',
+    description: 'Triggers on-chain GenLayer validator committee consensus adjudication on a submitted challenge.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -468,12 +481,12 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}". Must be SUBMITTED to adjudicate.` };
       }
       const ok = state.startAdjudication(args.dare_id);
-      return { success: ok, message: `Dare #${args.dare_id} validator consensus adjudication initiated.` };
+      return { success: ok, message: `Dare #${args.dare_id} on-chain GenLayer validator adjudication triggered.` };
     }
   },
   {
     name: 'claim_timeout_forfeit',
-    description: 'Challenger claims total escrowed pool if the assigned investigator failed to submit evidence before the deadline.',
+    description: 'Records timeout forfeit in protocol if the assigned investigator failed to submit evidence before the deadline.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -495,7 +508,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const ok = state.claimTimeoutForfeit(args.dare_id, args.challenger_address);
       return {
         success: ok,
-        message: `Timeout forfeit processed for Dare #${args.dare_id}. Full escrow pool transferred to challenger.`
+        message: `Timeout forfeit recorded for Dare #${args.dare_id}. Protocol recorded challenger as winner.`
       };
     }
   },
