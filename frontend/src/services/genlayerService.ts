@@ -458,13 +458,30 @@ export async function fetchOnChainDares(): Promise<any[]> {
 
 
 /**
- * Reads real native GEN token balance for an address from GenLayer StudioNet RPC.
+ * Reads real native GEN token balance for a connected wallet address from Web3 provider or GenLayer StudioNet RPC.
  */
 export async function getGenLayerBalance(address?: string): Promise<string> {
+  if (!address) return '0.00';
   try {
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        const chainId = await (window as any).ethereum.request({ method: 'eth_chainId' });
+        if (chainId === '0xf22f' || chainId === '61999') {
+          const hexBal = await (window as any).ethereum.request({
+            method: 'eth_getBalance',
+            params: [address, 'latest']
+          });
+          if (hexBal) {
+            const formatted = formatEther(BigInt(hexBal));
+            return parseFloat(formatted).toFixed(2);
+          }
+        }
+      } catch {
+        // Fall through to StudioNet RPC client
+      }
+    }
     const client = getGenLayerClient();
-    const addr = address || getOrCreateGenLayerAccount().address;
-    const balanceWei = await client.getBalance({ address: addr as `0x${string}` });
+    const balanceWei = await client.getBalance({ address: address as `0x${string}` });
     const formatted = formatEther(balanceWei);
     return parseFloat(formatted).toFixed(2);
   } catch (err) {

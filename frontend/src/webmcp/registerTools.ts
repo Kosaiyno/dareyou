@@ -24,10 +24,7 @@ import {
   GENLAYER_POLICY_ADDRESS,
   GENLAYER_PROBE_NETWORK_ADDRESS,
   GENLAYER_INTELLIGENT_CONTRACTS,
-  GENLAYER_STUDIONET_CHAIN_ID,
-  exportGenLayerPrivateKey,
-  importGenLayerPrivateKey,
-  getOrCreateGenLayerAccount
+  GENLAYER_STUDIONET_CHAIN_ID
 } from '../services/genlayerService';
 
 export interface WebMCPToolDefinition {
@@ -640,11 +637,11 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
 
   // =========================================================================
-  // 4. ON-CHAIN WALLET & KEY MANAGEMENT
+  // 4. ON-CHAIN WALLET IDENTITY
   // =========================================================================
   {
     name: 'get_wallet_identity',
-    description: 'Returns the connected GenLayer StudioNet wallet address, private key availability status, and smart contract addresses.',
+    description: 'Returns the connected Web3 wallet address, connection status, and GenLayer StudioNet smart contract addresses.',
     inputSchema: {
       type: 'object',
       properties: {},
@@ -652,12 +649,14 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     },
     annotations: { readOnlyHint: true },
     execute: async () => {
-      const account = getOrCreateGenLayerAccount();
       const state = useStore.getState();
       return {
         success: true,
-        message: 'Retrieved connected GenLayer wallet identity.',
-        walletAddress: account.address || state.walletAddress,
+        message: state.walletConnected
+          ? 'Retrieved connected Web3 wallet identity.'
+          : 'No Web3 wallet currently connected.',
+        walletConnected: state.walletConnected,
+        walletAddress: state.walletAddress || null,
         chainId: GENLAYER_STUDIONET_CHAIN_ID,
         contracts: {
           registry: GENLAYER_REGISTRY_ADDRESS,
@@ -665,53 +664,6 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
           adjudicator: GENLAYER_ADJUDICATOR_ADDRESS
         }
       };
-    }
-  },
-  {
-    name: 'export_wallet_key',
-    description: 'Returns the private key of the current GenLayer wallet so the agent or user can persist their identity and funds across browser sessions.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      additionalProperties: false
-    },
-    execute: async () => {
-      const pk = exportGenLayerPrivateKey();
-      const account = getOrCreateGenLayerAccount();
-      return {
-        success: true,
-        message: 'Exported GenLayer StudioNet private key.',
-        walletAddress: account.address,
-        privateKey: pk
-      };
-    }
-  },
-  {
-    name: 'import_wallet_key',
-    description: 'Imports a private key into the active session, restoring the agent identity and contract signing authority.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        private_key: { type: 'string', description: 'Hex-encoded private key starting with 0x.' }
-      },
-      required: ['private_key'],
-      additionalProperties: false
-    },
-    execute: async (args: { private_key: string }) => {
-      try {
-        const account = importGenLayerPrivateKey(args.private_key);
-        useStore.getState().setWallet(true, account.address);
-        return {
-          success: true,
-          message: `Successfully imported wallet key for ${account.address}. Active signing account updated.`,
-          walletAddress: account.address
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: `Failed to import private key: ${err.message || String(err)}`
-        };
-      }
     }
   }
 ];

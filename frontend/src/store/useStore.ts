@@ -7,8 +7,7 @@ import {
   depositInvestigatorStakeOnChain,
   settleWinnerPayoutOnChain,
   createDareOnChain,
-  fetchOnChainDares,
-  getOrCreateGenLayerAccount
+  fetchOnChainDares
 } from '../services/genlayerService';
 
 export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
@@ -559,8 +558,8 @@ export const useStore = create<AppState>((set, get) => ({
   categoryFilter: 'ALL',
   lifecycleFilter: 'ALL',
   benchmarkFilter: 'ALL',
-  walletConnected: true,
-  walletAddress: typeof window !== 'undefined' ? getOrCreateGenLayerAccount().address : '0xGenLayerStudioNet...61999',
+  walletConnected: false,
+  walletAddress: '',
   activeRole: 'INVESTIGATOR',
   lastActionMessage: null,
 

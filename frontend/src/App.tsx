@@ -26,7 +26,6 @@ import {
   Menu,
   Copy,
   LogOut,
-  Key,
   RefreshCw,
   BookOpen,
   Terminal,
@@ -38,11 +37,9 @@ import {
 } from 'lucide-react';
 import { useStore, isDareExpired } from './store/useStore';
 import { 
-  getOrCreateGenLayerAccount, 
   getGenLayerBalance,
   connectMetaMask,
-  sendMetaMaskStakeDeposit,
-  exportGenLayerPrivateKey
+  sendMetaMaskStakeDeposit
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
 import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
@@ -253,15 +250,14 @@ export default function App() {
   const [mcpResult, setMcpResult] = useState<any>(null);
   const [mcpExecuting, setMcpExecuting] = useState<boolean>(false);
 
-  // Wallet State
+  // Wallet State (Strictly Real Web3 Wallet — No Browser Key or Mock Faucet)
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [walletBalance, setWalletBalance] = useState('0.00');
-  const [walletProviderType, setWalletProviderType] = useState<'METAMASK' | 'EMBEDDED' | null>(null);
+  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
-  const [keyCopied, setKeyCopied] = useState(false);
 
   // Navigation Helper that closes mobile drawer automatically
   const navigateTab = (tab: any, resetFilters = false) => {
@@ -274,41 +270,23 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // Balance helper: persists balance per address
-  const updateBalance = (newBal: string, addr = walletAddress) => {
-    setWalletBalance(newBal);
-    if (typeof window !== 'undefined' && addr) {
-      try {
-        window.localStorage?.setItem(`dareyou_bal_${addr.toLowerCase()}`, newBal);
-      } catch (e) {
-        console.warn(e);
-      }
+  // Refresh real on-chain GEN balance from StudioNet RPC / MetaMask
+  const refreshOnChainBalance = async (addr = walletAddress) => {
+    if (!addr) {
+      setWalletBalance('0.00');
+      return '0.00';
     }
-  };
-
-  const deductBalance = (amountGen: number) => {
-    const cur = parseFloat(walletBalance) || 0;
-    const next = Math.max(0, cur - amountGen).toFixed(2);
-    updateBalance(next);
-    return next;
-  };
-
-  const creditBalance = (amountGen: number, addr = walletAddress) => {
-    const cur = parseFloat(walletBalance) || 0;
-    const next = (cur + amountGen).toFixed(2);
-    updateBalance(next, addr);
-    return next;
-  };
-
-  const handleClaimFaucet = () => {
-    if (!walletAddress) {
-      setShowConnectModal(true);
-      return;
+    setIsRefreshingBalance(true);
+    try {
+      const bal = await getGenLayerBalance(addr);
+      setWalletBalance(bal || '0.00');
+      return bal || '0.00';
+    } catch (e) {
+      console.warn('Failed to fetch on-chain balance:', e);
+      return walletBalance;
+    } finally {
+      setIsRefreshingBalance(false);
     }
-    const cur = parseFloat(walletBalance) || 0;
-    const next = (cur + 20).toFixed(2);
-    updateBalance(next);
-    alert(`20.00 GEN Testnet Tokens credited to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)} for StudioNet duels!`);
   };
 
   // Create Dare Form State
@@ -356,51 +334,36 @@ export default function App() {
     (criteriaPassed ? 20 : 0)
   ));
 
-  // Initialize Wallet from Local Storage or Web3
+  // Initialize Real Web3 Wallet (MetaMask / EIP-1193) and purge any legacy mock localStorage keys
   useEffect(() => {
-    let mode: string | null = null;
     let isConnectedSaved = false;
     try {
       isConnectedSaved = window.localStorage?.getItem('dareyou_wallet_connected') === 'true';
-      mode = window.localStorage?.getItem('dareyou_wallet_mode');
-    } catch (e) {
-      console.warn('localStorage read disabled', e);
-    }
-
-    if (isConnectedSaved && mode === 'EMBEDDED') {
-      try {
-        const acc = getOrCreateGenLayerAccount();
-        setWalletAddress(acc.address);
-        setWalletConnected(true);
-        setWalletProviderType('EMBEDDED');
-        store.setWallet(true, acc.address);
-        const savedBal = window.localStorage?.getItem(`dareyou_bal_${acc.address.toLowerCase()}`) || '20.00';
-        setWalletBalance(savedBal);
-        getGenLayerBalance(acc.address).then(bal => {
-          if (bal && bal !== '0.00') {
-            setWalletBalance(bal);
-            window.localStorage?.setItem(`dareyou_bal_${acc.address.toLowerCase()}`, bal);
+      // Purge any legacy browser-wallet or mock balance keys
+      window.localStorage?.removeItem('dareyou_wallet_mode');
+      window.localStorage?.removeItem('dareyou_genlayer_pk_v2');
+      if (window.localStorage) {
+        Object.keys(window.localStorage).forEach(k => {
+          if (k.startsWith('dareyou_bal_')) {
+            window.localStorage.removeItem(k);
           }
         });
-      } catch (err) {
-        console.warn('Failed auto-restoring embedded account:', err);
       }
-    } else if (isConnectedSaved && mode === 'METAMASK' && typeof window !== 'undefined' && (window as any).ethereum) {
-      const eth = (window as any).ethereum;
+    } catch (e) {
+      console.warn('localStorage access error', e);
+    }
+
+    const eth = typeof window !== 'undefined' ? (window as any).ethereum : null;
+    if (isConnectedSaved && eth) {
       eth.request({ method: 'eth_accounts' })
         .then((accounts: string[]) => {
           if (accounts && accounts.length > 0) {
-            setWalletAddress(accounts[0]);
+            const addr = accounts[0];
+            setWalletAddress(addr);
             setWalletConnected(true);
-            setWalletProviderType('METAMASK');
-            store.setWallet(true, accounts[0]);
-            const savedBal = window.localStorage?.getItem(`dareyou_bal_${accounts[0].toLowerCase()}`) || '20.00';
-            setWalletBalance(savedBal);
-            getGenLayerBalance(accounts[0]).then(bal => {
-              if (bal && bal !== '0.00') {
-                setWalletBalance(bal);
-                window.localStorage?.setItem(`dareyou_bal_${accounts[0].toLowerCase()}`, bal);
-              }
+            store.setWallet(true, addr);
+            getGenLayerBalance(addr).then(bal => {
+              setWalletBalance(bal || '0.00');
             });
           } else {
             setWalletConnected(false);
@@ -416,11 +379,41 @@ export default function App() {
           store.setWallet(false, '');
         });
     } else {
-      // Clean guest state - user connects when ready!
       setWalletConnected(false);
       setWalletAddress('');
       setWalletBalance('0.00');
       store.setWallet(false, '');
+    }
+
+    if (eth && eth.on) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts && accounts.length > 0) {
+          const addr = accounts[0];
+          setWalletAddress(addr);
+          setWalletConnected(true);
+          store.setWallet(true, addr);
+          getGenLayerBalance(addr).then(bal => setWalletBalance(bal || '0.00'));
+        } else {
+          setWalletConnected(false);
+          setWalletAddress('');
+          setWalletBalance('0.00');
+          store.setWallet(false, '');
+          window.localStorage?.removeItem('dareyou_wallet_connected');
+        }
+      };
+      const handleChainChanged = () => {
+        if (walletAddress) {
+          getGenLayerBalance(walletAddress).then(bal => setWalletBalance(bal || '0.00'));
+        }
+      };
+      eth.on('accountsChanged', handleAccountsChanged);
+      eth.on('chainChanged', handleChainChanged);
+      return () => {
+        if (eth.removeListener) {
+          eth.removeListener('accountsChanged', handleAccountsChanged);
+          eth.removeListener('chainChanged', handleChainChanged);
+        }
+      };
     }
   }, []);
 
@@ -432,8 +425,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, [store]);
 
-  // Automatic Payout Settlement: When a duel concludes in the user's favor,
-  // automatically release and credit the escrow payout directly to their connected wallet!
+  // Automatic Payout Settlement: Mark winner payout settled and sync real on-chain balance
   useEffect(() => {
     if (!walletConnected || !walletAddress) return;
     const lowerWallet = walletAddress.toLowerCase();
@@ -447,10 +439,8 @@ export default function App() {
           (isInvestigatorWon && (d.investigator?.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet));
 
         if (isUserRecipient) {
-          const payoutAmount = (d.stakeCents * 2) / 100;
-          console.log(`[Auto-Settlement] Automatically releasing +$${payoutAmount.toFixed(2)} GEN to winner ${walletAddress} for Dare #${d.id}`);
-          creditBalance(payoutAmount, walletAddress);
           store.claimWinnerPayout(d.id, walletAddress);
+          refreshOnChainBalance(walletAddress);
         }
       }
     });
@@ -461,51 +451,15 @@ export default function App() {
       const res = await connectMetaMask();
       setWalletAddress(res.address);
       setWalletConnected(true);
-      setWalletProviderType('METAMASK');
       store.setWallet(true, res.address);
       if (typeof window !== 'undefined') {
         window.localStorage?.setItem('dareyou_wallet_connected', 'true');
-        window.localStorage?.setItem('dareyou_wallet_mode', 'METAMASK');
       }
-      const savedBal = typeof window !== 'undefined' ? window.localStorage?.getItem(`dareyou_bal_${res.address.toLowerCase()}`) : null;
       const bal = await getGenLayerBalance(res.address);
-      const effectiveBal = (bal && bal !== '0.00') ? bal : (savedBal || '20.00');
-      setWalletBalance(effectiveBal);
-      if (typeof window !== 'undefined') {
-        window.localStorage?.setItem(`dareyou_bal_${res.address.toLowerCase()}`, effectiveBal);
-      }
+      setWalletBalance(bal || res.balance || '0.00');
       setShowConnectModal(false);
     } catch (err: any) {
-      alert(err.message || 'MetaMask connection rejected');
-    }
-  };
-
-  const handleUseEmbeddedAgent = async () => {
-    try {
-      const acc = getOrCreateGenLayerAccount();
-      setWalletAddress(acc.address);
-      setWalletConnected(true);
-      setWalletProviderType('EMBEDDED');
-      store.setWallet(true, acc.address);
-      if (typeof window !== 'undefined') {
-        window.localStorage?.setItem('dareyou_wallet_connected', 'true');
-        window.localStorage?.setItem('dareyou_wallet_mode', 'EMBEDDED');
-      }
-      const savedBal = typeof window !== 'undefined' ? window.localStorage?.getItem(`dareyou_bal_${acc.address.toLowerCase()}`) : null;
-      const effectiveBal = savedBal || '20.00';
-      setWalletBalance(effectiveBal);
-      if (typeof window !== 'undefined' && !savedBal) {
-        window.localStorage?.setItem(`dareyou_bal_${acc.address.toLowerCase()}`, '20.00');
-      }
-      getGenLayerBalance(acc.address).then(bal => {
-        if (bal && bal !== '0.00') {
-          setWalletBalance(bal);
-          window.localStorage?.setItem(`dareyou_bal_${acc.address.toLowerCase()}`, bal);
-        }
-      });
-      setShowConnectModal(false);
-    } catch (err: any) {
-      alert('Failed to initialize embedded agent key: ' + err.message);
+      alert(err.message || 'Web3 wallet connection rejected');
     }
   };
 
@@ -513,7 +467,6 @@ export default function App() {
     setWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0.00');
-    setWalletProviderType(null);
     store.setWallet(false, '');
     if (typeof window !== 'undefined') {
       window.localStorage?.removeItem('dareyou_wallet_connected');
@@ -524,8 +477,8 @@ export default function App() {
 
   const handlePublishDare = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletConnected) {
-      alert("Please connect your Web3 wallet first!");
+    if (!walletConnected || !walletAddress) {
+      setShowConnectModal(true);
       return;
     }
 
@@ -537,7 +490,7 @@ export default function App() {
     const stakeGen = parseFloat(createStakeUsd) || 0;
     const curBal = parseFloat(walletBalance) || 0;
     if (curBal < stakeGen) {
-      alert(`Insufficient GEN balance (${curBal.toFixed(2)} GEN). Needed: ${stakeGen.toFixed(2)} GEN.\nClick your wallet chip to claim 20.00 GEN testnet tokens!`);
+      alert(`Insufficient on-chain GEN balance (${curBal.toFixed(2)} GEN). Needed: ${stakeGen.toFixed(2)} GEN.`);
       return;
     }
 
@@ -548,32 +501,14 @@ export default function App() {
     });
 
     try {
-      let realTxHash: string | null = null;
-      if (walletProviderType === 'METAMASK') {
-        setTxState({
-          active: true,
-          message: `Step 2/3: Prompting MetaMask: Confirm deposit of ${createStakeUsd} GEN stake to escrow...`,
-          step: 2
-        });
-        realTxHash = await sendMetaMaskStakeDeposit(createStakeUsd);
-        const updatedBal = await getGenLayerBalance(walletAddress);
-        if (updatedBal && updatedBal !== '0.00') {
-          updateBalance(updatedBal);
-        } else {
-          deductBalance(stakeGen);
-        }
-      } else {
-        await new Promise(r => setTimeout(r, 600));
-        setTxState({
-          active: true,
-          message: `Step 2/3: Locking duel stake ($${createStakeUsd} GEN) on StudioNet...`,
-          step: 2
-        });
-        await new Promise(r => setTimeout(r, 600));
-        deductBalance(stakeGen);
-      }
+      setTxState({
+        active: true,
+        message: `Step 2/3: Prompting Web3 Wallet: Confirm deposit of ${createStakeUsd} GEN stake to escrow...`,
+        step: 2
+      });
+      const realTxHash = await sendMetaMaskStakeDeposit(createStakeUsd);
+      await refreshOnChainBalance(walletAddress);
 
-      const txHashToUse = realTxHash || ("0x" + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join(""));
       const newId = store.addDare({
         title: createTitle,
         category: createCategory,
@@ -587,9 +522,9 @@ export default function App() {
 
       setTxState({
         active: true,
-        message: `Step 3/3: Challenge #${newId} broadcast on GenLayer StudioNet! Stake locked${realTxHash ? ` (Tx: ${realTxHash.slice(0, 10)}...)` : ''}.`,
+        message: `Step 3/3: Challenge #${newId} broadcast on GenLayer StudioNet! Stake locked (Tx: ${realTxHash.slice(0, 10)}...).`,
         step: 3,
-        txHash: txHashToUse
+        txHash: realTxHash
       });
 
       setTimeout(() => {
@@ -625,7 +560,7 @@ export default function App() {
   };
 
   const handleAcceptDare = async (dareId: number) => {
-    if (!walletConnected) {
+    if (!walletConnected || !walletAddress) {
       setShowConnectModal(true);
       return;
     }
@@ -636,39 +571,26 @@ export default function App() {
     const matchAmountGen = matchAmountNum.toFixed(2);
     const curBal = parseFloat(walletBalance) || 0;
     if (curBal < matchAmountNum) {
-      alert(`Insufficient GEN balance (${curBal.toFixed(2)} GEN). Needed: ${matchAmountNum.toFixed(2)} GEN to match duel stake.\nClick your wallet chip to claim 20.00 GEN testnet tokens!`);
+      alert(`Insufficient on-chain GEN balance (${curBal.toFixed(2)} GEN). Needed: ${matchAmountNum.toFixed(2)} GEN to match duel stake.`);
       return;
     }
 
     setTxState({
       active: true,
-      message: walletProviderType === 'METAMASK'
-        ? `Prompting MetaMask: Please confirm matching ${matchAmountGen} GEN stake...`
-        : "Matching duel stake & locking single-investigator research window...",
+      message: `Prompting Web3 Wallet: Please confirm matching ${matchAmountGen} GEN stake...`,
       step: 1
     });
 
     try {
-      let txHash: string | null = null;
-      if (walletProviderType === 'METAMASK') {
-        txHash = await sendMetaMaskStakeDeposit(matchAmountGen);
-        const updatedBal = await getGenLayerBalance(walletAddress);
-        if (updatedBal && updatedBal !== '0.00') {
-          updateBalance(updatedBal);
-        } else {
-          deductBalance(matchAmountNum);
-        }
-      } else {
-        await new Promise(r => setTimeout(r, 800));
-        deductBalance(matchAmountNum);
-      }
+      const txHash = await sendMetaMaskStakeDeposit(matchAmountGen);
+      await refreshOnChainBalance(walletAddress);
 
       store.acceptDare(dareId, walletAddress);
       setTxState({
         active: true,
-        message: `Accepted! Duel stake matched${txHash ? ` (Tx: ${txHash.slice(0, 10)}...)` : ''}. Countdown timer activated.`,
+        message: `Accepted! Duel stake matched (Tx: ${txHash.slice(0, 10)}...). Countdown timer activated.`,
         step: 2,
-        txHash: txHash || undefined
+        txHash
       });
       setTimeout(() => {
         setTxState({ active: false, message: '', step: 0 });
@@ -681,6 +603,10 @@ export default function App() {
 
   const handleSubmitEvidence = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!walletConnected || !walletAddress) {
+      setShowConnectModal(true);
+      return;
+    }
     if (!selectedDare) return;
     setTxState({
       active: true,
@@ -994,7 +920,7 @@ export default function App() {
                   <div 
                     onClick={() => setShowKeyModal(true)}
                     className="bg-white border border-slate-200 hover:border-slate-300 px-2.5 sm:px-3.5 py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-800 shadow-2xs transition-all cursor-pointer select-none flex-shrink-0"
-                    title="Manage Wallet & Testnet Faucet"
+                    title="Manage Connected Wallet"
                   >
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
                     <span className="font-mono">{walletBalance} GEN</span>
@@ -2949,7 +2875,7 @@ export default function App() {
       )}
 
       {/* ============================================================ */}
-      {/* 5. CONNECT WALLET MODAL (POLYMARKET-STYLE HIGH CONVERSION) */}
+      {/* 5. CONNECT WALLET MODAL (REAL WEB3 WALLET REQUIRED)          */}
       {/* ============================================================ */}
       {showConnectModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -2957,10 +2883,10 @@ export default function App() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-[#EF4444]" /> Connect Wallet
+                  <Wallet className="w-4 h-4 text-[#EF4444]" /> Connect Web3 Wallet
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Connect to GenLayer StudioNet to post or solve duels
+                  Connect your Web3 wallet on GenLayer StudioNet to post or solve duels
                 </p>
               </div>
               <button 
@@ -2973,10 +2899,10 @@ export default function App() {
             </div>
 
             <div className="space-y-3">
-              {/* Option A: MetaMask / Injected Web3 */}
+              {/* MetaMask / Injected Web3 Wallet */}
               <div 
                 onClick={handleConnectMetaMask}
-                className="p-4 rounded-2xl border border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50/80 transition-all cursor-pointer group flex items-center justify-between"
+                className="p-4 rounded-2xl border-2 border-slate-200 hover:border-[#EF4444] bg-white hover:bg-slate-50/80 transition-all cursor-pointer group flex items-center justify-between"
               >
                 <div className="flex items-center gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-lg flex-shrink-0">
@@ -2984,42 +2910,14 @@ export default function App() {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#EF4444] transition-colors">
-                      MetaMask / Web3 Browser
+                      MetaMask / Web3 Wallet
                     </h4>
                     <p className="text-[11px] text-slate-500">
-                      Connect desktop or mobile browser extension (EIP-1193)
+                      Connect browser extension or mobile wallet (EIP-1193)
                     </p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-              </div>
-
-              {/* Option B: 1-Click Embedded Browser Key */}
-              <div 
-                onClick={handleUseEmbeddedAgent}
-                className="p-4 rounded-2xl border-2 border-[#EF4444]/30 hover:border-[#EF4444] bg-red-50/20 hover:bg-red-50/40 transition-all cursor-pointer group relative overflow-hidden"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-[#2A1116] border border-red-500/30 flex items-center justify-center flex-shrink-0">
-                      <Key className="w-5 h-5 text-[#EF4444]" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#EF4444] transition-colors">
-                          Instant Browser Key
-                        </h4>
-                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">
-                          1-Click · 20 GEN Faucet
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Unique cryptographic key stored safely in this browser
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#EF4444] group-hover:translate-x-0.5 transition-transform" />
-                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#EF4444] group-hover:translate-x-0.5 transition-all" />
               </div>
             </div>
 
@@ -3028,14 +2926,14 @@ export default function App() {
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 GenLayer StudioNet (Chain ID 61999)
               </span>
-              <span className="text-slate-400 font-mono">Testnet Escrow</span>
+              <span className="text-slate-400 font-mono">On-Chain Escrow</span>
             </div>
           </div>
         </div>
       )}
 
       {/* ============================================================ */}
-      {/* 6. WALLET & ACCOUNT MANAGER MODAL */}
+      {/* 6. WALLET & ACCOUNT MANAGER MODAL                            */}
       {/* ============================================================ */}
       {showKeyModal && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
@@ -3044,7 +2942,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <h3 className="text-sm font-bold text-slate-900">
-                  Connected Account ({walletProviderType === 'EMBEDDED' ? 'Embedded Key' : 'MetaMask'})
+                  Connected Web3 Wallet (MetaMask)
                 </h3>
               </div>
               <button 
@@ -3080,70 +2978,41 @@ export default function App() {
                 </code>
               </div>
 
-              {/* Balance Card + Faucet Trigger */}
+              {/* Real On-Chain Balance Card + Live Sync Refresh */}
               <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
-                    Available Stake Balance
+                    On-Chain Balance (StudioNet)
                   </span>
                   <div className="flex items-baseline gap-2 mt-0.5">
                     <span className="text-2xl font-black font-mono text-white">
                       {walletBalance} GEN
                     </span>
-                    <span className="text-xs text-slate-400 font-mono">
-                      (~${(Number(walletBalance) * 2).toFixed(2)} USD)
-                    </span>
                   </div>
                 </div>
 
                 <button
-                  onClick={handleClaimFaucet}
-                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-[#EF4444] hover:from-red-500 hover:to-red-600 text-white font-bold text-xs shadow-md shadow-red-500/20 cursor-pointer flex items-center gap-1 flex-shrink-0 active:scale-95 transition-all"
-                  title="Claim 20 GEN Testnet Tokens"
+                  onClick={() => refreshOnChainBalance(walletAddress)}
+                  disabled={isRefreshingBalance}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs cursor-pointer flex items-center gap-1.5 flex-shrink-0 active:scale-95 transition-all"
+                  title="Sync real on-chain balance from GenLayer StudioNet"
                 >
-                  <RefreshCw className="w-3 h-3" />
-                  <span>+20 GEN Faucet</span>
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span>{isRefreshingBalance ? 'Syncing...' : 'Refresh'}</span>
                 </button>
               </div>
 
-              {/* Private Key Export (For Embedded Wallets) */}
-              {walletProviderType === 'EMBEDDED' && (
-                <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Key className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    <div>
-                      <span className="text-xs font-bold text-amber-900 block">Export Private Key</span>
-                      <span className="text-[10px] text-amber-700">Backup your unique browser key</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const pk = exportGenLayerPrivateKey();
-                      if (navigator.clipboard && pk) {
-                        navigator.clipboard.writeText(pk);
-                        setKeyCopied(true);
-                        setTimeout(() => setKeyCopied(false), 2000);
-                      }
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-amber-300 text-amber-900 font-bold text-[11px] hover:bg-amber-100/50 cursor-pointer flex items-center gap-1"
-                  >
-                    {keyCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                    <span>{keyCopied ? 'Copied' : 'Copy Key'}</span>
-                  </button>
-                </div>
-              )}
-
               {/* Modal Bottom Actions */}
               <div className="pt-2 flex items-center gap-2 border-t border-slate-100">
-                <button
-                  onClick={() => {
-                    setShowKeyModal(false);
-                    setShowConnectModal(true);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer"
+                <a
+                  href={`https://explorer-studio.genlayer.com/address/${walletAddress}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  Switch Provider
-                </button>
+                  <span>View on Explorer</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+                </a>
                 <button
                   onClick={disconnectWallet}
                   className="py-2.5 px-4 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs border border-rose-200 flex items-center gap-1.5 transition-colors cursor-pointer"
