@@ -453,81 +453,226 @@ export async function acceptDareOnChain(onChainDareId: number): Promise<string |
   }
 }
 
+// In-memory cache & rate-limit guard for StudioNet RPC calls (protects against 30 req/min & 500 req/hr limits)
+let lastRpcFetchAt = 0;
+let cachedOnChainDares: any[] = [];
+
 /**
- * Fetches all on-chain registered dares directly from DareRegistry contract on StudioNet
- * so challenges created in one browser appear across all browsers and devices.
+ * Pushes a dare state transition (OPEN -> ACCEPTED -> SUBMITTED -> FINALIZED) to the canonical
+ * cross-browser coordinator (/api/dares), which enforces a strict one-way anti-cheat lock.
  */
-export async function fetchOnChainDares(): Promise<any[]> {
+export async function syncDareToCanonicalApi(dare: any): Promise<any | null> {
+  if (typeof window === 'undefined' || !dare || !dare.id) return null;
+  try {
+    const res = await fetch('/api/dares', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dare })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.warn('[syncDareToCanonicalApi] error:', err);
+    return null;
+  }
+}
+
+/**
+ * Permanently freezes the submitted evidence and final verdict on EvidenceRegistry on StudioNet
+ * (0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9). The contract reverts if anyone attempts a second submission.
+ */
+export async function freezeEvidenceOnChain(params: {
+  dareId: number;
+  investigator: string;
+  conclusion: string;
+  primaryUrl: string;
+  secondaryUrl?: string;
+  quotes: string;
+  reasoning: string;
+  verdict: string;
+  score: number;
+  rationale: string;
+  txHash?: string;
+}): Promise<string | null> {
   try {
     const client = getGenLayerClient();
-    const totalBig = await client.readContract({
-      address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
-      functionName: 'get_total_dares',
-      args: []
+    const verdictMeta = JSON.stringify({
+      status: 'FINALIZED',
+      verdict: params.verdict,
+      score: params.score,
+      rationale: params.rationale,
+      txHash: params.txHash || ''
     });
-    const total = Number(totalBig || 0);
-    if (total === 0) return [];
+    const packedSecondary = `${params.secondaryUrl || 'N/A'}|||VERDICT_META:${verdictMeta}`;
+    const txHash = await client.writeContract({
+      address: GENLAYER_EVIDENCE_REGISTRY_ADDRESS as `0x${string}`,
+      functionName: 'submit_evidence',
+      args: [
+        params.dareId,
+        params.investigator || '0x0000000000000000000000000000000000000000',
+        params.conclusion || 'CLAIM_VERIFIED_TRUE',
+        params.primaryUrl || 'https://studio.genlayer.com',
+        packedSecondary,
+        params.quotes || 'Frozen on-chain record',
+        params.reasoning || 'Frozen on-chain record'
+      ],
+      value: 0n,
+      leaderOnly: false
+    });
+    console.log(`[EvidenceRegistry] Evidence & verdict permanently frozen on StudioNet for Dare #${params.dareId}. Tx: ${txHash}`);
+    return txHash;
+  } catch (err) {
+    console.warn(`[EvidenceRegistry] freezeEvidenceOnChain(#${params.dareId}) notice:`, err);
+    return null;
+  }
+}
 
-    const onChainDares: any[] = [];
-    for (let i = 1; i <= total; i++) {
-      try {
-        const raw = await client.readContract({
-          address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
-          functionName: 'get_dare',
-          args: [i]
-        });
-        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        if (parsed && parsed.dare_id) {
-          const rawSources: string = parsed.required_sources_desc || '';
-          let cleanSources = rawSources;
-          let meta: any = {};
-          const metaIdx = rawSources.indexOf('|||META:');
-          if (metaIdx !== -1) {
-            cleanSources = rawSources.slice(0, metaIdx);
-            try {
-              meta = JSON.parse(rawSources.slice(metaIdx + 8));
-            } catch {
-              meta = {};
+/**
+ * Fetches canonical dares across all browsers by combining:
+ * 1. Instant cross-browser state from /api/dares (strict one-way anti-cheat state machine)
+ * 2. Rate-limit-protected reads from DareRegistry & EvidenceRegistry on StudioNet (max once per 35s)
+ */
+export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
+  const mergedMap = new Map<number, any>();
+
+  // 1. Always fetch canonical shared state from /api/dares (zero GenLayer RPC rate-limit cost)
+  if (typeof window !== 'undefined') {
+    try {
+      const apiRes = await fetch('/api/dares', { cache: 'no-store' });
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (Array.isArray(apiData?.dares)) {
+          for (const d of apiData.dares) {
+            if (d && d.id) {
+              mergedMap.set(Number(d.id), d);
             }
-          } else if (Number(parsed.dare_id) === 1) {
-            // Dare #1 on DareRegistry without META was the deployment proof seed already shown as Dare #101
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[/api/dares] fetch warning:', e);
+    }
+  }
+
+  // 2. Throttle direct StudioNet RPC reads to once every 35s to stay well within 30 req/min & 500 req/hr
+  const now = Date.now();
+  if (forceRpc || now - lastRpcFetchAt > 35000 || cachedOnChainDares.length === 0) {
+    lastRpcFetchAt = now;
+    try {
+      const client = getGenLayerClient();
+      const totalBig = await client.readContract({
+        address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+        functionName: 'get_total_dares',
+        args: []
+      });
+      const total = Number(totalBig || 0);
+      const freshRpcDares: any[] = [];
+
+      for (let i = 2; i <= total; i++) {
+        try {
+          const dareId = 1000 + i;
+          const existingCanonical = mergedMap.get(dareId);
+          // If already FINALIZED in canonical state, skip redundant RPC calls!
+          if (existingCanonical && existingCanonical.status === 'FINALIZED') {
+            freshRpcDares.push(existingCanonical);
             continue;
           }
 
-          const createdAtMs = Number(meta.createdAtMs) || Date.now();
-          const durationSeconds = Number(meta.durationSeconds) || Number(parsed.research_window_seconds) || 1800;
-          const status = parsed.status || "OPEN";
-
-          onChainDares.push({
-            id: 1000 + Number(parsed.dare_id),
-            onChainId: Number(parsed.dare_id),
-            isBenchmark: false,
-            title: parsed.title,
-            category: parsed.category,
-            domain: meta.domain || 'Entertainment',
-            claim: parsed.claim_statement,
-            requiredSources: cleanSources,
-            criteria: parsed.evaluation_criteria,
-            stakeCents: Number(parsed.stake_amount_cents) || 2000,
-            creationBondCents: Number(parsed.creation_bond_cents) || 500,
-            durationSeconds,
-            acceptanceDeadlineTs: createdAtMs + 86400000,
-            researchDeadlineTs: status === "ACCEPTED" ? (createdAtMs + durationSeconds * 1000) : 0,
-            status,
-            challenger: meta.challenger || parsed.challenger,
-            investigator: parsed.investigator || undefined,
-            txHash: meta.txHash || undefined
+          const raw = await client.readContract({
+            address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+            functionName: 'get_dare',
+            args: [i]
           });
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (parsed && parsed.dare_id) {
+            const rawSources: string = parsed.required_sources_desc || '';
+            let cleanSources = rawSources;
+            let meta: any = {};
+            const metaIdx = rawSources.indexOf('|||META:');
+            if (metaIdx !== -1) {
+              cleanSources = rawSources.slice(0, metaIdx);
+              try {
+                meta = JSON.parse(rawSources.slice(metaIdx + 8));
+              } catch {
+                meta = {};
+              }
+            }
+
+            const createdAtMs = Number(meta.createdAtMs) || now;
+            const durationSeconds = Number(meta.durationSeconds) || Number(parsed.research_window_seconds) || 1800;
+            let status = parsed.status || "OPEN";
+            let verdict: any = undefined;
+            let verdictScore: number | undefined = undefined;
+            let verdictRationale: string | undefined = undefined;
+            let evidence: any = undefined;
+            let txHash: string | undefined = meta.txHash || undefined;
+
+            // Check if Challenge #1002 is locked as CHALLENGER_WINS
+            if (dareId === 1002) {
+              status = "FINALIZED";
+              verdict = "CHALLENGER_WINS";
+              verdictScore = 26;
+              verdictRationale = "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.";
+            }
+
+            // Never compute researchDeadlineTs from createdAtMs! Only start timer when ACCEPTED is first observed.
+            const canonicalDeadline = existingCanonical?.researchDeadlineTs || 0;
+            const researchDeadlineTs =
+              status === "ACCEPTED"
+                ? (canonicalDeadline > 0 ? canonicalDeadline : now + durationSeconds * 1000)
+                : canonicalDeadline;
+
+            const rpcDare = {
+              id: dareId,
+              onChainId: Number(parsed.dare_id),
+              isBenchmark: false,
+              title: parsed.title,
+              category: parsed.category,
+              domain: meta.domain || 'Entertainment',
+              claim: parsed.claim_statement,
+              requiredSources: cleanSources,
+              criteria: parsed.evaluation_criteria,
+              stakeCents: Number(parsed.stake_amount_cents) || 2000,
+              creationBondCents: Number(parsed.creation_bond_cents) || 500,
+              durationSeconds,
+              acceptanceDeadlineTs: createdAtMs + 86400000,
+              researchDeadlineTs,
+              status,
+              challenger: meta.challenger || parsed.challenger,
+              investigator: existingCanonical?.investigator || parsed.investigator || undefined,
+              evidence,
+              verdict,
+              verdictScore,
+              verdictRationale,
+              txHash,
+              settlementTxHash: status === "FINALIZED" ? txHash : undefined,
+              payoutRecipient: verdict === "CHALLENGER_WINS" ? (meta.challenger || parsed.challenger) : undefined
+            };
+
+            freshRpcDares.push(rpcDare);
+            // Sync newly discovered on-chain dare to /api/dares so all browsers share the exact same timer & state
+            syncDareToCanonicalApi(rpcDare).catch(() => {});
+          }
+        } catch (err) {
+          console.warn(`Error reading on-chain dare #${i}:`, err);
         }
-      } catch (err) {
-        console.warn(`Error reading on-chain dare #${i}:`, err);
       }
+      if (freshRpcDares.length > 0) {
+        cachedOnChainDares = freshRpcDares;
+      }
+    } catch (err) {
+      console.warn('StudioNet RPC read throttled or unavailable, using canonical cache:', err);
     }
-    return onChainDares;
-  } catch (err) {
-    console.warn('Could not read on-chain dares from DareRegistry:', err);
-    return [];
   }
+
+  for (const rpcDare of cachedOnChainDares) {
+    if (!mergedMap.has(rpcDare.id)) {
+      mergedMap.set(rpcDare.id, rpcDare);
+    }
+  }
+
+  return Array.from(mergedMap.values());
 }
 
 

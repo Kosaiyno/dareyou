@@ -362,51 +362,6 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     }
   },
   {
-    name: 'update_dare',
-    description: 'Modifies fields of an unaccepted OPEN dare before it gets locked by an investigator.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        dare_id: { type: 'number', description: 'ID of the dare to update.' },
-        title: { type: 'string', description: 'Updated title (must begin with "Dare you to ").' },
-        claim: { type: 'string', description: 'Updated factual claim.' },
-        required_sources: { type: 'string', description: 'Updated source specifications.' },
-        criteria: { type: 'string', description: 'Updated adjudication rubric.' },
-        stake_usd: { type: 'number', description: 'Updated stake amount in USD.' },
-        duration_minutes: { type: 'number', description: 'Updated research window in minutes.' }
-      },
-      required: ['dare_id'],
-      additionalProperties: false
-    },
-    execute: async (args: {
-      dare_id: number;
-      title?: string;
-      claim?: string;
-      required_sources?: string;
-      criteria?: string;
-      stake_usd?: number;
-      duration_minutes?: number;
-    }) => {
-      const state = useStore.getState();
-      const target = state.dares.find(d => d.id === args.dare_id);
-      if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      if (target.status !== 'OPEN') {
-        return { success: false, message: `Cannot update dare in status "${target.status}". Terms freeze upon acceptance.` };
-      }
-
-      const updates: any = {};
-      if (args.title) updates.title = args.title;
-      if (args.claim) updates.claim = args.claim;
-      if (args.required_sources) updates.requiredSources = args.required_sources;
-      if (args.criteria) updates.criteria = args.criteria;
-      if (args.stake_usd) updates.stakeCents = Math.round(args.stake_usd * 100);
-      if (args.duration_minutes) updates.durationSeconds = Math.round(args.duration_minutes * 60);
-
-      const ok = state.updateDare(args.dare_id, updates);
-      return { success: ok, message: ok ? `Dare #${args.dare_id} successfully updated.` : 'Update failed.' };
-    }
-  },
-  {
     name: 'accept_dare',
     description: 'Accepts an open dare as investigator. Locks matching stake on GenLayer StakeEscrow contract and starts the countdown timer.',
     inputSchema: {
@@ -448,9 +403,10 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         primary_url: { type: 'string', description: 'Primary authoritative archive/regulatory URL.' },
         secondary_url: { type: 'string', description: 'Secondary corroborating journalistic/database URL.' },
         quotes: { type: 'string', description: 'Verbatim quotes extracted from authoritative sources.' },
+        verbatim_quotes: { type: 'string', description: 'Alias for quotes.' },
         reasoning: { type: 'string', description: 'Reasoning defense reconciling sources and criteria.' }
       },
-      required: ['dare_id', 'conclusion', 'primary_url', 'quotes', 'reasoning'],
+      required: ['dare_id', 'conclusion', 'primary_url', 'reasoning'],
       additionalProperties: false
     },
     execute: async (args: {
@@ -458,7 +414,8 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       conclusion: string;
       primary_url: string;
       secondary_url?: string;
-      quotes: string;
+      quotes?: string;
+      verbatim_quotes?: string;
       reasoning: string;
     }) => {
       const state = useStore.getState();
@@ -467,12 +424,20 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       if (target.status !== 'ACCEPTED') {
         return { success: false, message: `Cannot submit evidence for dare in status "${target.status}". Must be ACCEPTED.` };
       }
+      if (isDareExpired(target, Date.now())) {
+        return { success: false, message: `Cannot submit evidence for Dare #${args.dare_id}: the research deadline has already expired. Challenge forfeited.` };
+      }
+
+      const extractedQuotes = args.quotes || args.verbatim_quotes || '';
+      if (!extractedQuotes.trim()) {
+        return { success: false, message: 'Verbatim quotes are required to satisfy the Dare Acceptance Standard.' };
+      }
 
       const dossier: EvidenceData = {
         conclusion: args.conclusion,
         primaryUrl: args.primary_url,
         secondaryUrl: args.secondary_url || 'N/A',
-        quotes: args.quotes,
+        quotes: extractedQuotes,
         reasoning: args.reasoning
       };
 
@@ -486,30 +451,24 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'start_adjudication',
-    description: 'Initiates or fast-tracks multi-LLM validator consensus adjudication on a submitted challenge.',
+    description: 'Initiates multi-LLM validator consensus adjudication on a submitted challenge.',
     inputSchema: {
       type: 'object',
       properties: {
-        dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' },
-        fast_track: { type: 'boolean', description: 'Whether to immediately finalize with verified consensus (default true).' }
+        dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' }
       },
       required: ['dare_id'],
       additionalProperties: false
     },
-    execute: async (args: { dare_id: number; fast_track?: boolean }) => {
+    execute: async (args: { dare_id: number }) => {
       const state = useStore.getState();
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
       if (target.status !== 'SUBMITTED') {
         return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}". Must be SUBMITTED to adjudicate.` };
       }
-      if (args.fast_track !== false) {
-        const ok = state.fastTrackAdjudication(args.dare_id);
-        return { success: ok, message: `Dare #${args.dare_id} fast-tracked and adjudicated. Escrow settled on StudioNet.` };
-      } else {
-        const ok = state.startAdjudication(args.dare_id);
-        return { success: ok, message: `Dare #${args.dare_id} adjudication session initialized.` };
-      }
+      const ok = state.startAdjudication(args.dare_id);
+      return { success: ok, message: `Dare #${args.dare_id} validator consensus adjudication initiated.` };
     }
   },
   {
@@ -537,26 +496,6 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       return {
         success: ok,
         message: `Timeout forfeit processed for Dare #${args.dare_id}. Full escrow pool transferred to challenger.`
-      };
-    }
-  },
-  {
-    name: 'close_dare',
-    description: 'Closes and finalizes an open or active dare, setting its status to FINALIZED (Closed) with an optional verdict rationale.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        dare_id: { type: 'number', description: 'ID of the dare to close.' },
-        rationale: { type: 'string', description: 'Optional rationale for closing the dare.' }
-      },
-      required: ['dare_id'],
-      additionalProperties: false
-    },
-    execute: async (args: { dare_id: number; rationale?: string }) => {
-      const ok = useStore.getState().closeDare(args.dare_id, args.rationale);
-      return {
-        success: ok,
-        message: ok ? `Dare #${args.dare_id} successfully closed and finalized.` : `Failed to close dare #${args.dare_id}.`
       };
     }
   },

@@ -424,7 +424,7 @@ export default function App() {
     store.loadOnChainDares();
     const syncInterval = setInterval(() => {
       store.loadOnChainDares();
-    }, 8000);
+    }, 3500);
     return () => clearInterval(syncInterval);
   }, []);
 

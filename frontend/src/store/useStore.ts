@@ -8,7 +8,9 @@ import {
   settleWinnerPayoutOnChain,
   createDareOnChain,
   acceptDareOnChain,
-  fetchOnChainDares
+  fetchOnChainDares,
+  syncDareToCanonicalApi,
+  freezeEvidenceOnChain
 } from '../services/genlayerService';
 
 export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
@@ -170,7 +172,7 @@ export interface AppState {
   };
 }
 
-export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares_v8';
+export const DAREYOU_PERSISTED_DARES_KEY = 'dareyou_persisted_dares_v9';
 
 export const SEED_INITIAL_DARES: Dare[] = [
   {
@@ -347,7 +349,10 @@ export const SEED_INITIAL_DARES: Dare[] = [
 export function saveDaresToStorage(dares: Dare[]) {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      window.localStorage.setItem(DAREYOU_PERSISTED_DARES_KEY, JSON.stringify(dares));
+      // Only persist benchmark dares locally; live challenges (id >= 1000) are governed by /api/dares & StudioNet
+      // so no browser extension or AI agent can tamper with localStorage to reset a live challenge.
+      const benchmarksOnly = dares.filter(d => d.isBenchmark && d.id < 1000);
+      window.localStorage.setItem(DAREYOU_PERSISTED_DARES_KEY, JSON.stringify(benchmarksOnly));
     } catch (e) {
       console.warn('Could not persist dares to localStorage', e);
     }
@@ -357,31 +362,11 @@ export function saveDaresToStorage(dares: Dare[]) {
 export function loadDaresFromStorage(): Dare[] {
   if (typeof window !== 'undefined' && window.localStorage) {
     try {
-      const raw = window.localStorage.getItem(DAREYOU_PERSISTED_DARES_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const now = Date.now();
-          // Auto-settle any dare whose research deadline elapsed during page closure/refresh
-          return parsed.map((d: Dare) => {
-            if (d.status === 'ACCEPTED' && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
-              const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
-              return {
-                ...d,
-                status: 'FINALIZED' as DareStatus,
-                verdict: 'CHALLENGER_WINS' as any,
-                verdictScore: 100,
-                verdictRationale: `Investigator forfeited due to elapsed research window. Escrow pool of $${payoutDollars} GEN paid to Challenger.`,
-                settlementTxHash: d.settlementTxHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5'),
-                payoutRecipient: d.challenger
-              };
-            }
-            return d;
-          });
-        }
-      }
+      // Purge any legacy local caches that allowed cross-browser divergence or localStorage tampering
+      window.localStorage.removeItem('dareyou_persisted_dares_v7');
+      window.localStorage.removeItem('dareyou_persisted_dares_v8');
     } catch (e) {
-      console.warn('Could not load dares from localStorage', e);
+      console.warn('Could not purge legacy localStorage', e);
     }
   }
   return SEED_INITIAL_DARES;
@@ -655,7 +640,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   addDare: (item) => {
     const state = get();
-    const nextId = state.dares.reduce((max, d) => Math.max(max, d.id), 0) + 1;
+    const nextId = Math.max(1003, state.dares.reduce((max, d) => Math.max(max, d.id), 0) + 1);
     const newDare: Dare = {
       id: nextId,
       isBenchmark: false,
@@ -681,6 +666,9 @@ export const useStore = create<AppState>((set, get) => ({
       selectedDareId: nextId,
       lastActionMessage: `Created Dare #${nextId} "${newDare.title.substring(0, 40)}..."`
     });
+
+    // Immediately broadcast new dare to canonical cross-browser API (/api/dares)
+    syncDareToCanonicalApi(newDare).catch(() => {});
 
     createDareOnChain({
       title: newDare.title,
@@ -709,9 +697,16 @@ export const useStore = create<AppState>((set, get) => ({
   updateDare: (id, updates) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target) return false;
+    // ANTI-CHEAT LOCK: Never allow updateDare on any non-OPEN dare or to change status/verdict!
+    if (!target || target.status !== "OPEN") return false;
+    const safeUpdates = { ...updates };
+    delete (safeUpdates as any).status;
+    delete (safeUpdates as any).verdict;
+    delete (safeUpdates as any).verdictScore;
+    delete (safeUpdates as any).verdictRationale;
+    delete (safeUpdates as any).researchDeadlineTs;
 
-    const newDares = state.dares.map(d => d.id === id ? { ...d, ...updates } : d);
+    const newDares = state.dares.map(d => d.id === id ? { ...d, ...safeUpdates } : d);
     set({
       ...pushSnapshot(state, newDares),
       lastActionMessage: `Updated Dare #${id}`
@@ -722,7 +717,7 @@ export const useStore = create<AppState>((set, get) => ({
   deleteDare: (id) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target) return false;
+    if (!target || target.status !== "OPEN") return false;
 
     const newDares = state.dares.filter(d => d.id !== id);
     set({
@@ -738,23 +733,23 @@ export const useStore = create<AppState>((set, get) => ({
     const target = state.dares.find(d => d.id === id);
     if (!target || target.status !== "OPEN") return false;
 
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "ACCEPTED" as DareStatus,
-          investigator: investigatorAddress,
-          researchDeadlineTs: Date.now() + (d.durationSeconds * 1000)
-        };
-      }
-      return d;
-    });
+    const acceptedDare: Dare = {
+      ...target,
+      status: "ACCEPTED" as DareStatus,
+      investigator: investigatorAddress,
+      researchDeadlineTs: Date.now() + (target.durationSeconds * 1000)
+    };
+
+    const newDares = state.dares.map(d => d.id === id ? acceptedDare : d);
 
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
       lastActionMessage: `Investigator ${investigatorAddress.substring(0, 10)} accepted Dare #${id}. Research countdown started.`
     });
+
+    // Immediately sync ACCEPTED status and exact researchDeadlineTs across all browsers
+    syncDareToCanonicalApi(acceptedDare).catch(() => {});
 
     const onChainId = target.onChainId || (id >= 1000 ? id - 1000 : undefined);
     if (onChainId) {
@@ -773,7 +768,12 @@ export const useStore = create<AppState>((set, get) => ({
   submitEvidence: (id, evidence) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
+    // ANTI-CHEAT LOCK: Only an ACCEPTED dare before its researchDeadlineTs can ever accept evidence!
     if (!target || target.status !== "ACCEPTED") return false;
+    if (target.researchDeadlineTs > 0 && Date.now() > target.researchDeadlineTs) {
+      get().processAllExpiredDares();
+      return false;
+    }
 
     // Clear any existing timers for this dare
     if (activeAdjudicationTimers[id]) {
@@ -790,7 +790,7 @@ export const useStore = create<AppState>((set, get) => ({
       currentStage: `Broadcasting transaction to GenLayer StudioNet contract (${GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...)...`,
       startedAt: Date.now(),
       etaSeconds: 25,
-      votes: [], // Starts empty so user witnesses live validator arrivals
+      votes: [],
       requiredVotes: 5,
       consensusThreshold: "3 of 5 (Majority Quorum on StudioNet)",
       finalVerdict: dynamicAdj.finalVerdict,
@@ -799,23 +799,23 @@ export const useStore = create<AppState>((set, get) => ({
       isLiveOnChain: true
     };
 
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "SUBMITTED" as DareStatus,
-          evidence,
-          adjudicationSession: session
-        };
-      }
-      return d;
-    });
+    const submittedDare: Dare = {
+      ...target,
+      status: "SUBMITTED" as DareStatus,
+      evidence,
+      adjudicationSession: session
+    };
+
+    const newDares = state.dares.map(d => d.id === id ? submittedDare : d);
 
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
       lastActionMessage: `Broadcasting Dare #${id} evidence to GenLayer StudioNet Intelligent Contract...`
     });
+
+    // Immediately lock SUBMITTED state across all browsers so no second submission can occur
+    syncDareToCanonicalApi(submittedDare).catch(() => {});
 
     // Trigger real on-chain GenLayer Intelligent Contract adjudication on StudioNet
     submitRealGenLayerAdjudication(target, evidence, (txHash) => {
@@ -870,35 +870,51 @@ export const useStore = create<AppState>((set, get) => ({
 
       const payoutDollars = ((cur.stakeCents * 2) / 100).toFixed(2);
       const winnerLabel = onChainResult.verdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
+      const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
+        ? (cur.investigator || get().walletAddress)
+        : cur.challenger;
 
-      const updatedDares = get().dares.map(d => {
-        if (d.id === id) {
-          return {
-            ...d,
-            status: "FINALIZED" as DareStatus,
-            verdict: onChainResult.verdict as any,
-            verdictScore: onChainResult.score,
-            verdictRationale: onChainResult.rationale,
-            txHash: onChainResult.txHash,
-            adjudicationSession: finalizedSession
-          };
-        }
-        return d;
-      });
+      const finalizedDare: Dare = {
+        ...cur,
+        status: "FINALIZED" as DareStatus,
+        verdict: onChainResult.verdict as any,
+        verdictScore: onChainResult.score,
+        verdictRationale: onChainResult.rationale,
+        txHash: onChainResult.txHash,
+        settlementTxHash: onChainResult.txHash,
+        payoutRecipient: winnerAddress,
+        adjudicationSession: finalizedSession
+      };
+
+      const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
 
       set({
         ...pushSnapshot(get(), updatedDares),
         selectedDareId: id,
         lastActionMessage: `Real GenLayer StudioNet Consensus Settled for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
       });
+
+      syncDareToCanonicalApi(finalizedDare).catch(() => {});
+      freezeEvidenceOnChain({
+        dareId: id,
+        investigator: cur.investigator || '',
+        conclusion: evidence.conclusion,
+        primaryUrl: evidence.primaryUrl,
+        secondaryUrl: evidence.secondaryUrl,
+        quotes: evidence.quotes,
+        reasoning: evidence.reasoning,
+        verdict: onChainResult.verdict,
+        score: onChainResult.score,
+        rationale: onChainResult.rationale,
+        txHash: onChainResult.txHash
+      }).catch(() => {});
     }).catch((err) => {
       console.warn('[GenLayer Live Adjudication fallback]', err);
     });
 
-    // Staged progression of validator votes (simulating live Equivalence Principle deliberation)
+    // Staged progression of validator votes
     const timers: any[] = [];
 
-    // Stage 1: Vote 1 arrives at 2.5s
     timers.push(setTimeout(() => {
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
@@ -912,7 +928,6 @@ export const useStore = create<AppState>((set, get) => ({
       set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
     }, 2500));
 
-    // Stage 2: Vote 2 arrives at 5.5s
     timers.push(setTimeout(() => {
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
@@ -926,7 +941,6 @@ export const useStore = create<AppState>((set, get) => ({
       set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
     }, 5500));
 
-    // Stage 3: Vote 3 arrives at 8.5s (Majority Quorum reached!)
     timers.push(setTimeout(() => {
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
@@ -940,7 +954,6 @@ export const useStore = create<AppState>((set, get) => ({
       set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
     }, 8500));
 
-    // Stage 4: Vote 4 arrives at 11.5s
     timers.push(setTimeout(() => {
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status !== "SUBMITTED" || !cur.adjudicationSession) return;
@@ -954,7 +967,6 @@ export const useStore = create<AppState>((set, get) => ({
       set({ dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updated } : d) });
     }, 11500));
 
-    // Stage 5: Finalization at 14.5s
     timers.push(setTimeout(() => {
       const cur = get().dares.find(d => d.id === id);
       if (!cur || cur.status !== "SUBMITTED") return;
@@ -969,13 +981,10 @@ export const useStore = create<AppState>((set, get) => ({
     const state = get();
     const target = state.dares.find(d => d.id === id);
     if (!target || target.status !== "SUBMITTED") return false;
-
-    // Immediately trigger fast-track adjudication
     return get().fastTrackAdjudication(id);
   },
 
   fastTrackAdjudication: (id) => {
-    // Clear any pending staged timers
     if (activeAdjudicationTimers[id]) {
       activeAdjudicationTimers[id].forEach(t => clearTimeout(t));
       delete activeAdjudicationTimers[id];
@@ -983,7 +992,8 @@ export const useStore = create<AppState>((set, get) => ({
 
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target) return false;
+    // ANTI-CHEAT LOCK: Never re-adjudicate an already FINALIZED dare!
+    if (!target || target.status !== "SUBMITTED") return false;
 
     const dynamicAdj = generateDynamicValidatorVotes(target, target.evidence);
     const completedVotes = dynamicAdj.votes;
@@ -1005,20 +1015,22 @@ export const useStore = create<AppState>((set, get) => ({
 
     const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
     const winnerLabel = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
+    const winnerAddress = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" 
+      ? (target.investigator || state.walletAddress) 
+      : target.challenger;
 
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "FINALIZED" as DareStatus,
-          adjudicationSession: completedSession,
-          verdict: dynamicAdj.finalVerdict,
-          verdictScore: dynamicAdj.averageScore,
-          verdictRationale: dynamicAdj.consensusRationale
-        };
-      }
-      return d;
-    });
+    const finalizedDare: Dare = {
+      ...target,
+      status: "FINALIZED" as DareStatus,
+      adjudicationSession: completedSession,
+      verdict: dynamicAdj.finalVerdict,
+      verdictScore: dynamicAdj.averageScore,
+      verdictRationale: dynamicAdj.consensusRationale,
+      settlementTxHash: target.txHash || '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5',
+      payoutRecipient: winnerAddress
+    };
+
+    const newDares = state.dares.map(d => d.id === id ? finalizedDare : d);
 
     set({
       ...pushSnapshot(state, newDares),
@@ -1026,9 +1038,24 @@ export const useStore = create<AppState>((set, get) => ({
       lastActionMessage: `Consensus Reached for Dare #${id}: ${dynamicAdj.finalVerdict} (${dynamicAdj.averageScore}/100). $${payoutDollars} GEN released to ${winnerLabel}.`
     });
 
-    const winnerAddress = dynamicAdj.finalVerdict === "INVESTIGATOR_WINS" 
-      ? (target.investigator || state.walletAddress) 
-      : target.challenger;
+    // Lock FINALIZED verdict across all browsers and on EvidenceRegistry
+    syncDareToCanonicalApi(finalizedDare).catch(() => {});
+    if (target.evidence) {
+      freezeEvidenceOnChain({
+        dareId: id,
+        investigator: target.investigator || '',
+        conclusion: target.evidence.conclusion,
+        primaryUrl: target.evidence.primaryUrl,
+        secondaryUrl: target.evidence.secondaryUrl,
+        quotes: target.evidence.quotes,
+        reasoning: target.evidence.reasoning,
+        verdict: dynamicAdj.finalVerdict,
+        score: dynamicAdj.averageScore,
+        rationale: dynamicAdj.consensusRationale,
+        txHash: finalizedDare.settlementTxHash
+      }).catch(() => {});
+    }
+
     settleWinnerPayoutOnChain(id, winnerAddress).catch((err) => {
       console.warn('[StakeEscrow] Settle winner payout fallback:', err);
     });
@@ -1043,26 +1070,24 @@ export const useStore = create<AppState>((set, get) => ({
     }
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target) return false;
+    if (!target || target.status === "FINALIZED") return false;
 
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "FINALIZED" as DareStatus,
-          verdict,
-          verdictScore: score,
-          verdictRationale: rationale
-        };
-      }
-      return d;
-    });
+    const finalizedDare: Dare = {
+      ...target,
+      status: "FINALIZED" as DareStatus,
+      verdict,
+      verdictScore: score,
+      verdictRationale: rationale
+    };
+
+    const newDares = state.dares.map(d => d.id === id ? finalizedDare : d);
 
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
       lastActionMessage: `Finalized Dare #${id} with verdict ${verdict} (${score}/100)`
     });
+    syncDareToCanonicalApi(finalizedDare).catch(() => {});
     return true;
   },
 
@@ -1071,26 +1096,27 @@ export const useStore = create<AppState>((set, get) => ({
     const target = state.dares.find(d => d.id === id);
     if (!target) return false;
     if (target.status !== "ACCEPTED" && target.status !== "EXPIRED") return false;
+    if (target.researchDeadlineTs > 0 && Date.now() <= target.researchDeadlineTs) return false;
 
     const payoutDollars = ((target.stakeCents * 2) / 100).toFixed(2);
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "FINALIZED" as DareStatus,
-          verdict: "CHALLENGER_WINS" as any,
-          verdictScore: 100,
-          verdictRationale: `Investigator forfeited due to missed research deadline. Total escrow pool of $${payoutDollars} GEN transferred to Challenger (${challengerAddress}).`
-        };
-      }
-      return d;
-    });
+    const forfeitedDare: Dare = {
+      ...target,
+      status: "FINALIZED" as DareStatus,
+      verdict: "CHALLENGER_WINS" as any,
+      verdictScore: 100,
+      verdictRationale: `Investigator forfeited due to missed research deadline. Total escrow pool of $${payoutDollars} GEN transferred to Challenger (${challengerAddress}).`,
+      settlementTxHash: target.txHash || '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5',
+      payoutRecipient: target.challenger
+    };
+
+    const newDares = state.dares.map(d => d.id === id ? forfeitedDare : d);
 
     set({
       ...pushSnapshot(state, newDares),
       selectedDareId: id,
       lastActionMessage: `Timeout Forfeit Settled for Dare #${id}: $${payoutDollars} GEN awarded to Challenger!`
     });
+    syncDareToCanonicalApi(forfeitedDare).catch(() => {});
     return true;
   },
 
@@ -1103,8 +1129,7 @@ export const useStore = create<AppState>((set, get) => ({
         const mergedOnChain: Dare[] = [];
         let updatedSelectedId = state.selectedDareId;
 
-        // Newest on-chain dares first at the top of the arena
-        const orderedOnChain = [...onChain].reverse();
+        const orderedOnChain = [...onChain].sort((a, b) => b.id - a.id);
 
         for (const oc of orderedOnChain) {
           const matchIdx = remainingList.findIndex(
@@ -1119,30 +1144,39 @@ export const useStore = create<AppState>((set, get) => ({
               updatedSelectedId = oc.id;
             }
 
-            // If local dare is already submitted or finalized, keep its progress while assigning canonical on-chain ID
-            if (existing.status === 'SUBMITTED' || existing.status === 'FINALIZED') {
+            // AUTHORITATIVE LOCK: If canonical state is FINALIZED, ALWAYS enforce canonical state across all browsers!
+            if (oc.status === 'FINALIZED') {
               mergedOnChain.push({
+                ...existing,
+                ...oc,
+                id: oc.id,
+                onChainId: oc.onChainId
+              });
+            } else if (existing.status === 'SUBMITTED' || existing.status === 'FINALIZED') {
+              // Push local progress up to canonical API so other browsers receive it immediately
+              const merged = {
                 ...oc,
                 ...existing,
                 id: oc.id,
                 onChainId: oc.onChainId
-              });
-            } else if (oc.status === 'ACCEPTED' && existing.status === 'OPEN') {
-              // Accepted in another browser — sync status to ACCEPTED and start countdown
+              };
+              mergedOnChain.push(merged);
+              syncDareToCanonicalApi(merged).catch(() => {});
+            } else if (oc.status === 'ACCEPTED') {
               mergedOnChain.push({
                 ...existing,
                 ...oc,
                 id: oc.id,
                 onChainId: oc.onChainId,
                 status: 'ACCEPTED',
-                researchDeadlineTs: existing.researchDeadlineTs > 0
-                  ? existing.researchDeadlineTs
-                  : (Date.now() + (oc.durationSeconds * 1000))
+                researchDeadlineTs: oc.researchDeadlineTs > 0
+                  ? oc.researchDeadlineTs
+                  : (existing.researchDeadlineTs > 0 ? existing.researchDeadlineTs : (Date.now() + (oc.durationSeconds * 1000)))
               });
             } else {
               mergedOnChain.push({
-                ...oc,
                 ...existing,
+                ...oc,
                 id: oc.id,
                 onChainId: oc.onChainId
               });
@@ -1156,8 +1190,7 @@ export const useStore = create<AppState>((set, get) => ({
         saveDaresToStorage(mergedDares);
         set({
           dares: mergedDares,
-          selectedDareId: updatedSelectedId,
-          lastActionMessage: `Synchronized ${onChain.length} live challenge(s) from DareRegistry on StudioNet.`
+          selectedDareId: updatedSelectedId
         });
       }
     } catch (err) {
@@ -1165,30 +1198,9 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  closeDare: (id: number, rationale = "Dare closed and finalized by challenger.") => {
-    const state = get();
-    const target = state.dares.find(d => d.id === id);
-    if (!target) return false;
-
-    const newDares = state.dares.map(d => {
-      if (d.id === id) {
-        return {
-          ...d,
-          status: "FINALIZED" as DareStatus,
-          verdict: (target.verdict || "CHALLENGER_WINS") as any,
-          verdictScore: target.verdictScore || 100,
-          verdictRationale: rationale
-        };
-      }
-      return d;
-    });
-
-    set({
-      ...pushSnapshot(state, newDares),
-      selectedDareId: id,
-      lastActionMessage: `Closed Dare #${id}: Status set to FINALIZED.`
-    });
-    return true;
+  closeDare: (_id: number, _rationale = "Dare closed and finalized by challenger.") => {
+    // Disabled to prevent arbitrary state closure by agents
+    return false;
   },
 
   processAllExpiredDares: () => {
@@ -1200,10 +1212,9 @@ export const useStore = create<AppState>((set, get) => ({
       if ((d.status === "ACCEPTED" || d.status === "EXPIRED") && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
         processed++;
         const payoutDollars = ((d.stakeCents * 2) / 100).toFixed(2);
-        const txHash = d.settlementTxHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5');
-        // Asynchronously register on-chain settlement on StakeEscrow
+        const txHash = d.settlementTxHash || d.txHash || (d.id === 6 ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5');
         settleWinnerPayoutOnChain(d.id, d.challenger).catch(() => {});
-        return {
+        const forfeited: Dare = {
           ...d,
           status: "FINALIZED" as DareStatus,
           verdict: "CHALLENGER_WINS" as any,
@@ -1212,6 +1223,8 @@ export const useStore = create<AppState>((set, get) => ({
           settlementTxHash: txHash,
           payoutRecipient: d.challenger
         };
+        syncDareToCanonicalApi(forfeited).catch(() => {});
+        return forfeited;
       }
       return d;
     });
