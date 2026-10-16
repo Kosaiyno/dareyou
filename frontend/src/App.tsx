@@ -2799,12 +2799,12 @@ export default function App() {
                         </a>
                       </div>
 
-                      {/* Auto-Payout Confirmation Badge */}
+                      {/* Settlement Confirmation Badge */}
                       {isUserWinner && (
                         <div className="pt-1.5">
                           <div className="p-2.5 rounded-xl bg-emerald-100/90 border border-emerald-300 text-emerald-900 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-2xs">
                             <Check className="w-4 h-4 text-emerald-700" />
-                            <span>Auto-Released: +${payoutDollars} GEN Credited Directly to Your Connected Wallet</span>
+                            <span>On-Chain Settlement Finalized: ${payoutDollars} GEN Escrow Awarded to Winner (Protocol Record)</span>
                           </div>
                         </div>
                       )}
