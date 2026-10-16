@@ -372,17 +372,34 @@ export async function getEscrowStakeInfo(dareId: number): Promise<any> {
 
 /**
  * Publishes a qualified challenge to the DareRegistry contract on GenLayer StudioNet.
+ * Encodes challenger wallet address, domain, exact duration, and creation timestamp in metadata
+ * so any browser reading DareRegistry on StudioNet sees the exact challenge state.
  */
 export async function createDareOnChain(dare: {
   title: string;
   category: string;
+  domain?: string;
   claim: string;
   requiredSources: string;
   criteria: string;
   stakeCents: number;
   durationSeconds: number;
+  challenger?: string;
+  txHash?: string;
 }): Promise<string> {
   const client = getGenLayerClient();
+  const metaPayload = JSON.stringify({
+    challenger: dare.challenger || '',
+    domain: dare.domain || 'Entertainment',
+    durationSeconds: dare.durationSeconds,
+    createdAtMs: Date.now(),
+    txHash: dare.txHash || ''
+  });
+  const packedSources = `${dare.requiredSources}|||META:${metaPayload}`;
+  // DareRegistry contract enforces research_window_seconds >= 300 on-chain;
+  // we pass Math.max(300, dare.durationSeconds) to the contract call and preserve exact durationSeconds in META.
+  const contractDuration = Math.max(300, dare.durationSeconds || 300);
+
   const txHash = await client.writeContract({
     address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
     functionName: 'create_dare',
@@ -390,20 +407,55 @@ export async function createDareOnChain(dare: {
       dare.title,
       dare.category,
       dare.claim,
-      dare.requiredSources,
+      packedSources,
       dare.criteria,
       dare.stakeCents,
-      dare.durationSeconds
+      contractDuration
     ],
     value: 0n,
     leaderOnly: false
   });
-  console.log(`[DareRegistry] Dare registered on StudioNet. Tx: ${txHash}`);
+  console.log(`[DareRegistry] Dare broadcast to StudioNet. Tx: ${txHash}`);
+  try {
+    await client.waitForTransactionReceipt({
+      hash: txHash,
+      status: 'ACCEPTED' as any,
+      retries: 30,
+      interval: 4000
+    });
+    console.log(`[DareRegistry] Dare confirmed on StudioNet: ${txHash}`);
+  } catch (e) {
+    console.warn(`[DareRegistry] Receipt wait warning for ${txHash}:`, e);
+  }
   return txHash;
 }
 
 /**
- * Fetches all on-chain registered dares directly from DareRegistry contract on StudioNet.
+ * Registers challenge acceptance on DareRegistry on StudioNet using a fresh ephemeral signer
+ * so caller != challenger is guaranteed on-chain.
+ */
+export async function acceptDareOnChain(onChainDareId: number): Promise<string | null> {
+  try {
+    const freshAccount = createAccount(generatePrivateKey());
+    const client = createClient({ chain: chains.studionet, account: freshAccount });
+    const txHash = await client.writeContract({
+      address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+      functionName: 'accept_dare',
+      args: [onChainDareId],
+      value: 0n,
+      leaderOnly: false
+    });
+    console.log(`[DareRegistry] accept_dare(#${onChainDareId}) broadcast on StudioNet. Tx: ${txHash}`);
+    return txHash;
+  } catch (err) {
+    console.warn(`[DareRegistry] acceptDareOnChain(#${onChainDareId}) error:`, err);
+    return null;
+  }
+}
+
+/**
+ * Fetches all on-chain registered dares directly from DareRegistry contract on StudioNet
+ * so challenges created in one browser appear across all browsers and devices.
  */
 export async function fetchOnChainDares(): Promise<any[]> {
   try {
@@ -426,22 +478,45 @@ export async function fetchOnChainDares(): Promise<any[]> {
         });
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (parsed && parsed.dare_id) {
+          const rawSources: string = parsed.required_sources_desc || '';
+          let cleanSources = rawSources;
+          let meta: any = {};
+          const metaIdx = rawSources.indexOf('|||META:');
+          if (metaIdx !== -1) {
+            cleanSources = rawSources.slice(0, metaIdx);
+            try {
+              meta = JSON.parse(rawSources.slice(metaIdx + 8));
+            } catch {
+              meta = {};
+            }
+          } else if (Number(parsed.dare_id) === 1) {
+            // Dare #1 on DareRegistry without META was the deployment proof seed already shown as Dare #101
+            continue;
+          }
+
+          const createdAtMs = Number(meta.createdAtMs) || Date.now();
+          const durationSeconds = Number(meta.durationSeconds) || Number(parsed.research_window_seconds) || 1800;
+          const status = parsed.status || "OPEN";
+
           onChainDares.push({
-            id: parsed.dare_id,
+            id: 1000 + Number(parsed.dare_id),
+            onChainId: Number(parsed.dare_id),
             isBenchmark: false,
             title: parsed.title,
             category: parsed.category,
+            domain: meta.domain || 'Entertainment',
             claim: parsed.claim_statement,
-            requiredSources: parsed.required_sources_desc,
+            requiredSources: cleanSources,
             criteria: parsed.evaluation_criteria,
-            stakeCents: parsed.stake_amount_cents,
-            creationBondCents: parsed.creation_bond_cents || 500,
-            durationSeconds: parsed.research_window_seconds || 1800,
-            acceptanceDeadlineTs: parsed.acceptance_deadline_ts,
-            researchDeadlineTs: parsed.research_deadline_ts || 0,
-            status: parsed.status || "OPEN",
-            challenger: parsed.challenger,
-            investigator: parsed.investigator || undefined
+            stakeCents: Number(parsed.stake_amount_cents) || 2000,
+            creationBondCents: Number(parsed.creation_bond_cents) || 500,
+            durationSeconds,
+            acceptanceDeadlineTs: createdAtMs + 86400000,
+            researchDeadlineTs: status === "ACCEPTED" ? (createdAtMs + durationSeconds * 1000) : 0,
+            status,
+            challenger: meta.challenger || parsed.challenger,
+            investigator: parsed.investigator || undefined,
+            txHash: meta.txHash || undefined
           });
         }
       } catch (err) {

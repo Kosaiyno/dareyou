@@ -7,6 +7,7 @@ import {
   depositInvestigatorStakeOnChain,
   settleWinnerPayoutOnChain,
   createDareOnChain,
+  acceptDareOnChain,
   fetchOnChainDares
 } from '../services/genlayerService';
 
@@ -65,6 +66,7 @@ export interface AdjudicationSession {
 
 export interface Dare {
   id: number;
+  onChainId?: number;
   isBenchmark: boolean;
   title: string;
   category: DareCategory;
@@ -124,12 +126,14 @@ export interface AppState {
   addDare: (item: {
     title: string;
     category: DareCategory;
+    domain?: string;
     claim: string;
     requiredSources: string;
     criteria: string;
     stakeCents: number;
     durationSeconds: number;
     challenger?: string;
+    txHash?: string;
   }) => number;
 
   updateDare: (id: number, updates: Partial<Dare>) => boolean;
@@ -657,6 +661,7 @@ export const useStore = create<AppState>((set, get) => ({
       isBenchmark: false,
       title: item.title.trim(),
       category: item.category,
+      domain: item.domain || 'Entertainment',
       claim: item.claim.trim(),
       requiredSources: item.requiredSources.trim(),
       criteria: item.criteria.trim(),
@@ -666,7 +671,8 @@ export const useStore = create<AppState>((set, get) => ({
       acceptanceDeadlineTs: Date.now() + 86400000,
       researchDeadlineTs: 0,
       status: "OPEN",
-      challenger: item.challenger || state.walletAddress
+      challenger: item.challenger || state.walletAddress,
+      txHash: item.txHash
     };
 
     const newDares = [newDare, ...state.dares];
@@ -679,11 +685,16 @@ export const useStore = create<AppState>((set, get) => ({
     createDareOnChain({
       title: newDare.title,
       category: newDare.category,
+      domain: newDare.domain,
       claim: newDare.claim,
       requiredSources: newDare.requiredSources,
       criteria: newDare.criteria,
       stakeCents: newDare.stakeCents,
-      durationSeconds: newDare.durationSeconds
+      durationSeconds: newDare.durationSeconds,
+      challenger: newDare.challenger,
+      txHash: newDare.txHash
+    }).then(() => {
+      get().loadOnChainDares();
     }).catch((err) => {
       console.warn('[DareRegistry] create_dare on-chain fallback:', err);
     });
@@ -744,6 +755,13 @@ export const useStore = create<AppState>((set, get) => ({
       selectedDareId: id,
       lastActionMessage: `Investigator ${investigatorAddress.substring(0, 10)} accepted Dare #${id}. Research countdown started.`
     });
+
+    const onChainId = target.onChainId || (id >= 1000 ? id - 1000 : undefined);
+    if (onChainId) {
+      acceptDareOnChain(onChainId).catch((err) => {
+        console.warn('[DareRegistry] accept_dare fallback:', err);
+      });
+    }
 
     depositInvestigatorStakeOnChain(id, investigatorAddress, target.stakeCents).catch((err) => {
       console.warn('[StakeEscrow] Deposit investigator stake fallback:', err);
@@ -1081,52 +1099,65 @@ export const useStore = create<AppState>((set, get) => ({
       const onChain = await fetchOnChainDares();
       if (onChain && onChain.length > 0) {
         const state = get();
-        const existingMap = new Map(state.dares.map(d => [d.id, d]));
-        const mergedDares: Dare[] = [];
+        const remainingList = [...state.dares];
+        const mergedOnChain: Dare[] = [];
+        let updatedSelectedId = state.selectedDareId;
 
-        for (const oc of onChain) {
-          const existing = existingMap.get(oc.id);
-          if (existing) {
-            // If existing local dare is already finalized/closed or in progress, preserve its state!
-            if (existing.status !== 'OPEN') {
-              mergedDares.push(existing);
-            } else if (oc.id === 1) {
-              // Ensure Dare #1 stays finalized/closed as requested by user
-              mergedDares.push({
+        // Newest on-chain dares first at the top of the arena
+        const orderedOnChain = [...onChain].reverse();
+
+        for (const oc of orderedOnChain) {
+          const matchIdx = remainingList.findIndex(
+            d => d.id === oc.id || (!d.isBenchmark && d.title.trim().toLowerCase() === oc.title.trim().toLowerCase())
+          );
+
+          if (matchIdx !== -1) {
+            const existing = remainingList[matchIdx];
+            remainingList.splice(matchIdx, 1);
+
+            if (updatedSelectedId === existing.id) {
+              updatedSelectedId = oc.id;
+            }
+
+            // If local dare is already submitted or finalized, keep its progress while assigning canonical on-chain ID
+            if (existing.status === 'SUBMITTED' || existing.status === 'FINALIZED') {
+              mergedOnChain.push({
                 ...oc,
-                status: 'FINALIZED',
-                verdict: 'CHALLENGER_WINS',
-                verdictScore: 26,
-                verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger."
+                ...existing,
+                id: oc.id,
+                onChainId: oc.onChainId
+              });
+            } else if (oc.status === 'ACCEPTED' && existing.status === 'OPEN') {
+              // Accepted in another browser — sync status to ACCEPTED and start countdown
+              mergedOnChain.push({
+                ...existing,
+                ...oc,
+                id: oc.id,
+                onChainId: oc.onChainId,
+                status: 'ACCEPTED',
+                researchDeadlineTs: existing.researchDeadlineTs > 0
+                  ? existing.researchDeadlineTs
+                  : (Date.now() + (oc.durationSeconds * 1000))
               });
             } else {
-              mergedDares.push({ ...oc, ...existing });
+              mergedOnChain.push({
+                ...oc,
+                ...existing,
+                id: oc.id,
+                onChainId: oc.onChainId
+              });
             }
-            existingMap.delete(oc.id);
           } else {
-            if (oc.id === 1) {
-              mergedDares.push({
-                ...oc,
-                status: 'FINALIZED',
-                verdict: 'CHALLENGER_WINS',
-                verdictScore: 26,
-                verdictRationale: "Heterogeneous validator rotation rejected evidence dossier: Source 'dareyou.vercel.app' is an unverified self-referential or sandbox domain, not an independent primary record. Criteria unsatisfied. Escrow pool awarded to Challenger."
-              });
-            } else {
-              mergedDares.push(oc);
-            }
+            mergedOnChain.push(oc);
           }
         }
 
-        for (const remaining of existingMap.values()) {
-          mergedDares.push(remaining);
-        }
-
+        const mergedDares = [...mergedOnChain, ...remainingList];
         saveDaresToStorage(mergedDares);
         set({
           dares: mergedDares,
-          selectedDareId: state.selectedDareId || mergedDares.find(d => d.status === 'OPEN')?.id || mergedDares[0]?.id || null,
-          lastActionMessage: `Synchronized ${onChain.length} verified challenge(s) from DareRegistry contract.`
+          selectedDareId: updatedSelectedId,
+          lastActionMessage: `Synchronized ${onChain.length} live challenge(s) from DareRegistry on StudioNet.`
         });
       }
     } catch (err) {

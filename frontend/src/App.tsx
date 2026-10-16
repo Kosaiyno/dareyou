@@ -419,6 +419,15 @@ export default function App() {
     }
   }, []);
 
+  // Synchronize live challenges from DareRegistry on GenLayer StudioNet across all browsers/devices
+  useEffect(() => {
+    store.loadOnChainDares();
+    const syncInterval = setInterval(() => {
+      store.loadOnChainDares();
+    }, 8000);
+    return () => clearInterval(syncInterval);
+  }, []);
+
   // Periodic background check to automatically settle and close expired research windows
   useEffect(() => {
     const timer = setInterval(() => {
@@ -514,17 +523,19 @@ export default function App() {
       const newId = store.addDare({
         title: createTitle,
         category: createCategory,
+        domain: createDomain,
         claim: createClaim,
         requiredSources: createSources,
         criteria: createCriteria,
         stakeCents: Math.round(parseFloat(createStakeUsd) * 100),
         durationSeconds: computedDurationSeconds,
-        challenger: walletAddress
+        challenger: walletAddress,
+        txHash: realTxHash
       });
 
       setTxState({
         active: true,
-        message: `Step 3/3: Challenge #${newId} broadcast on GenLayer StudioNet! Stake locked (Tx: ${realTxHash.slice(0, 10)}...).`,
+        message: `Step 3/3: Registering Challenge #${newId} on GenLayer StudioNet DareRegistry (Tx: ${realTxHash.slice(0, 10)}...)...`,
         step: 3,
         txHash: realTxHash
       });
