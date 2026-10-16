@@ -2,18 +2,18 @@
   "NetworkProbe": {
     "name": "NetworkProbe",
     "file": "probe_network.py",
-    "address": "0x95D18a8e32030696083522191763Ef6afAa5921B",
-    "txHash": "0xbaad0119e8a3ecff8a389fbcc3882f091e2fe6d55eb71c16c13b3cc705a5f28d",
+    "address": "0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691",
+    "txHash": "0x6e8886c0c2b932c397628b27f8c68f975fd699ebef91129b0ef4b446a91769f8",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
+      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
       "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
+      "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
       "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
-      "0x5310dcF075E0BD47d29B8ec6581F736C767f54D2",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
-      "0x3E5ee2507cc167C9925Bf10c67D7986581112024"
+      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x95D18a8e32030696083522191763Ef6afAa5921B"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691"
   },
   "DarePolicy": {
     "name": "DarePolicy",
@@ -82,49 +82,49 @@
   "DareQualifier": {
     "name": "DareQualifier",
     "file": "dare_qualifier.py",
-    "address": "0x83500594b6eAd73e578a6A2f32e642f2D578D4F2",
-    "txHash": "0xc04bab20270ff853458ebf3a9dc514c04bf77f0109511fafcdd67740423051ff",
+    "address": "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145",
+    "txHash": "0x567f44fbee9adb88baea644726ddc28aeabbcc3ff47a6193c0a5af1903004a0a",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC",
-      "0x3E5ee2507cc167C9925Bf10c67D7986581112024",
+      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
       "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
-      "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
-      "0x4404Fb70d490c935758146f42A73DC850FF95C71"
+      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+      "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
+      "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x83500594b6eAd73e578a6A2f32e642f2D578D4F2"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145"
   },
   "DareAdjudicator": {
     "name": "DareAdjudicator",
     "file": "dare_adjudicator.py",
-    "address": "0x34E64141C1F7101200c280Fa9b765b4b2070129c",
-    "txHash": "0xf419b1bfb149d63bba746396de045093683e626df15fed430667b881530f9cb3",
+    "address": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
+    "txHash": "0xed84846efa39c6fb05c0a99731911afa3ad5836a7fd297f31cc47d8172433774",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x3D83ab507785b95ca5C208bEc80CCe3D5ca98100",
-      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
-      "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84",
-      "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
-      "0x90402341F0B0e97b23023c0a87de957FB7148E0F"
+      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+      "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
+      "0x9ea87b28DcA2F79fe108CF06a4c13B4c876AC23d",
+      "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
+      "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x34E64141C1F7101200c280Fa9b765b4b2070129c"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757"
   },
   "DareRegistry": {
     "name": "DareRegistry",
     "file": "dare_registry.py",
-    "address": "0x66f59361D3B810B7d83E7E67B7Cb9321970Bc450",
-    "txHash": "0x1c66f25619eaa167aa959eed60812a789eb610db9f24ec71705afe4742dbde99",
+    "address": "0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C",
+    "txHash": "0x0f204c17d61da17209575f2aa73204cce2260991b95ef4f3c3c543f2434ed25e",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0xacc2459F341D7a887bcA8FAA62F1EC9378d4Bc67",
-      "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
-      "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
-      "0x3E5ee2507cc167C9925Bf10c67D7986581112024",
-      "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
+      "0xec2Fb79cd12255Eb34886CEd7332f27B98DEe658",
+      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
+      "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
+      "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC",
+      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x66f59361D3B810B7d83E7E67B7Cb9321970Bc450"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C"
   }
 }

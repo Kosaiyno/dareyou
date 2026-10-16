@@ -147,6 +147,9 @@ class DareRegistry(gl.Contract):
 
         acceptance_deadline = current_ts + int(acceptance_window_seconds)
 
+        canonical_rules = f"{clean_cat}|{str(title).strip()}|{str(claim_statement).strip()}|{str(required_sources_desc).strip()}|{str(evaluation_criteria).strip()}"
+        rules_sha256 = hashlib.sha256(canonical_rules.encode("utf-8")).hexdigest()
+
         dare_record = {
             "dare_id": int(new_id),
             "challenger": str(gl.message.sender_address),
@@ -156,6 +159,7 @@ class DareRegistry(gl.Contract):
             "claim_statement": str(claim_statement).strip(),
             "required_sources_desc": str(required_sources_desc).strip(),
             "evaluation_criteria": str(evaluation_criteria).strip(),
+            "rules_sha256": rules_sha256,
             "stake_amount_cents": int(stake_amount_cents),
             "creation_bond_cents": int(creation_bond_cents),
             "acceptance_window_seconds": int(acceptance_window_seconds),
@@ -163,6 +167,7 @@ class DareRegistry(gl.Contract):
             "acceptance_deadline_ts": acceptance_deadline,
             "research_deadline_ts": 0,
             "submission_deadline_ts": 0,
+            "adjudication_grace_deadline_ts": 0,
             "status": "OPEN",
             "created_at": current_ts,
             "accepted_at": 0,
@@ -240,6 +245,7 @@ class DareRegistry(gl.Contract):
 
         dare["status"] = "SUBMITTED"
         dare["submitted_at"] = current_ts
+        dare["adjudication_grace_deadline_ts"] = current_ts + 3600
         self.dares[d_key] = json.dumps(dare)
         return True
 
@@ -267,6 +273,37 @@ class DareRegistry(gl.Contract):
         dare["status"] = "FINALIZED"
         dare["verdict"] = "FORFEIT_TIMEOUT"
         dare["winner"] = dare.get("challenger")
+        self.dares[d_key] = json.dumps(dare)
+        return True
+
+    @gl.public.write
+    def claim_stuck_adjudication_fallback(self, dare_id: int) -> bool:
+        """
+        Deterministic fallback if adjudication remains unjudged past close + grace period.
+        Counts unjudged entry as INSUFFICIENT_EVIDENCE (INCONCLUSIVE) and settles via split refund
+        so funds can never lock forever.
+        """
+        d_key = u256(dare_id)
+        if d_key not in self.dares:
+            raise ValueError(f"Dare {dare_id} does not exist")
+
+        dare = json.loads(self.dares[d_key])
+        if dare.get("status") not in ["SUBMITTED", "ADJUDICATING"]:
+            raise ValueError(f"Cannot trigger adjudication fallback on dare in status '{dare.get('status')}'")
+
+        current_ts = 0
+        try:
+            current_ts = int(gl.block.timestamp)
+        except Exception:
+            pass
+
+        grace_deadline = dare.get("adjudication_grace_deadline_ts", 0)
+        if current_ts <= grace_deadline and grace_deadline > 0:
+            raise ValueError(f"Adjudication grace period has not elapsed yet. Current: {current_ts}, Grace Deadline: {grace_deadline}")
+
+        dare["status"] = "FINALIZED"
+        dare["verdict"] = "INCONCLUSIVE"
+        dare["winner"] = "SPLIT_REFUND"
         self.dares[d_key] = json.dumps(dare)
         return True
 

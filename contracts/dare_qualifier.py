@@ -2,26 +2,17 @@
 from genlayer import *
 import typing
 import json
+import hashlib
 
 class DareQualifier(gl.Contract):
     """
     DareQualifier is the GenLayer Intelligent Contract responsible for Challenge Qualification.
-    
-    Core Principle:
-    A challenge must NEVER enter the DareYou public arena unless independent GenLayer
-    validators confirm that it demands substantive research, observable criteria,
-    and multiple authoritative sources.
-    
-    Rubric Pillars:
-    1. Research Depth & Non-Obviousness: Excludes basic stat lookups, obvious facts, and trivial yes/no trivia.
-    2. Source Diversity & Feasibility: Requires multi-source corroboration via permanent archives (Wayback id_, official reports).
-    3. Factual Verifiability: Rejects future prediction questions, subjective opinions, and unfalsifiable claims.
-    4. Anti-Gaming: Catches trivial questions disguised with verbose wording or irrelevant source lists.
-    
-    Constrained Output:
-    - APPROVED: Substantive, fair, verifiable research challenge.
-    - REJECTED: Trivial, predictive, opinion-based, impossible, or gaming attempt.
-    - NEEDS_REVISION: Meaningful inquiry but criteria are ambiguous or source requirements are defective.
+
+    Design Rules Enforced:
+    1. Rejects vague or unobservable inputs up front before a challenge can open.
+    2. The LLM never sets numeric scores or amounts: it returns a small fixed categorical
+       decision ('APPROVED', 'REJECTED', 'NEEDS_REVISION') plus boolean criteria checks.
+    3. Deterministic Python code maps the categorical decision to a frozen rules hash.
     """
     owner: Address
     qualification_records: TreeMap[str, str]
@@ -31,7 +22,7 @@ class DareQualifier(gl.Contract):
 
     @gl.public.view
     def get_qualification(self, content_hash: str) -> str:
-        clean_hash = str(content_hash)
+        clean_hash = str(content_hash).strip()
         if clean_hash in self.qualification_records:
             return str(self.qualification_records[clean_hash])
         return "Qualification record not found"
@@ -53,93 +44,115 @@ class DareQualifier(gl.Contract):
         clean_sources = str(required_sources_desc).strip()
         clean_criteria = str(evaluation_criteria).strip()
 
-        # Format check: Must begin with 'Dare you to '
+        # 1. Deterministic Format Check: Must begin with 'Dare you to '
         if not clean_title.lower().startswith("dare you to "):
             auto_reject = json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 0,
-                "non_obvious": False,
-                "verifiable": False,
-                "rationale": "Format Failure: Dares MUST begin with 'Dare you to...' as a single complete instruction."
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
+                "rules_sha256": "",
+                "rationale": "Format Failure: Every dare MUST begin with 'Dare you to...' as a single complete instruction."
             })
             self.qualification_records[clean_hash] = auto_reject
             return auto_reject
 
+        # 2. Deterministic Vague / Subjective Input Filter
+        combined_lower = (clean_title + " " + clean_claim + " " + clean_criteria).lower()
+        vague_phrases = [
+            "who is the best",
+            "most underrated",
+            "good progress",
+            "high quality work",
+            "who argued better",
+            "in your opinion"
+        ]
+        for phrase in vague_phrases:
+            if phrase in combined_lower or len(clean_criteria) < 20:
+                vague_reject = json.dumps({
+                    "decision": "REJECTED",
+                    "observable_criteria": False,
+                    "immutable_source_feasible": False,
+                    "rules_sha256": "",
+                    "rationale": "Rejected up front: Criteria contain vague, subjective, or unobservable terms."
+                })
+                self.qualification_records[clean_hash] = vague_reject
+                return vague_reject
+
+        # Compute deterministic SHA-256 rules hash to freeze the agreement specification
+        canonical_spec = f"{clean_cat}|{clean_title}|{clean_claim}|{clean_sources}|{clean_criteria}"
+        rules_sha256 = hashlib.sha256(canonical_spec.encode("utf-8")).hexdigest()
+
         def get_input() -> str:
             return (
-                f"=== PROPOSED DAREYOU FOOTBALL CHALLENGE ===\n"
-                f"Content Hash: {clean_hash}\n"
+                f"=== PROPOSED DAREYOU CHALLENGE SPECIFICATION ===\n"
                 f"Category: {clean_cat}\n"
-                f"Continuous Dare Instruction: {clean_title}\n"
-                f"Factual Claim to Investigate: {clean_claim}\n"
-                f"Required Sources Specification: {clean_sources}\n"
-                f"Success / Adjudication Criteria: {clean_criteria}\n\n"
-                f"=== MANDATORY ACCEPTANCE RUBRIC (ALL 8 MUST PASS) ===\n"
-                f"1. Concrete & Identifiable Subject: Real, specific football event, transfer, or controversy.\n"
-                f"2. Substantive Research Difficulty: Requires deep source comparison, methodology discrepancy, or evidence synthesis. REJECT trivia, basic lookups, obvious yes/no questions, or tasks answerable from 1 quick search.\n"
-                f"3. Factual Legitimacy: Based on real events, not invented controversies or false premises.\n"
-                f"4. Accessible Evidence: Verifiable via public archives or tools (no private/secret footage).\n"
-                f"5. Clear Deliverable: Explicitly states what responding agent must establish, reconstruct, compare, or explain.\n"
-                f"6. Verifiable Success Criteria: Objective outcome evaluable by an independent adjudicator (no subjective taste or 'best/underrated').\n"
-                f"7. Reasonable Time Constraint: Suitable for stated research window (typically 20-45 mins).\n"
-                f"8. Fair & Bounded Scope: Finite, constrained task.\n\n"
-                f"=== QUALIFICATION DECISIONS ===\n"
-                f"- APPROVED: All 8 mandatory criteria fully satisfied. Genuine substantive football investigation.\n"
-                f"- REJECTED: Fails any criterion: basic trivia, future prediction, subjective opinion, impossible task, or disguised spam.\n"
-                f"- NEEDS_REVISION: Meaningful inquiry but criteria are ambiguous or scope is unbounded."
+                f"Dare Instruction: {clean_title}\n"
+                f"Factual Claim: {clean_claim}\n"
+                f"Required Immutable Sources: {clean_sources}\n"
+                f"Observable Evaluation Criteria: {clean_criteria}\n\n"
+                f"=== QUALIFICATION RUBRIC ===\n"
+                f"1. Observable Criteria: Must specify concrete, falsifiable facts (dates, filings, verbatim text, or archival discrepancies), NOT subjective opinions or vague goals.\n"
+                f"2. Immutable Source Feasibility: Must be verifiable via public immutable archives (Archive.org id_ snapshots, Wikipedia oldid revisions, SEC/Companies House filings, or pinned GitHub commits).\n"
+                f"3. Non-Trivial Scope: Must require genuine source cross-referencing rather than subjective taste or future speculation."
             )
 
         raw_result = gl.eq_principle.prompt_non_comparative(
             get_input,
             task=(
-                f"Act as an elite academic peer-review arbiter for football intelligence challenges. "
-                f"Evaluate if proposed dare '{clean_title}' satisfies all 8 mandatory acceptance criteria. "
-                f"Output a valid JSON object with keys: "
-                f"'decision' ('APPROVED', 'REJECTED', or 'NEEDS_REVISION'), "
-                f"'depth_score' (integer 0-100), "
-                f"'non_obvious' (boolean), "
-                f"'verifiable' (boolean), "
-                f"'rationale' (concise 1-2 sentence explanation)."
+                "Evaluate whether this proposed challenge has observable, checkable criteria and feasible immutable sources. "
+                "Do NOT output any numeric scores or prices. "
+                "Output ONLY a valid JSON object with keys: "
+                "'decision' ('APPROVED', 'REJECTED', or 'NEEDS_REVISION'), "
+                "'observable_criteria' (boolean), "
+                "'immutable_source_feasible' (boolean), and "
+                "'rationale' (1 sentence explanation)."
             ),
             criteria="""
-                1. The output is a valid JSON object with keys: decision, depth_score, non_obvious, verifiable, and rationale.
-                2. The decision is exactly one of: APPROVED, REJECTED, or NEEDS_REVISION.
-                3. If the dare is basic trivia, simple lookup, future prediction, subjective debate, or obvious fact, decision is REJECTED.
-                4. If the dare is a difficult, verifiable, multi-source investigation with a clear deliverable and time limit, decision is APPROVED.
-                5. If the factual inquiry is worthwhile but criteria are vague or unobservable, decision is NEEDS_REVISION.
-            """,
+                1. Output is valid JSON with keys: decision, observable_criteria, immutable_source_feasible, rationale.
+                2. decision is strictly one of: APPROVED, REJECTED, NEEDS_REVISION.
+                3. Reject anything subjective, unobservable, or based on future events.
+                4. Approve only when criteria are concrete, checkable against public archival evidence, and unambiguous.
+            """
         )
 
         result_str = str(raw_result).strip()
-
-        # Sanitize code blocks if returned
         clean_json_str = result_str
-        if "```" in clean_json_str:
-            first_brace = clean_json_str.find("{")
-            last_brace = clean_json_str.rfind("}")
-            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-                clean_json_str = clean_json_str[first_brace : last_brace + 1]
-        elif not clean_json_str.startswith("{"):
+        if "```" in clean_json_str or not clean_json_str.startswith("{"):
             first_brace = clean_json_str.find("{")
             last_brace = clean_json_str.rfind("}")
             if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
                 clean_json_str = clean_json_str[first_brace : last_brace + 1]
 
-        decision = "REJECTED"
+        # Deterministic code maps the LLM's categorical judgment to the final frozen record
         try:
             parsed = json.loads(clean_json_str)
             raw_d = str(parsed.get("decision", "REJECTED")).upper().strip()
-            if raw_d in ["APPROVED", "REJECTED", "NEEDS_REVISION"]:
-                decision = raw_d
+            obs = bool(parsed.get("observable_criteria", False))
+            feas = bool(parsed.get("immutable_source_feasible", False))
+            rat = str(parsed.get("rationale", "Evaluated by GenLayer validator consensus."))
+
+            if raw_d == "APPROVED" and obs and feas:
+                final_decision = "APPROVED"
+            elif raw_d == "NEEDS_REVISION":
+                final_decision = "NEEDS_REVISION"
+            else:
+                final_decision = "REJECTED"
+
+            final_record = json.dumps({
+                "decision": final_decision,
+                "observable_criteria": obs,
+                "immutable_source_feasible": feas,
+                "rules_sha256": rules_sha256 if final_decision == "APPROVED" else "",
+                "rationale": rat
+            })
         except Exception:
-            decision = "REJECTED"
-            clean_json_str = json.dumps({
+            final_record = json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 0,
-                "non_obvious": False,
-                "verifiable": False,
-                "rationale": "Qualification evaluation failed output parsing requirements."
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
+                "rules_sha256": "",
+                "rationale": "Qualification output failed strict JSON schema validation."
             })
 
-        self.qualification_records[clean_hash] = clean_json_str
-        return clean_json_str
+        self.qualification_records[clean_hash] = final_record
+        return final_record

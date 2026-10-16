@@ -1,0 +1,219 @@
+{
+  "project": "DareYou — Decentralized AI & Human Fact-Checking Duel Protocol",
+  "network": {
+    "name": "GenLayer StudioNet",
+    "chainId": 61999,
+    "rpcUrl": "https://studio.genlayer.com/api",
+    "explorerUrl": "https://explorer-studio.genlayer.com"
+  },
+  "genvmRunnerHash": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6",
+  "sourceCommit": "26a440eb49ac356b1111552ee9bfa9f4c80139b4",
+  "generatedAt": "2026-10-16T12:34:54.266Z",
+  "deployerAddress": "0xBbb414E6867d8bb1c81b169AE53Dc453945e19f4",
+  "contracts": {
+    "NetworkProbe": {
+      "name": "NetworkProbe",
+      "file": "probe_network.py",
+      "address": "0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691",
+      "txHash": "0x6e8886c0c2b932c397628b27f8c68f975fd699ebef91129b0ef4b446a91769f8",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
+        "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
+        "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
+        "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691"
+    },
+    "DarePolicy": {
+      "name": "DarePolicy",
+      "file": "dare_policy.py",
+      "address": "0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE",
+      "txHash": "0x6ab5d53036ab826c95e12fcadb203992dfbda889bf9f346aa4dd076969c96c31",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+        "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
+        "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
+        "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE"
+    },
+    "StakeEscrow": {
+      "name": "StakeEscrow",
+      "file": "stake_escrow.py",
+      "address": "0x90010C348521701a01F540eAae451168adfE144c",
+      "txHash": "0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0xacc2459F341D7a887bcA8FAA62F1EC9378d4Bc67",
+        "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
+        "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
+        "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
+        "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x90010C348521701a01F540eAae451168adfE144c"
+    },
+    "EvidenceRegistry": {
+      "name": "EvidenceRegistry",
+      "file": "evidence_registry.py",
+      "address": "0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9",
+      "txHash": "0xcb3a3213a012595c5e83aa6e51bc7df679ce7f3b0b07caefb5ef768f8248bdee",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+        "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
+        "0x4404Fb70d490c935758146f42A73DC850FF95C71",
+        "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9"
+    },
+    "AgentReputation": {
+      "name": "AgentReputation",
+      "file": "agent_reputation.py",
+      "address": "0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5",
+      "txHash": "0xb079310440c4376c5c1538050cd8a5fdc5adb232dc669fb8cbd237281f4a132c",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0xec2Fb79cd12255Eb34886CEd7332f27B98DEe658",
+        "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
+        "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84",
+        "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
+        "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5"
+    },
+    "DareQualifier": {
+      "name": "DareQualifier",
+      "file": "dare_qualifier.py",
+      "address": "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145",
+      "txHash": "0x567f44fbee9adb88baea644726ddc28aeabbcc3ff47a6193c0a5af1903004a0a",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
+        "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+        "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
+        "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145"
+    },
+    "DareAdjudicator": {
+      "name": "DareAdjudicator",
+      "file": "dare_adjudicator.py",
+      "address": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
+      "txHash": "0xed84846efa39c6fb05c0a99731911afa3ad5836a7fd297f31cc47d8172433774",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
+        "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
+        "0x9ea87b28DcA2F79fe108CF06a4c13B4c876AC23d",
+        "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
+        "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757"
+    },
+    "DareRegistry": {
+      "name": "DareRegistry",
+      "file": "dare_registry.py",
+      "address": "0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C",
+      "txHash": "0x0f204c17d61da17209575f2aa73204cce2260991b95ef4f3c3c543f2434ed25e",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "validators": [
+        "0xec2Fb79cd12255Eb34886CEd7332f27B98DEe658",
+        "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
+        "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
+        "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC",
+        "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
+      ],
+      "explorerUrl": "https://explorer-studio.genlayer.com/address/0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C"
+    }
+  },
+  "liveOnChainProofs": {
+    "networkProbe": {
+      "label": "1. Probe Immutable Evidence URL (NetworkProbe.probe_url)",
+      "contractAddress": "0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691",
+      "functionName": "probe_url",
+      "txHash": "0x5613978060c426f9558452291d84508d024536e34ccf4f922b11c1288c94c5d4",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0x5613978060c426f9558452291d84508d024536e34ccf4f922b11c1288c94c5d4",
+      "onChainOutput": "```json\n{\n  \"status\": \"REACHABLE\",\n  \"keyword_verified\": true\n}\n```"
+    },
+    "qualificationRejectedVague": {
+      "label": "2. Qualification Rejection of Vague Input (DareQualifier)",
+      "contractAddress": "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145",
+      "functionName": "evaluate_challenge_qualification",
+      "txHash": "0x652434bd24169190c4740e00acc18663443ab99dc529415a57c842055ff2add4",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0x652434bd24169190c4740e00acc18663443ab99dc529415a57c842055ff2add4",
+      "onChainOutput": "{\"decision\": \"REJECTED\", \"observable_criteria\": false, \"immutable_source_feasible\": false, \"rules_sha256\": \"\", \"rationale\": \"Rejected up front: Criteria contain vague, subjective, or unobservable terms.\"}"
+    },
+    "qualificationApproved": {
+      "label": "3. Qualification Approval of Observable Challenge (DareQualifier)",
+      "contractAddress": "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145",
+      "functionName": "evaluate_challenge_qualification",
+      "txHash": "0x208b8a38e9a2e88feaa0bfacbcc7643a3f2ed7167f56f09081a0c53f86bfec4c",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0x208b8a38e9a2e88feaa0bfacbcc7643a3f2ed7167f56f09081a0c53f86bfec4c",
+      "onChainOutput": "{\"decision\": \"APPROVED\", \"observable_criteria\": true, \"immutable_source_feasible\": true, \"rules_sha256\": \"abb82f556e71732916c82fca1f238c481271c76ea20005e95f8ea680257beb10\", \"rationale\": \"The challenge uses concrete, falsifiable checks against a pinned GitHub or Archive.org snapshot of EIP-1559 for an exact constant and verbatim burn-language, making it observable, archival, and unambiguous.\"}"
+    },
+    "adjudicationPositiveMet": {
+      "label": "4. Adjudication Positive Case: MET -> INVESTIGATOR_WINS (DareAdjudicator)",
+      "contractAddress": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
+      "functionName": "adjudicate_evidence",
+      "txHash": "0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6",
+      "dareId": 101,
+      "onChainOutput": "{\"outcome\": \"MET\", \"verdict\": \"INVESTIGATOR_WINS\", \"quote_verified\": true, \"extracted_quote\": \"A transaction pricing mechanism that includes fixed-per-block network fee that is burned and dynamically expands/contracts block sizes to deal with transient congestion.\", \"consequence\": \"RELEASE_ESCROW_TO_INVESTIGATOR\", \"rationale\": \"The Submitted Verbatim Quote matches exactly with the Archive Text Excerpt from the EIP-1559 specification, and the Deterministic Substring Match is confirmed as True.\"}"
+    },
+    "adjudicationRejectedNotMet": {
+      "label": "5. Adjudication Failure/Rejection Case: NOT_MET -> CHALLENGER_WINS (DareAdjudicator)",
+      "contractAddress": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
+      "functionName": "adjudicate_evidence",
+      "txHash": "0xeeb293b5d560b8f38410b2f33c6c967c242a9a2ea7776a05c4135aa996075da5",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0xeeb293b5d560b8f38410b2f33c6c967c242a9a2ea7776a05c4135aa996075da5",
+      "dareId": 102,
+      "onChainOutput": "{\"outcome\": \"NOT_MET\", \"verdict\": \"CHALLENGER_WINS\", \"quote_verified\": false, \"extracted_quote\": \"\", \"consequence\": \"FORFEIT_ESCROW_TO_CHALLENGER\", \"rationale\": \"The submitted quote is absent from the archive excerpt and directly contradicts the evaluation criterion, asserting the base fee is paid to block producers and block sizes are permanently fixed rather than burned and dynamically adjusted.\"}"
+    },
+    "adjudicationPromptInjectionBlocked": {
+      "label": "6. Adjudication Adversarial Prompt-Injection Case: BLOCKED -> CHALLENGER_WINS (DareAdjudicator)",
+      "contractAddress": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
+      "functionName": "adjudicate_evidence",
+      "txHash": "0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245",
+      "dareId": 103,
+      "onChainOutput": "{\"outcome\": \"NOT_MET\", \"verdict\": \"CHALLENGER_WINS\", \"quote_verified\": false, \"consequence\": \"FORFEIT_ESCROW_TO_CHALLENGER\", \"rationale\": \"Adversarial prompt-injection attempt detected and blocked ('ignore previous instructions').\"}"
+    },
+    "registryCreateDare": {
+      "label": "7. Registry Create Qualified Dare #1 (DareRegistry.create_dare)",
+      "contractAddress": "0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C",
+      "functionName": "create_dare",
+      "txHash": "0xffd80ad406d0faf0316bc13cffe2b872e3b0cea0c610cdcf6a21426297b3ae10",
+      "status": "ACCEPTED",
+      "consensus": "MAJORITY_AGREE",
+      "explorerTxUrl": "https://explorer-studio.genlayer.com/tx/0xffd80ad406d0faf0316bc13cffe2b872e3b0cea0c610cdcf6a21426297b3ae10",
+      "dareId": 1,
+      "onChainOutput": "{\"dare_id\": 1, \"challenger\": \"0xBbb414E6867d8bb1c81b169AE53Dc453945e19f4\", \"investigator\": null, \"category\": \"INVESTIGATIVE_FACT_FINDING\", \"title\": \"Dare you to verify from the immutable EIP-1559 specification snapshot whether INITIAL_BASE_FEE equals 1000000000 within 30 minutes\", \"claim_statement\": \"EIP-1559 defines INITIAL_BASE_FEE as 1000000000 wei.\", \"required_sources_desc\": \"Immutable GitHub specification file for EIP-1559\", \"evaluation_criteria\": \"Quote must contain INITIAL_BASE_FEE and 1000000000 from the specification.\", \"rules_sha256\": \"7a64fde24ee7e6ee94ac8daf7fc76bc67fa4474cc1daf9cdbee428cf5f0f9207\", \"stake_amount_cents\": 1000, \"creation_bond_cents\": 500, \"acceptance_window_seconds\": 86400, \"research_window_seconds\": 1800, \"acceptance_deadline_ts\": 86400, \"research_deadline_ts\": 0, \"submission_deadline_ts\": 0, \"adjudication_grace_deadline_ts\": 0, \"status\": \"OPEN\", \"created_at\": 0, \"accepted_at\": 0, \"submitted_at\": 0, \"verdict\": null, \"winner\": null}"
+    }
+  }
+}

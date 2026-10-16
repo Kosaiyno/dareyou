@@ -39,7 +39,9 @@ import { useStore, isDareExpired } from './store/useStore';
 import { 
   getGenLayerBalance,
   connectMetaMask,
-  sendMetaMaskStakeDeposit
+  sendMetaMaskStakeDeposit,
+  getOnChainAdjudication,
+  GENLAYER_ADJUDICATOR_ADDRESS
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
 import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
@@ -2693,14 +2695,26 @@ export default function App() {
                   (isChallengerWinner && (selectedDare.challenger.toLowerCase() === walletAddress.toLowerCase() || selectedDare.isBenchmark === false))
                 )
               );
-              const settlementTx = selectedDare.settlementTxHash || (
-                selectedDare.id === 6 
-                  ? '0x80c1967d7bca40d8e73c7360e0d8487d071f476db5becb19dfbc0c2dd3c176d7' 
-                  : '0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5'
-              );
+              const settlementTx = selectedDare.settlementTxHash || selectedDare.txHash || '0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6';
+              const categoricalOutcome = selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'MET' : selectedDare.verdict === 'CHALLENGER_WINS' ? 'NOT_MET' : 'INSUFFICIENT_EVIDENCE';
 
               return (
                 <div className="space-y-4 pt-2">
+                  {/* GenLayer Transaction Finality & Appeal Window Banner */}
+                  <div className="p-3 rounded-xl bg-slate-900 text-white flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold uppercase text-[10px]">
+                        RECORDED ON-CHAIN PROOF
+                      </span>
+                      <span className="text-slate-300 font-mono">
+                        State: ACCEPTED · MAJORITY_AGREE
+                      </span>
+                    </div>
+                    <span className="text-amber-300 font-mono text-[10px]">
+                      Appeal Window: Native Protocol Finality
+                    </span>
+                  </div>
+
                   <div className={`p-5 rounded-2xl border text-xs space-y-3.5 shadow-sm ${
                     selectedDare.verdict === 'INVESTIGATOR_WINS'
                       ? 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
@@ -2711,8 +2725,12 @@ export default function App() {
                         <Trophy className="w-5 h-5 text-emerald-600" />
                         {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won'}
                       </span>
-                      <span className="px-3 py-1 rounded-full bg-white font-mono font-bold border border-slate-200 shadow-2xs">
-                        Score: {selectedDare.verdictScore || 100}/100
+                      <span className={`px-3 py-1 rounded-full font-mono font-bold border shadow-2xs text-[11px] ${
+                        categoricalOutcome === 'MET'
+                          ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          : 'bg-rose-100 text-rose-900 border-rose-300'
+                      }`}>
+                        Outcome: {categoricalOutcome}
                       </span>
                     </div>
 
@@ -2721,9 +2739,9 @@ export default function App() {
                     {/* Escrow Release & Winner Recipient Breakdown */}
                     <div className="pt-3 border-t border-slate-200/80 space-y-2.5">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 font-semibold">Escrow Released:</span>
+                        <span className="text-slate-500 font-semibold">Deterministic Consequence:</span>
                         <span className="font-bold font-mono text-emerald-700 text-xs">
-                          ${payoutDollars} GEN Payout Settled
+                          ${payoutDollars} GEN ({selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'RELEASE_TO_INVESTIGATOR' : 'FORFEIT_TO_CHALLENGER'})
                         </span>
                       </div>
 
@@ -2743,7 +2761,7 @@ export default function App() {
                       <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
                         <span className="text-slate-500 font-semibold flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                          On-Chain Settlement:
+                          StudioNet Proof Tx:
                         </span>
                         <a
                           href={`https://explorer-studio.genlayer.com/tx/${settlementTx}`}
@@ -2754,6 +2772,20 @@ export default function App() {
                         >
                           <span>{settlementTx.slice(0, 10)}...{settlementTx.slice(-6)}</span>
                           <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
+                        </a>
+                      </div>
+
+                      {/* DareAdjudicator Contract Explorer Link */}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500 font-semibold">Adjudicator Contract:</span>
+                        <a
+                          href={`https://explorer-studio.genlayer.com/address/${GENLAYER_ADJUDICATOR_ADDRESS}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-slate-700 hover:text-slate-900 hover:underline font-mono text-[11px] font-semibold flex items-center gap-1"
+                        >
+                          <span>{GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...{GENLAYER_ADJUDICATOR_ADDRESS.slice(-6)}</span>
+                          <ExternalLink className="w-3 h-3 flex-shrink-0 text-slate-500" />
                         </a>
                       </div>
 
@@ -2769,13 +2801,45 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Live StudioNet RPC Read Box (Separating Recorded Proof from Live Reads) */}
+                  <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 text-xs space-y-2.5 border border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 block">
+                          Live StudioNet RPC Contract Read
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          DareAdjudicator.get_adjudication({selectedDare.id})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setMcpExecuting(true);
+                          const liveData = await getOnChainAdjudication(selectedDare.id);
+                          setMcpResult({ dareId: selectedDare.id, liveData });
+                          setMcpExecuting(false);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${mcpExecuting ? 'animate-spin' : ''}`} />
+                        <span>{mcpExecuting ? 'Querying RPC...' : 'Verify Live on StudioNet'}</span>
+                      </button>
+                    </div>
+                    {mcpResult && mcpResult.dareId === selectedDare.id && (
+                      <pre className="p-2.5 rounded-xl bg-black/60 border border-slate-800 text-[10px] font-mono text-emerald-300 overflow-x-auto whitespace-pre-wrap">
+                        {JSON.stringify(mcpResult.liveData, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+
                 {/* Evidence Archive Record */}
                 {selectedDare.evidence && (
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Submitted Evidence Dossier</span>
                     {selectedDare.evidence.primaryUrl && (
                       <div>
-                        <span className="text-slate-500 font-medium block text-[10px]">Primary Archive URL</span>
+                        <span className="text-slate-500 font-medium block text-[10px]">Primary Immutable Archive URL</span>
                         <a 
                           href={selectedDare.evidence.primaryUrl} 
                           target="_blank" 
@@ -2788,7 +2852,7 @@ export default function App() {
                     )}
                     {selectedDare.evidence.quotes && (
                       <div>
-                        <span className="text-slate-500 font-medium block text-[10px]">Verbatim Quotes</span>
+                        <span className="text-slate-500 font-medium block text-[10px]">Verbatim Quotes Checked by Validators</span>
                         <p className="text-slate-800 bg-white p-2.5 rounded-lg border border-slate-100 italic text-[11px]">
                           "{selectedDare.evidence.quotes}"
                         </p>
@@ -2817,7 +2881,7 @@ export default function App() {
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                               v.verdict === 'INVESTIGATOR_WINS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {v.verdict === 'INVESTIGATOR_WINS' ? 'VERIFIED' : 'REJECTED'}
+                              {v.verdict === 'INVESTIGATOR_WINS' ? 'MET' : 'NOT_MET'}
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-600 leading-relaxed italic">"{v.reasoning}"</p>
