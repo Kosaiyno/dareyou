@@ -272,7 +272,7 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // Refresh real on-chain GEN balance from StudioNet RPC / MetaMask
+  // Refresh real on-chain GEN balance from StudioNet RPC / MetaMask combined with settled duel escrow winnings
   const refreshOnChainBalance = async (addr = walletAddress) => {
     if (!addr) {
       setWalletBalance('0.00');
@@ -281,8 +281,19 @@ export default function App() {
     setIsRefreshingBalance(true);
     try {
       const bal = await getGenLayerBalance(addr);
-      setWalletBalance(bal || '0.00');
-      return bal || '0.00';
+      const baseBal = parseFloat(bal || '0.00') || 0;
+      const lowerAddr = addr.toLowerCase();
+      const currentDares = store.dares || [];
+      const settledWinnings = currentDares
+        .filter(d => d.status === 'FINALIZED' && (
+          (d.verdict === 'CHALLENGER_WINS' && (d.challenger.toLowerCase() === lowerAddr || d.payoutRecipient?.toLowerCase() === lowerAddr || d.isBenchmark === false)) ||
+          (d.verdict === 'INVESTIGATOR_WINS' && (d.investigator?.toLowerCase() === lowerAddr || d.payoutRecipient?.toLowerCase() === lowerAddr))
+        ))
+        .reduce((sum, d) => sum + (d.stakeCents * 2) / 100, 0);
+
+      const combined = (baseBal + settledWinnings).toFixed(2);
+      setWalletBalance(combined);
+      return combined;
     } catch (e) {
       console.warn('Failed to fetch on-chain balance:', e);
       return walletBalance;
@@ -364,9 +375,7 @@ export default function App() {
             setWalletAddress(addr);
             setWalletConnected(true);
             store.setWallet(true, addr);
-            getGenLayerBalance(addr).then(bal => {
-              setWalletBalance(bal || '0.00');
-            });
+            refreshOnChainBalance(addr);
           } else {
             setWalletConnected(false);
             setWalletAddress('');
@@ -394,7 +403,7 @@ export default function App() {
           setWalletAddress(addr);
           setWalletConnected(true);
           store.setWallet(true, addr);
-          getGenLayerBalance(addr).then(bal => setWalletBalance(bal || '0.00'));
+          refreshOnChainBalance(addr);
         } else {
           setWalletConnected(false);
           setWalletAddress('');
@@ -405,7 +414,7 @@ export default function App() {
       };
       const handleChainChanged = () => {
         if (walletAddress) {
-          getGenLayerBalance(walletAddress).then(bal => setWalletBalance(bal || '0.00'));
+          refreshOnChainBalance(walletAddress);
         }
       };
       eth.on('accountsChanged', handleAccountsChanged);
@@ -2696,10 +2705,10 @@ export default function App() {
             {/* Phase 4: Finalized / Closed Outcome */}
             {selectedDare.status === 'FINALIZED' && (() => {
               const payoutDollars = ((selectedDare.stakeCents * 2) / 100).toFixed(2);
+              const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
               const winnerAddress = selectedDare.verdict === 'INVESTIGATOR_WINS' 
                 ? (selectedDare.investigator || '0xInvestigator...')
-                : selectedDare.challenger;
-              const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
+                : (walletAddress && selectedDare.isBenchmark === false ? walletAddress : selectedDare.challenger);
               const isUserWinner = !!(
                 walletAddress && (
                   walletAddress.toLowerCase() === winnerAddress.toLowerCase() ||

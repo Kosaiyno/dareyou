@@ -343,6 +343,39 @@ export const SEED_INITIAL_DARES: Dare[] = [
     txHash: "0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245",
     settlementTxHash: "0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245",
     payoutRecipient: "0xBbb414E6867d8bb1c81b169AE53Dc453945e19f4"
+  },
+  {
+    id: 1002,
+    onChainId: 2,
+    isBenchmark: false,
+    title: "Dare you to uncover a planetary wind-speed limit hidden in spacecraft thermal data",
+    category: "CONFLICTING_SOURCE_INVESTIGATION",
+    domain: "Science",
+    participantsCount: 2,
+    claim: "The thermal history of a robotic probe after landing on an extraterrestrial surface was used to constrain the local near-surface wind speed to below a specific numerical threshold. The limit was inferred from a thermal model rather than a direct wind-speed measurement.",
+    requiredSources: "The original peer-reviewed scientific paper containing the wind-speed constraint, its methodology and thermal-model assumptions, and any cited primary mission measurements used in the analysis. The solver must locate these sources independently. Secondary summaries alone do not qualify.",
+    criteria: "Pass only if all conditions are satisfied: (1) Identifies the planetary body and robotic mission. (2) Reports the published upper bound on near-surface wind speed, including correct units. (3) Explains how the probe's thermal history and heat-transfer modelling support the constraint. (4) Provides a direct link to the original peer-reviewed publication and identifies the passage supporting the numerical result. (5) Distinguishes a model-derived upper bound from a direct measurement. Fail: Incorrect numerical bound, incorrect units, fabricated citations, unsupported reasoning, or treating an inferred constraint as a direct measurement.",
+    stakeCents: 1000,
+    creationBondCents: 500,
+    durationSeconds: 120,
+    acceptanceDeadlineTs: 1792246145421,
+    researchDeadlineTs: 1792160703630,
+    status: "FINALIZED",
+    challenger: "0xb5e5560f826d05195d252e094f1a668133effa70",
+    investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473",
+    evidence: {
+      conclusion: "CLAIM_VERIFIED_TRUE",
+      primaryUrl: "https://doi.org/10.1016/j.icarus.2006.01.009",
+      secondaryUrl: "https://www.esa.int/Science_Exploration/Space_Science/Cassini-Huygens",
+      quotes: "",
+      reasoning: "Initial evidence submission missing verbatim quotes extracted from primary source, failing the Dare Acceptance Standard."
+    },
+    verdict: "CHALLENGER_WINS",
+    verdictScore: 26,
+    verdictRationale: "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.",
+    txHash: "0x512cf3c38697409f4cd78ccbd08d1247e305dedd925bbc62a02ddb00d6b94dd3",
+    settlementTxHash: "0x512cf3c38697409f4cd78ccbd08d1247e305dedd925bbc62a02ddb00d6b94dd3",
+    payoutRecipient: "0xb5e5560f826d05195d252e094f1a668133effa70"
   }
 ];
 
@@ -1132,6 +1165,14 @@ export const useStore = create<AppState>((set, get) => ({
         const orderedOnChain = [...onChain].sort((a, b) => b.id - a.id);
 
         for (const oc of orderedOnChain) {
+          if (oc.id === 1002) {
+            oc.status = 'FINALIZED';
+            oc.verdict = 'CHALLENGER_WINS';
+            oc.verdictScore = 26;
+            oc.verdictRationale = "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.";
+            oc.payoutRecipient = oc.challenger || "0xb5e5560f826d05195d252e094f1a668133effa70";
+          }
+
           const matchIdx = remainingList.findIndex(
             d => d.id === oc.id || (!d.isBenchmark && d.title.trim().toLowerCase() === oc.title.trim().toLowerCase())
           );
@@ -1142,6 +1183,20 @@ export const useStore = create<AppState>((set, get) => ({
 
             if (updatedSelectedId === existing.id) {
               updatedSelectedId = oc.id;
+            }
+
+            if (oc.id === 1002) {
+              mergedOnChain.push({
+                ...existing,
+                ...oc,
+                id: 1002,
+                status: 'FINALIZED',
+                verdict: 'CHALLENGER_WINS',
+                verdictScore: 26,
+                verdictRationale: "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.",
+                payoutRecipient: oc.challenger || existing.challenger || "0xb5e5560f826d05195d252e094f1a668133effa70"
+              });
+              continue;
             }
 
             // AUTHORITATIVE LOCK: If canonical state is FINALIZED, ALWAYS enforce canonical state across all browsers!

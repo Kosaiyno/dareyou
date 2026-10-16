@@ -224,9 +224,11 @@ export default async function handler(req, res) {
   const { slug } = req.query || {};
   const pathParts = Array.isArray(slug) ? slug : slug ? [slug] : [];
   const subRoute = pathParts[0] || "";
+  const urlPath = (req.url || "").split("?")[0];
+  const isDares = subRoute === "dares" || urlPath.endsWith("/dares") || urlPath.includes("/api/dares");
 
   // 1. Canonical Cross-Browser Dares Sync: GET /api/dares & POST /api/dares
-  if (subRoute === "dares") {
+  if (isDares) {
     const store = globalThis.__DAREYOU_SHARED_DARES__;
     const now = Date.now();
 
