@@ -272,7 +272,7 @@ export default function App() {
     setSidebarOpen(false);
   };
 
-  // Refresh real on-chain GEN balance from StudioNet RPC / MetaMask combined with settled duel escrow winnings
+  // Refresh real on-chain GEN balance strictly from StudioNet RPC / Rabby / MetaMask
   const refreshOnChainBalance = async (addr = walletAddress) => {
     if (!addr) {
       setWalletBalance('0.00');
@@ -281,19 +281,9 @@ export default function App() {
     setIsRefreshingBalance(true);
     try {
       const bal = await getGenLayerBalance(addr);
-      const baseBal = parseFloat(bal || '0.00') || 0;
-      const lowerAddr = addr.toLowerCase();
-      const currentDares = store.dares || [];
-      const settledWinnings = currentDares
-        .filter(d => d.status === 'FINALIZED' && (
-          (d.verdict === 'CHALLENGER_WINS' && (d.challenger.toLowerCase() === lowerAddr || d.payoutRecipient?.toLowerCase() === lowerAddr || d.isBenchmark === false)) ||
-          (d.verdict === 'INVESTIGATOR_WINS' && (d.investigator?.toLowerCase() === lowerAddr || d.payoutRecipient?.toLowerCase() === lowerAddr))
-        ))
-        .reduce((sum, d) => sum + (d.stakeCents * 2) / 100, 0);
-
-      const combined = (baseBal + settledWinnings).toFixed(2);
-      setWalletBalance(combined);
-      return combined;
+      const cleanBal = parseFloat(bal || '0.00').toFixed(2);
+      setWalletBalance(cleanBal);
+      return cleanBal;
     } catch (e) {
       console.warn('Failed to fetch on-chain balance:', e);
       return walletBalance;
