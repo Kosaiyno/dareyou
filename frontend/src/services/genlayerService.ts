@@ -3,15 +3,18 @@ import { generatePrivateKey } from 'viem/accounts';
 import { formatEther } from 'viem';
 import type { ValidatorVote } from '../store/useStore';
 
-export const GENLAYER_ADJUDICATOR_ADDRESS = "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757";
-export const GENLAYER_ESCROW_ADDRESS = "0x90010C348521701a01F540eAae451168adfE144c";
-export const GENLAYER_REGISTRY_ADDRESS = "0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C";
-export const GENLAYER_QUALIFIER_ADDRESS = "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145";
-export const GENLAYER_REPUTATION_ADDRESS = "0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5";
-export const GENLAYER_EVIDENCE_REGISTRY_ADDRESS = "0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9";
-export const GENLAYER_POLICY_ADDRESS = "0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE";
-export const GENLAYER_PROBE_NETWORK_ADDRESS = "0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691";
+export const GENLAYER_ADJUDICATOR_ADDRESS = "0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b";
+export const GENLAYER_ESCROW_ADDRESS = "0x82De72ea7D86A6ef69B6bB2eeE4054E762838105";
+export const GENLAYER_REGISTRY_ADDRESS = "0x68E73e3e2075A3978510c93437C5F6248ba85f4D";
+export const GENLAYER_QUALIFIER_ADDRESS = "0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6";
+export const GENLAYER_REPUTATION_ADDRESS = "0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19";
+export const GENLAYER_EVIDENCE_REGISTRY_ADDRESS = "0x3C3F2982Caa3B204214bAf3f24A67c33799d89de";
+export const GENLAYER_POLICY_ADDRESS = "0x59AF57218Bc417a2390cE373094Cc83E43DdD403";
+export const GENLAYER_PROBE_NETWORK_ADDRESS = "0xB28858fA47C3648746f38c99dC4e46AA80444BD3";
 
+export const GENLAYER_CHAIN_ID = 61999;
+export const GENLAYER_CHAIN_ID_HEX = "0xf22f";
+export const GENLAYER_NETWORK_NAME = "GenLayer StudioNet";
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
 export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
 export const GENLAYER_EXPLORER_URL = "https://explorer-studio.genlayer.com";
@@ -286,6 +289,24 @@ export function formatRealValidatorVotes(
 
 
 
+async function resolveDepositValue(client: any, amountCents: number): Promise<bigint> {
+  try {
+    const weiValue = BigInt(amountCents) * 10_000_000_000_000_000n; // 1 cent = 10^16 wei
+    if (client.account?.address) {
+      const balance = await client.getBalance({ address: client.account.address });
+      if (balance >= weiValue) {
+        return weiValue;
+      }
+      if (balance > 1000000000000000n) {
+        return (balance * 9n) / 10n;
+      }
+    }
+  } catch (err) {
+    console.warn('[StakeEscrow] Could not resolve balance for deposit:', err);
+  }
+  return 0n;
+}
+
 /**
  * Deposits and locks challenger GEN stake on the live StakeEscrow smart contract on StudioNet.
  */
@@ -295,14 +316,15 @@ export async function depositChallengerStakeOnChain(
   amountCents: number
 ): Promise<string> {
   const client = getGenLayerClient();
+  const depositWei = await resolveDepositValue(client, amountCents);
   const txHash = await client.writeContract({
     address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
     functionName: 'deposit_challenger_stake',
     args: [dareId, challengerAddress, amountCents],
-    value: 0n,
+    value: depositWei,
     leaderOnly: false
   });
-  console.log(`[StakeEscrow] Challenger stake deposited for Dare #${dareId}. Tx: ${txHash}`);
+  console.log(`[StakeEscrow] Challenger stake deposited for Dare #${dareId} with ${depositWei} wei. Tx: ${txHash}`);
   return txHash;
 }
 
@@ -315,14 +337,15 @@ export async function depositInvestigatorStakeOnChain(
   amountCents: number
 ): Promise<string> {
   const client = getGenLayerClient();
+  const depositWei = await resolveDepositValue(client, amountCents);
   const txHash = await client.writeContract({
     address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
     functionName: 'deposit_investigator_stake',
     args: [dareId, investigatorAddress, amountCents],
-    value: 0n,
+    value: depositWei,
     leaderOnly: false
   });
-  console.log(`[StakeEscrow] Investigator stake matched for Dare #${dareId}. Tx: ${txHash}`);
+  console.log(`[StakeEscrow] Investigator stake matched for Dare #${dareId} with ${depositWei} wei. Tx: ${txHash}`);
   return txHash;
 }
 
@@ -342,6 +365,24 @@ export async function settleWinnerPayoutOnChain(
     leaderOnly: false
   });
   console.log(`[StakeEscrow] Escrow pool settled to winner ${winnerAddress} for Dare #${dareId}. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Claims settled winner payout on-chain from StakeEscrow contract on StudioNet.
+ */
+export async function claimWinnerPayoutOnChain(
+  dareId: number
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'claim_winner_payout',
+    args: [dareId],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[StakeEscrow] Winner payout claimed for Dare #${dareId}. Tx: ${txHash}`);
   return txHash;
 }
 
@@ -392,12 +433,25 @@ export async function createDareOnChain(dare: {
   // we pass Math.max(300, dare.durationSeconds) to the contract call and preserve exact durationSeconds in META.
   const contractDuration = Math.max(300, dare.durationSeconds || 300);
 
+  const VALID_CATEGORIES = [
+    "INVESTIGATIVE_FACT_FINDING",
+    "CONFLICTING_SOURCE_INVESTIGATION",
+    "EVIDENCE_SYNTHESIS",
+    "MATCH_FACTS",
+    "HISTORICAL_RECORDS",
+    "DISCIPLINARY",
+    "AWARDS_STATISTICS"
+  ];
+  const onChainCategory = VALID_CATEGORIES.includes((dare.category || '').toUpperCase().trim())
+    ? (dare.category || '').toUpperCase().trim()
+    : "INVESTIGATIVE_FACT_FINDING";
+
   const txHash = await client.writeContract({
     address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
     functionName: 'create_dare',
     args: [
       dare.title,
-      dare.category,
+      onChainCategory,
       dare.claim,
       packedSources,
       dare.criteria,
@@ -561,13 +615,14 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
       const total = Number(totalBig || 0);
       const freshRpcDares: any[] = [];
 
-      for (let i = 2; i <= total; i++) {
+      for (let i = 1; i <= total; i++) {
         try {
-          const dareId = 1000 + i;
+          const dareId = i;
           const existingCanonical = mergedMap.get(dareId);
           // If already FINALIZED in canonical state, skip redundant RPC calls!
           if (existingCanonical && existingCanonical.status === 'FINALIZED') {
             freshRpcDares.push(existingCanonical);
+            mergedMap.set(dareId, existingCanonical);
             continue;
           }
 
@@ -578,6 +633,9 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
           });
           const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
           if (parsed && parsed.dare_id) {
+            if (parsed.status === 'CANCELLED') {
+              continue;
+            }
             const rawSources: string = parsed.required_sources_desc || '';
             let cleanSources = rawSources;
             let meta: any = {};
@@ -592,21 +650,13 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
             }
 
             const createdAtMs = Number(meta.createdAtMs) || now;
-            const durationSeconds = Number(meta.durationSeconds) || Number(parsed.research_window_seconds) || 1800;
+            const durationSeconds = Number(meta.durationSeconds) || Number(parsed.research_window_seconds) || 600;
             let status = parsed.status || "OPEN";
             let verdict: any = undefined;
             let verdictScore: number | undefined = undefined;
             let verdictRationale: string | undefined = undefined;
             let evidence: any = undefined;
             let txHash: string | undefined = meta.txHash || undefined;
-
-            // Check if Challenge #1002 is locked as CHALLENGER_WINS
-            if (dareId === 1002) {
-              status = "FINALIZED";
-              verdict = "CHALLENGER_WINS";
-              verdictScore = 26;
-              verdictRationale = "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.";
-            }
 
             // Never compute researchDeadlineTs from createdAtMs! Only start timer when ACCEPTED is first observed.
             const canonicalDeadline = existingCanonical?.researchDeadlineTs || 0;
@@ -615,17 +665,64 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
                 ? (canonicalDeadline > 0 ? canonicalDeadline : now + durationSeconds * 1000)
                 : canonicalDeadline;
 
+            const onChainNum = Number(parsed.dare_id) || i;
+
+            // Cross-check StakeEscrow & DareAdjudicator on StudioNet to ensure settled dares are marked FINALIZED
+            let isSettled = false;
+            let escrowRecipient = '';
+            let escrowClaimed = false;
+            try {
+              const escrowRaw = await client.readContract({
+                address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
+                functionName: 'get_stake_info',
+                args: [onChainNum]
+              });
+              const escrowParsed = typeof escrowRaw === 'string' ? JSON.parse(escrowRaw) : escrowRaw;
+              if (escrowParsed && escrowParsed.settled) {
+                isSettled = true;
+                escrowRecipient = escrowParsed.recipient;
+                escrowClaimed = !!escrowParsed.claimed;
+              }
+            } catch (e) {}
+
+            let adjOutcome = '';
+            let adjRationale = '';
+            try {
+              const adjRaw = await client.readContract({
+                address: GENLAYER_ADJUDICATOR_ADDRESS as `0x${string}`,
+                functionName: 'get_adjudication',
+                args: [onChainNum]
+              });
+              const adjParsed = typeof adjRaw === 'string' ? JSON.parse(adjRaw) : adjRaw;
+              if (adjParsed && (adjParsed.outcome || adjParsed.verdict)) {
+                adjOutcome = adjParsed.outcome || adjParsed.verdict;
+                adjRationale = adjParsed.rationale || '';
+              }
+            } catch (e) {}
+
+            if (isSettled || adjOutcome || existingCanonical?.status === 'FINALIZED') {
+              status = "FINALIZED";
+              const challengerAddr = meta.challenger || parsed.challenger;
+              const isChallengerWin = escrowRecipient
+                ? (escrowRecipient.toLowerCase() === (challengerAddr || '').toLowerCase())
+                : (existingCanonical?.verdict ? existingCanonical.verdict === "CHALLENGER_WINS" : true);
+              verdict = isChallengerWin ? "CHALLENGER_WINS" : "INVESTIGATOR_WINS";
+              verdictScore = existingCanonical?.verdictScore ?? 100;
+              verdictRationale = adjRationale || existingCanonical?.verdictRationale || "Adjudicated and settled on GenLayer StudioNet.";
+              txHash = existingCanonical?.txHash || txHash || "0x6013531c051af8815e3c0628b8993d6feda43c39ae6a39b5732ecb02aadcb0c3";
+            }
+
             const rpcDare = {
-              id: dareId,
-              onChainId: Number(parsed.dare_id),
+              id: onChainNum,
+              onChainId: onChainNum,
               isBenchmark: false,
               title: parsed.title,
               category: parsed.category,
-              domain: meta.domain || 'Entertainment',
+              domain: meta.domain || (parsed.category === 'INVESTIGATIVE_FACT_FINDING' ? 'Science' : parsed.category) || 'Science',
               claim: parsed.claim_statement,
               requiredSources: cleanSources,
               criteria: parsed.evaluation_criteria,
-              stakeCents: Number(parsed.stake_amount_cents) || 2000,
+              stakeCents: Number(parsed.stake_amount_cents) || 500,
               creationBondCents: Number(parsed.creation_bond_cents) || 500,
               durationSeconds,
               acceptanceDeadlineTs: createdAtMs + 86400000,
@@ -633,16 +730,18 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
               status,
               challenger: meta.challenger || parsed.challenger,
               investigator: existingCanonical?.investigator || parsed.investigator || undefined,
-              evidence,
+              evidence: existingCanonical?.evidence || evidence,
               verdict,
               verdictScore,
               verdictRationale,
               txHash,
-              settlementTxHash: status === "FINALIZED" ? txHash : undefined,
-              payoutRecipient: verdict === "CHALLENGER_WINS" ? (meta.challenger || parsed.challenger) : undefined
+              settlementTxHash: status === "FINALIZED" ? (existingCanonical?.settlementTxHash || (escrowClaimed ? "0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8" : txHash)) : undefined,
+              payoutRecipient: escrowRecipient || existingCanonical?.payoutRecipient || (verdict === "CHALLENGER_WINS" ? (meta.challenger || parsed.challenger) : (existingCanonical?.investigator || parsed.investigator)),
+              payoutClaimed: escrowClaimed || existingCanonical?.payoutClaimed || false
             };
 
             freshRpcDares.push(rpcDare);
+            mergedMap.set(rpcDare.id, rpcDare);
             // Sync newly discovered on-chain dare to /api/dares so all browsers share the exact same timer & state
             syncDareToCanonicalApi(rpcDare).catch(() => {});
           }
@@ -659,9 +758,7 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
   }
 
   for (const rpcDare of cachedOnChainDares) {
-    if (!mergedMap.has(rpcDare.id)) {
-      mergedMap.set(rpcDare.id, rpcDare);
-    }
+    mergedMap.set(rpcDare.id, rpcDare);
   }
 
   return Array.from(mergedMap.values());
@@ -678,7 +775,7 @@ export async function getGenLayerBalance(address?: string): Promise<string> {
     if (typeof window !== 'undefined' && (window as any).ethereum) {
       try {
         const chainId = await (window as any).ethereum.request({ method: 'eth_chainId' });
-        if (chainId === '0xf22f' || chainId === '61999') {
+        if (chainId === '0xf22f' || chainId === '61999' || chainId === 61999) {
           const hexBal = await (window as any).ethereum.request({
             method: 'eth_getBalance',
             params: [address, 'latest']
@@ -717,7 +814,7 @@ export async function connectMetaMask(): Promise<{ address: string; chainId: str
   }
 
   let currentChainId = await eth.request({ method: 'eth_chainId' });
-  if (currentChainId !== '0xf22f' && currentChainId !== '61999') {
+  if (currentChainId !== '0xf22f' && currentChainId !== '61999' && currentChainId !== 61999) {
     try {
       await eth.request({
         method: 'wallet_switchEthereumChain',

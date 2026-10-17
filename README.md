@@ -70,14 +70,14 @@ All 8 contracts in [`contracts/`](./contracts/) are deployed on GenLayer StudioN
 
 | Contract | File | StudioNet Address | Deploy Tx Hash | Explorer Link |
 |---|---|---|---|---|
-| **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | `0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757` | `0xed84846efa39...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757) |
-| **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | `0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145` | `0x567f44fbee9a...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145) |
-| **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | `0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C` | `0x0f204c17d61d...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C) |
-| **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | `0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691` | `0x6e8886c0c2b9...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691) |
-| **StakeEscrow** | [`contracts/stake_escrow.py`](./contracts/stake_escrow.py) | `0x90010C348521701a01F540eAae451168adfE144c` | `0x32da20da3613...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x90010C348521701a01F540eAae451168adfE144c) |
-| **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | `0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9` | `0xcb3a3213a012...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9) |
-| **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | `0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE` | `0x6ab5d53036ab...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE) |
-| **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | `0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5` | `0xb079310440c4...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5) |
+| **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | `0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b` | `0x67de5fb99c16...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b) |
+| **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | `0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6` | `0x7241bcf182f5...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6) |
+| **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | `0x68E73e3e2075A3978510c93437C5F6248ba85f4D` | `0x4328b8500aef...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D) |
+| **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | `0xB28858fA47C3648746f38c99dC4e46AA80444BD3` | `0x0d37ad4655fb...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3) |
+| **StakeEscrow** | [`contracts/stake_escrow.py`](./contracts/stake_escrow.py) | `0x82De72ea7D86A6ef69B6bB2eeE4054E762838105` | `0x457eaee9561e...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x82De72ea7D86A6ef69B6bB2eeE4054E762838105) |
+| **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | `0x3C3F2982Caa3B204214bAf3f24A67c33799d89de` | `0xf278af244707...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de) |
+| **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | `0x59AF57218Bc417a2390cE373094Cc83E43DdD403` | `0x2e3e3ef0e187...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403) |
+| **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | `0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19` | `0x02eae17c927b...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19) |
 
 ---
 

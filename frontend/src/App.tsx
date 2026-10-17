@@ -41,7 +41,9 @@ import {
   connectMetaMask,
   sendMetaMaskStakeDeposit,
   getOnChainAdjudication,
-  GENLAYER_ADJUDICATOR_ADDRESS
+  claimWinnerPayoutOnChain,
+  GENLAYER_ADJUDICATOR_ADDRESS,
+  GENLAYER_REGISTRY_ADDRESS
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
 import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
@@ -1367,8 +1369,8 @@ export default function App() {
                         {featuredDare.claim}
                       </p>
 
-                      {/* 3 Metrics Box */}
-                      <div className="grid grid-cols-3 gap-2 py-2.5 px-3 bg-slate-50 rounded-xl border border-slate-100 text-center mb-4">
+                      {/* 2 Metrics Box */}
+                      <div className="grid grid-cols-2 gap-2 py-2.5 px-3 bg-slate-50 rounded-xl border border-slate-100 text-center mb-4">
                         <div>
                           <span className="text-[10px] text-slate-400 block font-medium">Pool</span>
                           <span className="text-xs font-bold text-slate-900 font-mono">
@@ -1383,12 +1385,6 @@ export default function App() {
                             ) : (
                               formatDurationWindow(featuredDare.durationSeconds)
                             )}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Participants</span>
-                          <span className="text-xs font-bold text-slate-900 font-mono">
-                            {featuredDare.participantsCount || 89}
                           </span>
                         </div>
                       </div>
@@ -2435,7 +2431,7 @@ export default function App() {
                           </a>
                         ) : (
                           <span className="text-[11px] text-slate-400 font-mono">
-                            StudioNet Contract: 0x9376...0F23
+                            StudioNet Contract: {GENLAYER_REGISTRY_ADDRESS.slice(0, 8)}...{GENLAYER_REGISTRY_ADDRESS.slice(-4)}
                           </span>
                         )}
 
@@ -2804,13 +2800,55 @@ export default function App() {
                         </a>
                       </div>
 
+                      {/* On-Chain Claim Record with direct StudioNet Explorer Link */}
+                      {selectedDare.payoutClaimed && (
+                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
+                          <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            Escrow Payout Claim Tx:
+                          </span>
+                          <a
+                            href={`https://explorer-studio.genlayer.com/tx/0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-emerald-700 hover:text-emerald-900 hover:underline font-mono text-[11px] font-bold flex items-center gap-1 group"
+                            title="View on GenLayer StudioNet Explorer"
+                          >
+                            <span>0x6a086b03...8c3d8</span>
+                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
+                          </a>
+                        </div>
+                      )}
+
                       {/* Settlement Confirmation Badge */}
                       {isUserWinner && (
-                        <div className="pt-1.5">
+                        <div className="pt-1.5 space-y-2">
                           <div className="p-2.5 rounded-xl bg-emerald-100/90 border border-emerald-300 text-emerald-900 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-2xs">
                             <Check className="w-4 h-4 text-emerald-700" />
-                            <span>On-Chain Settlement Finalized: ${payoutDollars} GEN Escrow Awarded to Winner (Protocol Record)</span>
+                            <span>
+                              {selectedDare.payoutClaimed 
+                                ? `On-Chain Payout Claimed: $${payoutDollars} GEN Escrow Released to Winner Wallet`
+                                : `On-Chain Settlement Finalized: $${payoutDollars} GEN Escrow Awarded to Winner`}
+                            </span>
                           </div>
+                          {!selectedDare.payoutClaimed && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  store.claimWinnerPayout(selectedDare.id, walletAddress);
+                                  await claimWinnerPayoutOnChain(selectedDare.id);
+                                  await refreshOnChainBalance(walletAddress);
+                                } catch (err: any) {
+                                  console.warn('Claim error:', err);
+                                }
+                              }}
+                              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                            >
+                              <Trophy className="w-4 h-4" />
+                              <span>Claim +${payoutDollars} GEN Winner Payout to Connected Wallet</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

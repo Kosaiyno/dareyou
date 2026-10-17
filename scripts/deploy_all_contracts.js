@@ -5,14 +5,34 @@ const frontendNodeModules = path.join(__dirname, '..', 'frontend', 'node_modules
 const { createClient, createAccount, chains } = require(path.join(frontendNodeModules, 'genlayer-js'));
 const { generatePrivateKey } = require(path.join(frontendNodeModules, 'viem/accounts'));
 
-// Ensure persistent deployer account
-const PK_FILE = path.join(__dirname, 'deployer_pk.json');
-let privateKey;
-if (fs.existsSync(PK_FILE)) {
-  privateKey = JSON.parse(fs.readFileSync(PK_FILE, 'utf8')).privateKey;
-} else {
-  privateKey = generatePrivateKey();
-  fs.writeFileSync(PK_FILE, JSON.stringify({ privateKey }, null, 2));
+// Load deployer private key from root .env or fallback to deployer_pk.json
+const envFile = path.join(__dirname, '..', '.env');
+let privateKey = null;
+
+if (fs.existsSync(envFile)) {
+  const envContent = fs.readFileSync(envFile, 'utf8');
+  const match = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
+  if (match) {
+    privateKey = match[1];
+    console.log('[Deployer] Using private key from root .env file');
+  }
+}
+
+if (!privateKey) {
+  const PK_FILE = path.join(__dirname, 'deployer_pk.json');
+  if (fs.existsSync(PK_FILE)) {
+    const raw = JSON.parse(fs.readFileSync(PK_FILE, 'utf8'));
+    if (raw.privateKey && raw.privateKey.startsWith('0x') && raw.privateKey.length === 66) {
+      privateKey = raw.privateKey;
+      console.log('[Deployer] Using private key from scripts/deployer_pk.json');
+    }
+  }
+}
+
+if (!privateKey) {
+  console.error('\x1b[31m[Deployer Error] No valid private key found!\x1b[0m');
+  console.error('Please open .env and set DEPLOYER_PRIVATE_KEY=0x<your-64-character-hex-key>');
+  process.exit(1);
 }
 
 const account = createAccount(privateKey);
@@ -76,7 +96,8 @@ async function deployAll() {
         status,
         consensus,
         validators,
-        explorerUrl: `https://genlayer-explorer.vercel.app/address/${deployedAddress}`
+        explorerUrl: `https://explorer-studio.genlayer.com/address/${deployedAddress}`,
+        txExplorerUrl: `https://explorer-studio.genlayer.com/tx/${txHash}`
       };
     } catch (err) {
       console.error(`\x1b[31m✖ Error deploying ${c.name}:\x1b[0m`, err.message);

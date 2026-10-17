@@ -2,129 +2,137 @@
   "NetworkProbe": {
     "name": "NetworkProbe",
     "file": "probe_network.py",
-    "address": "0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691",
-    "txHash": "0x6e8886c0c2b932c397628b27f8c68f975fd699ebef91129b0ef4b446a91769f8",
+    "address": "0xB28858fA47C3648746f38c99dC4e46AA80444BD3",
+    "txHash": "0x0d37ad4655fba00f2cc2530110dcc6fdfc72b1bb1ef3e45514ea068de27fb5f1",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
-      "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
-      "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
-      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
+      "0x1242E9f5bf9b253327f130E8802b7b2F438A21Ef",
+      "0xf1C7551292319EE334e2D8A24eAC108Bd4C63b21",
+      "0x5Bbbd7cdD63c0ba7f088038Cb049bDDAbE4F6fd1",
+      "0x6a4179A851B3747A458baD2f089AB2EeFE0eBbAb",
+      "0x2FcBC452425f2F1e102c5c04b4331fcB46ee1c00"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x64AcC314Ef8D29FDCD2DA8Ee907625ACa5049691"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x0d37ad4655fba00f2cc2530110dcc6fdfc72b1bb1ef3e45514ea068de27fb5f1"
   },
   "DarePolicy": {
     "name": "DarePolicy",
     "file": "dare_policy.py",
-    "address": "0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE",
-    "txHash": "0x6ab5d53036ab826c95e12fcadb203992dfbda889bf9f346aa4dd076969c96c31",
+    "address": "0x59AF57218Bc417a2390cE373094Cc83E43DdD403",
+    "txHash": "0x2e3e3ef0e187566ca4d6bf22414c4beaac7e53cd6ee891b45bcca639e5f8ab02",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
-      "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
-      "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
-      "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88"
+      "0xe7eEe8a1c1690b0322d795B80A76ab2Cd1a0eAFd",
+      "0xa21bc502E3578E4b3039be8c59a257198f7c3f19",
+      "0x8a876C3F3a4783Bd123982bcBF3c672dc0239004",
+      "0x6a4179A851B3747A458baD2f089AB2EeFE0eBbAb",
+      "0x2FcBC452425f2F1e102c5c04b4331fcB46ee1c00"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x7947aeCC9eD24f254db6c9a64F38B2F04F2e22AE"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x2e3e3ef0e187566ca4d6bf22414c4beaac7e53cd6ee891b45bcca639e5f8ab02"
   },
   "StakeEscrow": {
     "name": "StakeEscrow",
     "file": "stake_escrow.py",
-    "address": "0x90010C348521701a01F540eAae451168adfE144c",
-    "txHash": "0x32da20da361348ce26a3c225e2abf691b9acae10cc55dbef7e82403170fcfdb5",
+    "address": "0x1F3cb956B066e42698F6F47d63d578BFd2708F5D",
+    "txHash": "0x0b94e25c04e6bca22034bfaec952306b1443eb846a441db01e68077b3f6dd885",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0xacc2459F341D7a887bcA8FAA62F1EC9378d4Bc67",
-      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
-      "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
-      "0x14402D49f317CE1a2F35BAE01b1804A2A9703dCb",
-      "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
+      "0xa21bc502E3578E4b3039be8c59a257198f7c3f19",
+      "0x8Ce1805d6970d54748dE7160b5b395dCC5c71F44",
+      "0x7bf4Ea55363bbe73A4dd5b3900bf03c978A63b6e",
+      "0x9244De5F20cB75A0c51d79A9A3208D00a99aFc10",
+      "0xf29b6947ed298d139FC2655DB15D868C9AbB3091"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x90010C348521701a01F540eAae451168adfE144c"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x1F3cb956B066e42698F6F47d63d578BFd2708F5D",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x0b94e25c04e6bca22034bfaec952306b1443eb846a441db01e68077b3f6dd885"
   },
   "EvidenceRegistry": {
     "name": "EvidenceRegistry",
     "file": "evidence_registry.py",
-    "address": "0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9",
-    "txHash": "0xcb3a3213a012595c5e83aa6e51bc7df679ce7f3b0b07caefb5ef768f8248bdee",
+    "address": "0x3C3F2982Caa3B204214bAf3f24A67c33799d89de",
+    "txHash": "0xf278af24470718d13acce1b1999fcc9604d719ec74515ad39132bfaab5f13a1c",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
-      "0x6737ca1d6BDF8b7C4f19143E2D55581Ca64eb7C3",
-      "0x4404Fb70d490c935758146f42A73DC850FF95C71",
-      "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84"
+      "0xf29b6947ed298d139FC2655DB15D868C9AbB3091",
+      "0x6a4179A851B3747A458baD2f089AB2EeFE0eBbAb",
+      "0x17ac0CaefB18205c737e64ee582c9245A28ca1f9",
+      "0x1242E9f5bf9b253327f130E8802b7b2F438A21Ef",
+      "0x7bf4Ea55363bbe73A4dd5b3900bf03c978A63b6e"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0xf278af24470718d13acce1b1999fcc9604d719ec74515ad39132bfaab5f13a1c"
   },
   "AgentReputation": {
     "name": "AgentReputation",
     "file": "agent_reputation.py",
-    "address": "0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5",
-    "txHash": "0xb079310440c4376c5c1538050cd8a5fdc5adb232dc669fb8cbd237281f4a132c",
+    "address": "0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19",
+    "txHash": "0x02eae17c927b286c0ff67d7e1d0e7bd8643d52f227e219a721ca6c4797ebf6b5",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0xec2Fb79cd12255Eb34886CEd7332f27B98DEe658",
-      "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
-      "0x772ffCd1dF6Cc566eC4b8d3f4F4f8eBbb6B36C84",
-      "0x76c25AFC12c75485703cCFfd0083AA6201455B25",
-      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47"
+      "0x892C437da9b9CA0b6017B6f046F58E3526B46ec6",
+      "0x2FcBC452425f2F1e102c5c04b4331fcB46ee1c00",
+      "0x1242E9f5bf9b253327f130E8802b7b2F438A21Ef",
+      "0xf29b6947ed298d139FC2655DB15D868C9AbB3091",
+      "0xa21bc502E3578E4b3039be8c59a257198f7c3f19"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x71343721509D9A89ebBe46BA77e4Ee711E5e9cf5"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x02eae17c927b286c0ff67d7e1d0e7bd8643d52f227e219a721ca6c4797ebf6b5"
   },
   "DareQualifier": {
     "name": "DareQualifier",
     "file": "dare_qualifier.py",
-    "address": "0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145",
-    "txHash": "0x567f44fbee9adb88baea644726ddc28aeabbcc3ff47a6193c0a5af1903004a0a",
+    "address": "0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6",
+    "txHash": "0x7241bcf182f5acc7f9185ac0dec73481a341aee3b9ab036e3d796e0d253e45f1",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0x90402341F0B0e97b23023c0a87de957FB7148E0F",
-      "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
-      "0xDB1c35c1f05d885999b8f13e5735307BcC16Be88",
-      "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC"
+      "0xe7eEe8a1c1690b0322d795B80A76ab2Cd1a0eAFd",
+      "0xf29b6947ed298d139FC2655DB15D868C9AbB3091",
+      "0x17ac0CaefB18205c737e64ee582c9245A28ca1f9",
+      "0x1dEcE6A694520b1d3a2e24b9f28500858C756BDb",
+      "0xA712cB25a4002666FA9D09477251f238dD9e06b3"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x26CC5547f9eb71E5fd0e21C45e7C9E4cDd2e3145"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x7241bcf182f5acc7f9185ac0dec73481a341aee3b9ab036e3d796e0d253e45f1"
   },
   "DareAdjudicator": {
     "name": "DareAdjudicator",
     "file": "dare_adjudicator.py",
-    "address": "0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757",
-    "txHash": "0xed84846efa39c6fb05c0a99731911afa3ad5836a7fd297f31cc47d8172433774",
+    "address": "0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b",
+    "txHash": "0x67de5fb99c165cefe98d90cdf30064820bcef9c8bcef4fb7a69d512bd23397fa",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8",
-      "0x36728d2a123aB444E603EE5b2ad17d18Bb193557",
-      "0x9ea87b28DcA2F79fe108CF06a4c13B4c876AC23d",
-      "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
-      "0xE6BD8050758CB15fC88387223E31Ae2708B119dC"
+      "0xA712cB25a4002666FA9D09477251f238dD9e06b3",
+      "0x1dEcE6A694520b1d3a2e24b9f28500858C756BDb",
+      "0xf1C7551292319EE334e2D8A24eAC108Bd4C63b21",
+      "0x892C437da9b9CA0b6017B6f046F58E3526B46ec6",
+      "0xad7d13f269CeAd4379E64a1A3a0803a827e70B43"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xbb29f7208126D1b4D5a6D4c4638393Efa49fA757"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x67de5fb99c165cefe98d90cdf30064820bcef9c8bcef4fb7a69d512bd23397fa"
   },
   "DareRegistry": {
     "name": "DareRegistry",
     "file": "dare_registry.py",
-    "address": "0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C",
-    "txHash": "0x0f204c17d61da17209575f2aa73204cce2260991b95ef4f3c3c543f2434ed25e",
+    "address": "0x68E73e3e2075A3978510c93437C5F6248ba85f4D",
+    "txHash": "0x4328b8500aef280802c5d909aa9e1d82a8b97f0980ac34b219a7a58fe5dae224",
     "status": "ACCEPTED",
     "consensus": "MAJORITY_AGREE",
     "validators": [
-      "0xec2Fb79cd12255Eb34886CEd7332f27B98DEe658",
-      "0x4EDbE1FC9EAeC7b0EBA849b0C76AE73Eb0ad5C47",
-      "0xBBb165E4c9d73a1493D363280f7067Cd07891dBE",
-      "0x4aba638Cf0Cf5249437AaD968fC69dde46ae6BAC",
-      "0xcE1d6bBB36B744536153966B4DD42276f5ADd0F8"
+      "0x1242E9f5bf9b253327f130E8802b7b2F438A21Ef",
+      "0x40533175AfBbAee2c030F88259Afb5aEDbCF0E05",
+      "0x892C437da9b9CA0b6017B6f046F58E3526B46ec6",
+      "0x17ac0CaefB18205c737e64ee582c9245A28ca1f9",
+      "0xf29b6947ed298d139FC2655DB15D868C9AbB3091"
     ],
-    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x839040E5EE3697DF2b71Bf57dA69bf4ff200878C"
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x4328b8500aef280802c5d909aa9e1d82a8b97f0980ac34b219a7a58fe5dae224"
   }
 }

@@ -1,41 +1,40 @@
-// Vercel Serverless Function: WebMCP API Gateway & Cross-Browser State Coordinator for DareYou
-// Enforces a strict, cheat-proof one-way state machine (OPEN -> ACCEPTED -> SUBMITTED -> FINALIZED)
 // across all connected browsers while syncing with GenLayer StudioNet (Chain ID 61999).
 
 if (!globalThis.__DAREYOU_SHARED_DARES__) {
-  // Seed Challenge #1002 in its true first-outcome state (CHALLENGER_WINS) so both browsers match
-  globalThis.__DAREYOU_SHARED_DARES__ = new Map([
-    [
-      1002,
-      {
-        id: 1002,
-        onChainId: 2,
-        isBenchmark: false,
-        title: "Dare you to uncover a planetary wind-speed limit hidden in spacecraft thermal data",
-        category: "CONFLICTING_SOURCE_INVESTIGATION",
-        domain: "Science",
-        claim: "The thermal history of a robotic probe after landing on an extraterrestrial surface was used to constrain the local near-surface wind speed to below a specific numerical threshold. The limit was inferred from a thermal model rather than a direct wind-speed measurement.",
-        requiredSources: "The original peer-reviewed scientific paper containing the wind-speed constraint, its methodology and thermal-model assumptions, and any cited primary mission measurements used in the analysis. The solver must locate these sources independently. Secondary summaries alone do not qualify.",
-        criteria: "Pass only if all conditions are satisfied: (1) Identifies the planetary body and robotic mission. (2) Reports the published upper bound on near-surface wind speed, including correct units. (3) Explains how the probe's thermal history and heat-transfer modelling support the constraint. (4) Provides a direct link to the original peer-reviewed publication and identifies the passage supporting the numerical result. (5) Distinguishes a model-derived upper bound from a direct measurement. Fail: Incorrect numerical bound, incorrect units, fabricated citations, unsupported reasoning, or treating an inferred constraint as a direct measurement.",
-        stakeCents: 1000,
-        creationBondCents: 500,
-        durationSeconds: 120,
-        acceptanceDeadlineTs: 1792246145421,
-        researchDeadlineTs: 1792160703630,
-        status: "FINALIZED",
-        challenger: "0xb5e5560f826d05195d252e094f1a668133effa70",
-        investigator: "0x1366965cb8dc064bde55c8e3275ce4190042d473",
-        verdict: "CHALLENGER_WINS",
-        verdictScore: 26,
-        verdictRationale: "Outcome: NOT_MET | First submission rejected (missing verbatim quotes field in initial payload) and research window elapsed. Second submission attempt blocked by anti-cheat immutability lock. Escrow pool of $20.00 GEN awarded to Challenger.",
-        txHash: "0x512cf3c38697409f4cd78ccbd08d1247e305dedd925bbc62a02ddb00d6b94dd3",
-        settlementTxHash: "0x512cf3c38697409f4cd78ccbd08d1247e305dedd925bbc62a02ddb00d6b94dd3",
-        payoutRecipient: "0xb5e5560f826d05195d252e094f1a668133effa70",
-        isLocked: true,
-        updatedAt: Date.now()
-      }
-    ]
-  ]);
+  globalThis.__DAREYOU_SHARED_DARES__ = new Map();
+  globalThis.__DAREYOU_SHARED_DARES__.set(2, {
+    id: 2,
+    onChainId: 2,
+    isBenchmark: false,
+    title: "Verify whether the NASA Voyager 1 interstellar plasma density equals 0.08 cm⁻³",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    domain: "Science",
+    claim: "Voyager 1 Plasma Wave Science instrument detected plasma density of 0.08 electrons per cubic centimeter upon crossing into interstellar space.",
+    requiredSources: "NASA Jet Propulsion Laboratory mission archives or Gurnett et al. (Science 2013)",
+    criteria: "Quote must confirm 0.08 cm⁻³ interstellar electron plasma density from archival logs.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 600,
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: 0,
+    status: "FINALIZED",
+    isLocked: true,
+    verdict: "CHALLENGER_WINS",
+    verdictScore: 100,
+    verdictRationale: "The validator-fetched archival excerpt is UNREACHABLE, as indicated by the fetch status and the WEB_FETCH_UNAVAILABLE content, preventing verification of the quote against the source.",
+    challenger: "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    investigator: "0x61Ddc74bA3407F56a14e1EC929dA62441764d84f",
+    payoutRecipient: "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    payoutClaimed: true,
+    settlementTxHash: "0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8",
+    txHash: "0x6013531c051af8815e3c0628b8993d6feda43c39ae6a39b5732ecb02aadcb0c3",
+    evidence: {
+      conclusion: "CLAIM_VERIFIED_TRUE",
+      primaryUrl: "https://www.jpl.nasa.gov/news/nasa-spacecraft-embarks-on-historic-journey-into-interstellar-space    https://doi.org/10.1126/science.1241681",
+      quotes: "\"Now that we have new, key data, we believe this is mankind's historic leap into interstellar space... Gurnett's team used a burst of plasma oscillations occurring upon crossing the heliopause on August 25, 2012 to derive an electron plasma density of about 0.08 electrons per cubic centimeter.\"",
+      reasoning: "The primary NASA Jet Propulsion Laboratory mission release (Release 2013-278) and Donald Gurnett et al. (Science 2013) confirm that the Voyager 1 Plasma Wave Science (PWS) instrument detected plasma oscillations indicating an electron density of approximately 0.08 electrons per cubic centimeter (0.08 cm⁻³). This sudden increase above the solar wind density (~0.002 cm⁻³) provided direct empirical proof that Voyager 1 had crossed into dense interstellar plasma."
+    }
+  });
 }
 
 const STATUS_RANK = {

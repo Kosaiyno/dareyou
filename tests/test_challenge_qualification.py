@@ -56,98 +56,91 @@ class MockEqPrinciple:
 
         user_input = get_input_fn()
 
-        if "=== INVESTIGATOR SUBMITTED EVIDENCE DOSSIER ===" in user_input:
-            if "unverified social media" in user_input:
+        # Adjudication prompt (dare_adjudicator.py)
+        if "=== VALIDATOR-FETCHED ARCHIVAL EXCERPT ===" in user_input or "=== INVESTIGATOR EVIDENCE DOSSIER ===" in user_input or "=== INVESTIGATOR SUBMITTED EVIDENCE DOSSIER ===" in user_input:
+            if "unverified social media" in user_input or "Unsubstantiated Twitter claim" in user_input:
                 return json.dumps({
-                    "verdict": "CHALLENGER_WINS",
-                    "score": 25,
-                    "criteria_fulfillment": False,
+                    "outcome": "NOT_MET",
+                    "quote_verified": False,
+                    "extracted_quote": "",
                     "rationale": "Evidence relies on unverified social media rather than required official sources."
                 })
             elif "Conflicting official records" in user_input:
                 return json.dumps({
-                    "verdict": "INCONCLUSIVE",
-                    "score": 50,
-                    "criteria_fulfillment": False,
+                    "outcome": "INSUFFICIENT_EVIDENCE",
+                    "quote_verified": False,
+                    "extracted_quote": "",
                     "rationale": "UEFA and national federation match sheets directly contradict on goal attribution."
                 })
             else:
                 return json.dumps({
-                    "verdict": "INVESTIGATOR_WINS",
-                    "score": 90,
-                    "criteria_fulfillment": True,
+                    "outcome": "MET",
+                    "quote_verified": True,
+                    "extracted_quote": "Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji.",
                     "rationale": "Evidence satisfies required criteria."
                 })
 
         # Label 1: Trivial fact check
-        if "Was Lionel Messi a player for FC Barcelona" in user_input:
+        if "messi" in user_input.lower():
             return json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 10,
-                "non_obvious": False,
-                "verifiable": True,
+                "observable_criteria": False,
+                "immutable_source_feasible": True,
                 "rationale": "Trivial, widely known historical fact requiring no investigative research synthesis."
             })
         # Label 2: Future Prediction Market
-        elif "Will Kylian Mbappe score a hat-trick in the upcoming" in user_input:
+        elif "mbappe" in user_input.lower() or "hat-trick" in user_input.lower():
             return json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 0,
-                "non_obvious": False,
-                "verifiable": False,
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
                 "rationale": "Explicitly excluded: predictive future event rather than historical factual investigation."
             })
         # Label 3: Subjective opinion
-        elif "Is Cristiano Ronaldo a better player than Pele" in user_input:
+        elif "ronaldo" in user_input.lower() or "pele" in user_input.lower():
             return json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 5,
-                "non_obvious": False,
-                "verifiable": False,
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
                 "rationale": "Explicitly excluded: subjective opinion poll with unobservable, non-factual criteria."
             })
         # Label 4: Impossible task
-        elif "Find secret unreleased private audio" in user_input:
+        elif "secret unreleased private audio" in user_input.lower() or "audio" in user_input.lower():
             return json.dumps({
                 "decision": "REJECTED",
-                "depth_score": 20,
-                "non_obvious": True,
-                "verifiable": False,
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
                 "rationale": "Impossible task: relies on non-existent, unobservable private material."
             })
         # Label 5: Research-intensive multi-source
-        elif "Did Erling Haaland score with his right foot in the 2023 UCL semi-final" in user_input:
+        elif "haaland" in user_input.lower():
             return json.dumps({
                 "decision": "APPROVED",
-                "depth_score": 92,
-                "non_obvious": True,
-                "verifiable": True,
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
                 "rationale": "Genuine factual inquiry requiring cross-referencing UEFA official match sheets and broadcast logs."
             })
         # Label 6: Conflicting-source investigation
-        elif "Sneijder goal or a Felipe Melo own goal" in user_input:
+        elif "sneijder" in user_input.lower() or "felipe melo" in user_input.lower():
             return json.dumps({
                 "decision": "APPROVED",
-                "depth_score": 96,
-                "non_obvious": True,
-                "verifiable": True,
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
                 "rationale": "Exemplary conflicting-source challenge requiring reconciliation of amended FIFA technical dispatches."
             })
         # Label 7: Evidence synthesis
-        elif "Medina Cantalejo via electronic communication" in user_input:
+        elif "medina cantalejo" in user_input.lower():
             return json.dumps({
                 "decision": "APPROVED",
-                "depth_score": 95,
-                "non_obvious": True,
-                "verifiable": True,
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
                 "rationale": "High-depth evidence synthesis combining referee statements and disciplinary committee publications."
             })
         else:
             return json.dumps({
                 "decision": "APPROVED",
-                "depth_score": 90,
-                "non_obvious": True,
-                "verifiable": True,
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
                 "rationale": "Meets research qualification criteria."
             })
 
@@ -167,14 +160,35 @@ class MockContract:
         return obj
 
 
+class MockPublicWrite:
+    @staticmethod
+    def payable(f):
+        return f
+
+    def __call__(self, f):
+        return f
+
+
 class MockPublic:
     @staticmethod
     def view(f):
         return f
 
-    @staticmethod
-    def write(f):
-        return f
+    write = MockPublicWrite()
+
+
+class MockWeb:
+    def render(self, url, mode="text"):
+        return (
+            "Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji. "
+            "Official FIFA match report confirms Zidane sent off in 110th minute (direct red card). "
+            "Historical matches and disciplinary records archive."
+        )
+
+
+class MockNonDet:
+    def __init__(self):
+        self.web = MockWeb()
 
 
 class MockGLModule:
@@ -184,6 +198,13 @@ class MockGLModule:
         self.block = MockBlock()
         self.eq_principle = MockEqPrinciple()
         self.public = MockPublic()
+        self.nondet = MockNonDet()
+
+    def get_contract_at(self, addr):
+        class MockTarget:
+            def emit_transfer(self, value=0, on="accepted"):
+                pass
+        return MockTarget()
 
 
 # Register mocks in sys.modules
@@ -226,35 +247,35 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_trivial_001",
             category="INVESTIGATIVE_FACT_FINDING",
-            title="Was Lionel Messi a player for FC Barcelona during 2015?",
+            title="Dare you to verify whether Lionel Messi was a player for FC Barcelona during 2015 within 15 minutes.",
             claim_statement="Lionel Messi was an official squad member of FC Barcelona in 2015.",
             required_sources_desc="Wikipedia and general football archives.",
             evaluation_criteria="Verify whether player was registered in official Spanish league roster."
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "REJECTED")
-        self.assertFalse(parsed["non_obvious"])
+        self.assertFalse(parsed["observable_criteria"])
 
     # --- Test 2: Future Prediction Rejection ---
     def test_label_2_future_prediction_rejected(self):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_pred_002",
             category="INVESTIGATIVE_FACT_FINDING",
-            title="Will Kylian Mbappe score a hat-trick in the upcoming match?",
+            title="Dare you to predict if Kylian Mbappe will score a hat-trick in the upcoming match within 15 minutes.",
             claim_statement="Kylian Mbappe will score 3 goals in the next match.",
             required_sources_desc="Future broadcast logs.",
             evaluation_criteria="Evaluate live match result after completion."
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "REJECTED")
-        self.assertFalse(parsed["verifiable"])
+        self.assertFalse(parsed["observable_criteria"])
 
     # --- Test 3: Subjective Opinion Debate Rejection ---
     def test_label_3_subjective_opinion_rejected(self):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_opinion_003",
             category="INVESTIGATIVE_FACT_FINDING",
-            title="Is Cristiano Ronaldo a better player than Pele historically?",
+            title="Dare you to determine if Cristiano Ronaldo is a better player than Pele historically within 15 minutes.",
             claim_statement="Cristiano Ronaldo is objectively superior to Pele.",
             required_sources_desc="Subjective sports commentary.",
             evaluation_criteria="Determine who had greater historical impact."
@@ -267,7 +288,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         result_json = self.qualifier.evaluate_challenge_qualification(
             content_hash="hash_impos_004",
             category="INVESTIGATIVE_FACT_FINDING",
-            title="Find secret unreleased private audio of World Cup referee?",
+            title="Dare you to find secret unreleased private audio of World Cup referee within 15 minutes.",
             claim_statement="Referees secretly admitted an intentional bad call in private.",
             required_sources_desc="Classified unreleased archives.",
             evaluation_criteria="Produce authentic private audio tape transcript."
@@ -287,8 +308,9 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "APPROVED")
-        self.assertTrue(parsed["non_obvious"])
-        self.assertGreaterEqual(parsed["depth_score"], 80)
+        self.assertTrue(parsed["observable_criteria"])
+        self.assertTrue(parsed["immutable_source_feasible"])
+        self.assertTrue(len(parsed["rules_sha256"]) > 0)
 
     # --- Test 6: Conflicting-Source Investigation (APPROVED) ---
     def test_label_6_conflicting_sources_approved(self):
@@ -302,7 +324,8 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "APPROVED")
-        self.assertGreaterEqual(parsed["depth_score"], 90)
+        self.assertTrue(parsed["observable_criteria"])
+        self.assertTrue(parsed["immutable_source_feasible"])
 
     # --- Test 7: Evidence Synthesis (APPROVED) ---
     def test_label_7_evidence_synthesis_approved(self):
@@ -316,6 +339,8 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         )
         parsed = json.loads(result_json)
         self.assertEqual(parsed["decision"], "APPROVED")
+        self.assertTrue(parsed["observable_criteria"])
+        self.assertTrue(parsed["immutable_source_feasible"])
 
     # --- Test Format: Missing 'Dare you to ' prefix strictly rejected ---
     def test_format_missing_prefix_rejected(self):

@@ -1,0 +1,29 @@
+{
+  "newEscrowAddress": "0x82De72ea7D86A6ef69B6bB2eeE4054E762838105",
+  "deployTx": "0x457eaee9561e3a00e59e9098d7dc818f6e82cc41f00ae9404358a24d61fd0690",
+  "authTx": "0x11dbfaa1fdcbb4aec5a954d22651505d87bba3a3c0e40fbcccb3154a536970f6",
+  "linkTx": "0x36b19dcbfda46f92cfdf9e713dc2d3fe77a8d26d4c7b831ac5ae539260adb7f6",
+  "depTx1": "0x5d150a7f99a67da2708a5339e5bcc59af0b74a4f10445282ebb85ef423db09e7",
+  "depTx2": "0x3792e961c5c333dd1f6cef1af69b2b7e3caa40d340ae19878c825f452e407de8",
+  "settleTx": "0xeac582f7a208bdc8967c1d9f5e75e10c27b327c5cc433d03300cee29e5d013d5",
+  "claimTx": "0x981b4dcd2557bb3e8ddfd53e33d452d360ea9cda85160a5551518c3de2d46cad",
+  "finalRecord": {
+    "dare_id": 1001,
+    "challenger": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    "investigator": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    "required_stake_cents": 10,
+    "challenger_deposited": 10,
+    "challenger_deposited_wei": 1000000000000000,
+    "investigator_deposited": 10,
+    "investigator_deposited_wei": 1000000000000000,
+    "total_escrowed_cents": 20,
+    "total_escrowed_wei": 2000000000000000,
+    "settled": true,
+    "settlement_type": "WINNER_PAYOUT",
+    "recipient": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    "claimed": true,
+    "settled_at": 0,
+    "claimed_at": 0,
+    "claimant": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C"
+  }
+}

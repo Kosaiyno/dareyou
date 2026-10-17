@@ -52,33 +52,85 @@ class MockEqPrinciple:
             return self.mock_response
 
         user_input = get_input_fn()
-        if "Official UEFA match report confirms" in user_input:
+        if "=== VALIDATOR-FETCHED ARCHIVAL EXCERPT ===" in user_input or "=== INVESTIGATOR EVIDENCE DOSSIER ===" in user_input or "=== INVESTIGATOR SUBMITTED EVIDENCE DOSSIER ===" in user_input:
+            if "Unsubstantiated Twitter claim" in user_input or "unverified social media" in user_input:
+                return json.dumps({
+                    "outcome": "NOT_MET",
+                    "quote_verified": False,
+                    "extracted_quote": "",
+                    "rationale": "Evidence relies on unverified social media rather than required official sources."
+                })
+            elif "Conflicting official records" in user_input:
+                return json.dumps({
+                    "outcome": "INSUFFICIENT_EVIDENCE",
+                    "quote_verified": False,
+                    "extracted_quote": "",
+                    "rationale": "UEFA and national federation match sheets directly contradict on goal attribution."
+                })
+            else:
+                return json.dumps({
+                    "outcome": "MET",
+                    "quote_verified": True,
+                    "extracted_quote": "Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji.",
+                    "rationale": "Investigator supplied authoritative official match report proving the claim."
+                })
+
+        # Challenge Qualification prompt (dare_qualifier.py)
+        if "messi" in user_input.lower():
             return json.dumps({
-                "verdict": "INVESTIGATOR_WINS",
-                "score": 96,
-                "criteria_fulfillment": True,
-                "rationale": "Investigator supplied authoritative official match report proving the claim."
+                "decision": "REJECTED",
+                "observable_criteria": False,
+                "immutable_source_feasible": True,
+                "rationale": "Trivial, widely known historical fact requiring no investigative research synthesis."
             })
-        elif "Unsubstantiated Twitter claim" in user_input:
+        elif "mbappe" in user_input.lower() or "hat-trick" in user_input.lower():
             return json.dumps({
-                "verdict": "CHALLENGER_WINS",
-                "score": 25,
-                "criteria_fulfillment": False,
-                "rationale": "Evidence relies on unverified social media rather than required official sources."
+                "decision": "REJECTED",
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
+                "rationale": "Explicitly excluded: predictive future event rather than historical factual investigation."
             })
-        elif "Conflicting official records" in user_input:
+        elif "ronaldo" in user_input.lower() or "pele" in user_input.lower():
             return json.dumps({
-                "verdict": "INCONCLUSIVE",
-                "score": 50,
-                "criteria_fulfillment": False,
-                "rationale": "UEFA and national federation match sheets directly contradict on goal attribution."
+                "decision": "REJECTED",
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
+                "rationale": "Explicitly excluded: subjective opinion poll with unobservable, non-factual criteria."
+            })
+        elif "secret unreleased private audio" in user_input.lower() or "audio" in user_input.lower():
+            return json.dumps({
+                "decision": "REJECTED",
+                "observable_criteria": False,
+                "immutable_source_feasible": False,
+                "rationale": "Impossible task: relies on non-existent, unobservable private material."
+            })
+        elif "haaland" in user_input.lower():
+            return json.dumps({
+                "decision": "APPROVED",
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
+                "rationale": "Genuine factual inquiry requiring cross-referencing UEFA official match sheets and broadcast logs."
+            })
+        elif "sneijder" in user_input.lower() or "felipe melo" in user_input.lower():
+            return json.dumps({
+                "decision": "APPROVED",
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
+                "rationale": "Exemplary conflicting-source challenge requiring reconciliation of amended FIFA technical dispatches."
+            })
+        elif "medina cantalejo" in user_input.lower():
+            return json.dumps({
+                "decision": "APPROVED",
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
+                "rationale": "High-depth evidence synthesis combining referee statements and disciplinary committee publications."
             })
         else:
             return json.dumps({
-                "verdict": "INVESTIGATOR_WINS",
-                "score": 90,
-                "criteria_fulfillment": True,
-                "rationale": "Evidence satisfies required criteria."
+                "decision": "APPROVED",
+                "observable_criteria": True,
+                "immutable_source_feasible": True,
+                "rationale": "Meets research qualification criteria."
             })
 
 
@@ -95,14 +147,35 @@ class MockContract:
         return obj
 
 
+class MockPublicWrite:
+    @staticmethod
+    def payable(f):
+        return f
+
+    def __call__(self, f):
+        return f
+
+
 class MockPublic:
     @staticmethod
     def view(f):
         return f
 
-    @staticmethod
-    def write(f):
-        return f
+    write = MockPublicWrite()
+
+
+class MockWeb:
+    def render(self, url, mode="text"):
+        return (
+            "Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji. "
+            "Official FIFA match report confirms Zidane sent off in 110th minute (direct red card). "
+            "Historical matches and disciplinary records archive."
+        )
+
+
+class MockNonDet:
+    def __init__(self):
+        self.web = MockWeb()
 
 
 class MockGLModule:
@@ -112,12 +185,22 @@ class MockGLModule:
         self.block = MockBlock()
         self.eq_principle = MockEqPrinciple()
         self.public = MockPublic()
+        self.nondet = MockNonDet()
+
+    def get_contract_at(self, addr):
+        class MockTarget:
+            def emit_transfer(self, value=0, on="accepted"):
+                pass
+        return MockTarget()
 
 
 # Register mocks in sys.modules
 if "genlayer" in sys.modules:
     genlayer_mock = sys.modules["genlayer"]
     mock_gl = genlayer_mock.gl
+    if not hasattr(mock_gl, "nondet"):
+        mock_gl.nondet = MockNonDet()
+    mock_gl.eq_principle = MockEqPrinciple()
 else:
     mock_gl = MockGLModule()
     genlayer_mock = type(sys)("genlayer")
@@ -233,6 +316,30 @@ class TestDareYouContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.escrow.settle_winner_payout(1, self.investigator)
 
+        # Unauthorized claimant rejected
+        mock_gl.message.sender_address = Address(self.intruder)
+        with self.assertRaises(Exception):
+            self.escrow.claim_winner_payout(1)
+
+        # Designated winner claims payout
+        mock_gl.message.sender_address = Address(self.investigator)
+        self.assertTrue(self.escrow.claim_winner_payout(1))
+        s_info = json.loads(self.escrow.get_stake_info(1))
+        self.assertTrue(s_info["claimed"])
+        self.assertEqual(s_info["claimant"], self.investigator)
+
+        # Double-claim rejected (double-payout protection)
+        with self.assertRaises(ValueError):
+            self.escrow.claim_winner_payout(1)
+
+        # Emergency recovery: intruder rejected, owner permitted
+        mock_gl.message.sender_address = Address(self.intruder)
+        with self.assertRaises(Exception):
+            self.escrow.emergency_withdraw_rescue(self.intruder, 1000)
+
+        mock_gl.message.sender_address = Address(self.challenger)  # owner
+        self.assertTrue(self.escrow.emergency_withdraw_rescue(self.challenger, 1000))
+
     def test_evidence_submission_and_immutability(self):
         self.evidence.submit_evidence(
             dare_id=1,
@@ -268,7 +375,8 @@ class TestDareYouContracts(unittest.TestCase):
         )
         parsed = json.loads(res)
         self.assertEqual(parsed["verdict"], "INVESTIGATOR_WINS")
-        self.assertTrue(parsed["criteria_fulfillment"])
+        self.assertTrue(parsed["quote_verified"])
+        self.assertEqual(parsed["consequence"], "RELEASE_ESCROW_TO_INVESTIGATOR")
 
     def test_dare_adjudication_empty_quotes_rejection(self):
         res = self.adjudicator.adjudicate_evidence(
@@ -286,7 +394,8 @@ class TestDareYouContracts(unittest.TestCase):
         )
         parsed = json.loads(res)
         self.assertEqual(parsed["verdict"], "CHALLENGER_WINS")
-        self.assertEqual(parsed["score"], 0)
+        self.assertFalse(parsed["quote_verified"])
+        self.assertEqual(parsed["consequence"], "FORFEIT_ESCROW_TO_CHALLENGER")
 
     def test_forfeit_timeout_mechanism(self):
         self.registry.create_dare("T", "MATCH_FACTS", "C", "S", "E", 1000, 3600)
