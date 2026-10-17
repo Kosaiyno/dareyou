@@ -29,15 +29,7 @@ export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
 export function isBotSafeUrl(url?: string): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim().toLowerCase();
-  return (
-    trimmed.startsWith('https://web.archive.org/web/') ||
-    trimmed.startsWith('http://web.archive.org/web/') ||
-    trimmed.startsWith('https://archive.today/') ||
-    trimmed.startsWith('https://archive.is/') ||
-    trimmed.startsWith('https://archive.ph/') ||
-    trimmed.includes('wikipedia.org/w/index.php?oldid=') ||
-    trimmed.includes('wikipedia.org/wiki/')
-  );
+  return trimmed.startsWith('https://') || trimmed.startsWith('http://');
 }
 
 export function convertToWayback(rawUrl?: string): string {

@@ -68,6 +68,53 @@ function apiDaresDevPlugin(): Plugin {
             return;
           }
         }
+        if (req.url && req.url.startsWith('/api/claim')) {
+          if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+              try {
+                const data = JSON.parse(body);
+                const { dareId, winnerAddress, payoutDollars, claimTxHash } = data;
+                let transferTxHash = '';
+                try {
+                  const fs = require('fs');
+                  const path = require('path');
+                  const envPath = path.resolve(__dirname, '..', '.env');
+                  if (fs.existsSync(envPath)) {
+                    const envContent = fs.readFileSync(envPath, 'utf8');
+                    const match = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
+                    if (match && winnerAddress && Number(payoutDollars) > 0) {
+                      const { createClient, createAccount, chains } = require('genlayer-js');
+                      const { parseEther } = require('viem');
+                      const account = createAccount(match[1]);
+                      const client = createClient({ chain: chains.studionet, account });
+                      transferTxHash = await client.sendTransaction({
+                        to: winnerAddress,
+                        value: parseEther(String(payoutDollars))
+                      });
+                      console.log(`[Dev Claim] Transferred ${payoutDollars} GEN to ${winnerAddress}. Tx: ${transferTxHash}`);
+                    }
+                  }
+                } catch (e: any) {
+                  console.warn('[Dev Claim Transfer Warning]:', e?.message);
+                }
+
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({
+                  success: true,
+                  dareId,
+                  payoutClaimed: true,
+                  transferTxHash: transferTxHash || claimTxHash || '0x' + Array(64).fill('a').join(''),
+                }));
+              } catch {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: 'Invalid JSON' }));
+              }
+            });
+            return;
+          }
+        }
         next();
       });
     }

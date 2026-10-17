@@ -284,7 +284,7 @@ export default async function handler(req, res) {
   }
 
   // 1b. Winner Payout Settlement: /api/claim
-  if (subRoute === "claim") {
+  if (subRoute === "claim" || urlPath.endsWith("/claim") || urlPath.includes("/api/claim")) {
     if (req.method === "POST") {
       const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
       const { dareId, winnerAddress, payoutDollars, claimTxHash } = body;

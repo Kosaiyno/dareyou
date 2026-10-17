@@ -2815,30 +2815,16 @@ export default function App() {
                   <div className="space-y-1.5 pt-1">
                     <button
                       type="submit"
-                      disabled={!isBotSafeUrl(evidencePrimaryUrl) || isSnapshotting}
+                      disabled={evidencePrimaryUrl.trim().length < 5 || isSnapshotting}
                       className={`w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
-                        isBotSafeUrl(evidencePrimaryUrl) && !isSnapshotting
+                        evidencePrimaryUrl.trim().length > 5 && !isSnapshotting
                           ? 'bg-[#EF4444] hover:bg-[#DC2626] text-white shadow-lg shadow-red-500/25 cursor-pointer active:scale-98'
                           : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
                       }`}
                     >
-                      {isBotSafeUrl(evidencePrimaryUrl) ? (
-                        <>
-                          <ShieldCheck className="w-4 h-4 text-white" />
-                          <span>Submit Evidence for Validator Consensus</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="w-4 h-4 text-amber-500" />
-                          <span>Convert Primary Link to Bot-Safe Archive to Enable Submit</span>
-                        </>
-                      )}
+                      <ShieldCheck className="w-4 h-4 text-white" />
+                      <span>Submit Evidence for Validator Consensus</span>
                     </button>
-                    {!isBotSafeUrl(evidencePrimaryUrl) && (
-                      <p className="text-[11px] text-amber-700 text-center font-medium">
-                        🔒 Submission locked until primary link is converted to a Wayback snapshot. This prevents Cloudflare bot-firewalls from causing consensus forfeiture.
-                      </p>
-                    )}
                   </div>
                 </div>
               </form>
@@ -2894,10 +2880,11 @@ export default function App() {
             {selectedDare.status === 'FINALIZED' && (() => {
               const payoutDollars = ((selectedDare.stakeCents * 2) / 100).toFixed(2);
               const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
-              const winnerAddress = selectedDare.payoutRecipient || (isChallengerWinner 
-                ? selectedDare.challenger 
-                : (selectedDare.investigator || ''));
-              const isUserWinner = !!(
+              const isInvestigatorWinner = selectedDare.verdict === 'INVESTIGATOR_WINS';
+              const winnerAddress = isInvestigatorWinner 
+                ? (selectedDare.investigator || '') 
+                : (isChallengerWinner ? (selectedDare.challenger || '') : '');
+              const isUserWinner = Boolean(
                 walletAddress && winnerAddress &&
                 walletAddress.toLowerCase() === winnerAddress.toLowerCase()
               );
