@@ -601,9 +601,9 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
     }
   }
 
-  // 2. Throttle direct StudioNet RPC reads to once every 35s to stay well within 30 req/min & 500 req/hr
+  // 2. Throttle direct StudioNet RPC reads to once every 90s to stay well within GenLayer's 500 req/hr quota
   const now = Date.now();
-  if (forceRpc || now - lastRpcFetchAt > 35000 || cachedOnChainDares.length === 0) {
+  if (forceRpc || (now - lastRpcFetchAt > 90000 && cachedOnChainDares.length > 0) || (cachedOnChainDares.length === 0 && now - lastRpcFetchAt > 15000)) {
     lastRpcFetchAt = now;
     try {
       const client = getGenLayerClient();

@@ -464,8 +464,10 @@ export default function App() {
   useEffect(() => {
     store.loadOnChainDares();
     const syncInterval = setInterval(() => {
-      store.loadOnChainDares();
-    }, 3500);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        store.loadOnChainDares();
+      }
+    }, 60000);
     return () => clearInterval(syncInterval);
   }, []);
 
