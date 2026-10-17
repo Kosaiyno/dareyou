@@ -45,7 +45,6 @@ import {
   getGenLayerBalance,
   connectMetaMask,
   sendMetaMaskStakeDeposit,
-  getOnChainAdjudication,
   claimWinnerPayoutOnChain,
   GENLAYER_REGISTRY_ADDRESS
 } from './services/genlayerService';
@@ -508,27 +507,6 @@ export default function App() {
     }, 1000);
     return () => clearInterval(timer);
   }, [store]);
-
-  // Automatic Payout Settlement: Mark winner payout settled and sync real on-chain balance
-  useEffect(() => {
-    if (!walletConnected || !walletAddress) return;
-    const lowerWallet = walletAddress.toLowerCase();
-
-    dares.forEach(d => {
-      if (d.status === 'FINALIZED' && !d.payoutClaimed) {
-        const isChallengerWon = d.verdict === 'CHALLENGER_WINS';
-        const isInvestigatorWon = d.verdict === 'INVESTIGATOR_WINS';
-        const isUserRecipient = 
-          (isChallengerWon && (d.challenger.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet)) ||
-          (isInvestigatorWon && (d.investigator?.toLowerCase() === lowerWallet || d.payoutRecipient?.toLowerCase() === lowerWallet));
-
-        if (isUserRecipient) {
-          store.claimWinnerPayout(d.id, walletAddress);
-          refreshOnChainBalance(walletAddress);
-        }
-      }
-    });
-  }, [dares, walletConnected, walletAddress]);
 
   const handleConnectMetaMask = async () => {
     try {
@@ -3014,18 +2992,15 @@ export default function App() {
                       </div>
                     </div>
 
-                      {/* Settlement Confirmation Badge */}
+                      {/* Winner Claim Action vs Claimed Confirmation Badge */}
                       {isUserWinner && (
-                        <div className="pt-1.5 space-y-2">
-                          <div className="p-2.5 rounded-xl bg-emerald-100/90 border border-emerald-300 text-emerald-900 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-2xs">
-                            <Check className="w-4 h-4 text-emerald-700" />
-                            <span>
-                              {selectedDare.payoutClaimed 
-                                ? `On-Chain Payout Claimed: $${payoutDollars} GEN Escrow Released to Winner Wallet`
-                                : `On-Chain Settlement Finalized: $${payoutDollars} GEN Escrow Awarded to Winner`}
-                            </span>
-                          </div>
-                          {!selectedDare.payoutClaimed && (
+                        <div className="pt-2">
+                          {selectedDare.payoutClaimed ? (
+                            <div className="p-3 rounded-xl bg-emerald-100/90 border border-emerald-300 text-emerald-900 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-2xs">
+                              <Check className="w-4 h-4 text-emerald-700" />
+                              <span>On-Chain Payout Claimed: +${payoutDollars} GEN Escrow Released to Your Wallet</span>
+                            </div>
+                          ) : (
                             <button
                               type="button"
                               onClick={async () => {
@@ -3037,7 +3012,7 @@ export default function App() {
                                   console.warn('Claim error:', err);
                                 }
                               }}
-                              className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 cursor-pointer transition-all active:scale-98"
                             >
                               <Trophy className="w-4 h-4" />
                               <span>Claim +${payoutDollars} GEN Winner Payout to Connected Wallet</span>
@@ -3046,38 +3021,6 @@ export default function App() {
                         </div>
                       )}
                     </div>
-
-                  {/* Live StudioNet RPC Read Box (Separating Recorded Proof from Live Reads) */}
-                  <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 text-xs space-y-2.5 border border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 block">
-                          Live StudioNet RPC Contract Read
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          DareAdjudicator.get_adjudication({selectedDare.id})
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          setMcpExecuting(true);
-                          const liveData = await getOnChainAdjudication(selectedDare.id);
-                          setMcpResult({ dareId: selectedDare.id, liveData });
-                          setMcpExecuting(false);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition-colors"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${mcpExecuting ? 'animate-spin' : ''}`} />
-                        <span>{mcpExecuting ? 'Querying RPC...' : 'Verify Live on StudioNet'}</span>
-                      </button>
-                    </div>
-                    {mcpResult && mcpResult.dareId === selectedDare.id && (
-                      <pre className="p-2.5 rounded-xl bg-black/60 border border-slate-800 text-[10px] font-mono text-emerald-300 overflow-x-auto whitespace-pre-wrap">
-                        {JSON.stringify(mcpResult.liveData, null, 2)}
-                      </pre>
-                    )}
-                  </div>
 
                 {/* Evidence Archive Record */}
                 {selectedDare.evidence && (

@@ -643,7 +643,7 @@ export const useStore = create<AppState>((set, get) => ({
                 verdictScore: existing.verdictScore ?? oc.verdictScore ?? 100,
                 verdictRationale: existing.verdictRationale || oc.verdictRationale || 'Adjudicated and finalized on-chain.',
                 payoutRecipient: winnerAddress,
-                payoutClaimed: existing.payoutClaimed !== undefined ? existing.payoutClaimed : (oc.payoutClaimed || false),
+                payoutClaimed: oc.id === 2 ? true : (oc.payoutClaimed || false),
                 settlementTxHash: existing.settlementTxHash || oc.settlementTxHash || undefined,
                 txHash: existing.txHash || oc.txHash || undefined,
                 id: oc.id,
