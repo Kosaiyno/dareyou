@@ -35,7 +35,10 @@ import {
   Play,
   HelpCircle,
   Camera,
-  AlertTriangle
+  AlertTriangle,
+  Trash2,
+  Plus,
+  Info
 } from 'lucide-react';
 import { useStore, isDareExpired } from './store/useStore';
 import { 
@@ -48,6 +51,37 @@ import {
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
 import { APP_WEBMCP_TOOLS } from './webmcp/registerTools';
+
+/**
+ * Bot-Safe Archive URL Validator
+ * GenLayer Validator AI nodes execute gl.nondet.web.render(). Institutional sites
+ * (loc.gov, nasa.gov, news sites) employ Cloudflare/Akamai anti-bot defenses that return
+ * HTTP 403 (WEB_FETCH_UNAVAILABLE). Archive snapshots guarantee 100% validator readability.
+ */
+export function isBotSafeUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+  return (
+    trimmed.startsWith('https://web.archive.org/web/') ||
+    trimmed.startsWith('http://web.archive.org/web/') ||
+    trimmed.startsWith('https://archive.today/') ||
+    trimmed.startsWith('https://archive.is/') ||
+    trimmed.startsWith('https://archive.ph/') ||
+    trimmed.includes('wikipedia.org/w/index.php?oldid=') ||
+    trimmed.includes('wikipedia.org/wiki/')
+  );
+}
+
+export function convertToWayback(rawUrl?: string): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+  if (isBotSafeUrl(trimmed)) return trimmed;
+  const safe = trimmed.startsWith('http://') || trimmed.startsWith('https://') 
+    ? trimmed 
+    : `https://${trimmed}`;
+  return `https://web.archive.org/web/${safe}`;
+}
 
 /**
  * Live Countdown Timer with 1-second auto-refresh
@@ -317,22 +351,44 @@ export default function App() {
   const [evidenceConclusion, setEvidenceConclusion] = useState('CLAIM_VERIFIED_TRUE');
   const [evidencePrimaryUrl, setEvidencePrimaryUrl] = useState('');
   const [evidenceSecondaryUrl, setEvidenceSecondaryUrl] = useState('');
+  const [evidenceSecondaryUrls, setEvidenceSecondaryUrls] = useState<string[]>([]);
   const [evidenceQuotes, setEvidenceQuotes] = useState('');
   const [evidenceReasoning, setEvidenceReasoning] = useState('');
   const [isSnapshotting, setIsSnapshotting] = useState(false);
+  const [showArchiveReminder, setShowArchiveReminder] = useState(true);
 
   const handleConvertWaybackSnapshot = () => {
     if (!evidencePrimaryUrl) return;
-    const trimmed = evidencePrimaryUrl.trim();
-    if (trimmed.includes('web.archive.org')) return;
     setIsSnapshotting(true);
     try {
-      const safeUrl = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
-      const waybackUrl = `https://web.archive.org/web/${safeUrl}`;
-      setEvidencePrimaryUrl(waybackUrl);
+      setEvidencePrimaryUrl(convertToWayback(evidencePrimaryUrl));
     } finally {
       setIsSnapshotting(false);
     }
+  };
+
+  const handleAddSecondaryUrl = () => {
+    setEvidenceSecondaryUrls(prev => [...prev, '']);
+  };
+
+  const handleUpdateSecondaryUrl = (index: number, val: string) => {
+    setEvidenceSecondaryUrls(prev => {
+      const copy = [...prev];
+      copy[index] = val;
+      return copy;
+    });
+  };
+
+  const handleRemoveSecondaryUrl = (index: number) => {
+    setEvidenceSecondaryUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleConvertSecondaryWayback = (index: number) => {
+    setEvidenceSecondaryUrls(prev => {
+      const copy = [...prev];
+      copy[index] = convertToWayback(copy[index]);
+      return copy;
+    });
   };
 
   // Transaction Progress Modal State
@@ -639,25 +695,32 @@ export default function App() {
     }
     if (!selectedDare) return;
 
-    // Normalize URL to bot-safe Wayback URL if it's a raw unarchived domain
-    let finalUrl = evidencePrimaryUrl.trim();
-    if (
-      finalUrl &&
-      !finalUrl.includes('web.archive.org') &&
-      !finalUrl.includes('archive.is') &&
-      !finalUrl.includes('archive.today') &&
-      !finalUrl.includes('wikipedia.org')
-    ) {
-      finalUrl = `https://web.archive.org/web/${finalUrl.startsWith('http') ? finalUrl : 'https://' + finalUrl}`;
+    // Enforce that primary URL must be converted to an immutable archive snapshot
+    if (!isBotSafeUrl(evidencePrimaryUrl)) {
+      alert("Please convert your primary URL to an immutable Wayback snapshot before submitting. Validator AI nodes will be blocked by Cloudflare if raw links are used.");
+      return;
     }
+
+    const finalPrimaryUrl = convertToWayback(evidencePrimaryUrl.trim());
+
+    // Gather and convert all secondary/supporting links
+    const allSecondary = [
+      evidenceSecondaryUrl,
+      ...evidenceSecondaryUrls
+    ]
+      .map(u => u.trim())
+      .filter(u => u.length > 0)
+      .map(u => convertToWayback(u));
+
+    const finalSecondaryString = allSecondary.length > 0 ? allSecondary.join(', ') : 'N/A';
 
     // CRITICAL: Synchronously freeze the research countdown timer on LINE 1.
     // Transitioning status to "SUBMITTED" permanently disarms processAllExpiredDares()
     // so no consensus or network delay can ever forfeit the investigator.
     store.submitEvidence(selectedDare.id, {
       conclusion: evidenceConclusion,
-      primaryUrl: finalUrl,
-      secondaryUrl: evidenceSecondaryUrl,
+      primaryUrl: finalPrimaryUrl,
+      secondaryUrl: finalSecondaryString,
       quotes: evidenceQuotes,
       reasoning: evidenceReasoning
     });
@@ -983,6 +1046,38 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {/* Top of Page Investigator Standard Banner */}
+        {showArchiveReminder && (
+          <div className="bg-gradient-to-r from-amber-50 via-red-50 to-amber-50 border-b border-amber-200/90 px-3 sm:px-6 py-2 sm:py-2.5 text-xs text-amber-900 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-5 h-5 rounded-full bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center flex-shrink-0">
+                <Info className="w-3.5 h-3.5" />
+              </div>
+              <p className="truncate sm:whitespace-normal font-medium text-slate-800 text-[11px] sm:text-xs">
+                <strong className="text-amber-950 font-bold">Investigator Standard:</strong> GenLayer validator AI nodes require bot-safe archive snapshots (e.g. <code>web.archive.org</code>) to avoid Cloudflare bot-firewall blocks. All links must be converted to archive snapshots before submission.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => navigateTab('standard')}
+                className="text-[11px] font-bold text-[#EF4444] hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>Read Standards</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowArchiveReminder(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-amber-100/50 transition-colors cursor-pointer"
+                aria-label="Dismiss banner"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Main Content Stage */}
         <main className="p-4 md:p-8 space-y-6 w-full max-w-[1600px] mx-auto flex-1">
@@ -2029,9 +2124,9 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
                         02
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900">Locate Canonical Archive URL</h4>
+                      <h4 className="text-xs font-bold text-slate-900">Convert to Bot-Safe Archive Snapshot</h4>
                       <p className="text-xs text-slate-600 leading-relaxed">
-                        Provide a verifiable HTTPS link from official archives, government registries, or Wayback Machine records. Self-referential or sandbox links are auto-flagged.
+                        Institutional domains (e.g. Library of Congress, NASA, SEC, news sites) employ anti-bot Cloudflare screens that return HTTP 403 to GenLayer AI nodes. You must click <strong>"1-Click Snapshot to Wayback"</strong> before submitting. Unarchived raw links are locked from submission.
                       </p>
                     </div>
 
@@ -2039,9 +2134,9 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
                         03
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900">Verbatim Quotes & Reasoning</h4>
+                      <h4 className="text-xs font-bold text-slate-900">Verbatim Quotes & Multiple Sources</h4>
                       <p className="text-xs text-slate-600 leading-relaxed">
-                        Copy the exact excerpt from the source without alteration, and write 2-3 sentences demonstrating how your citation fulfills the criteria.
+                        Copy exact excerpts without alteration. If the dare requires multiple sources or corroborating records, click <strong>"+ Add Supporting Link"</strong> to attach as many archive records as needed.
                       </p>
                     </div>
                   </div>
@@ -2053,13 +2148,19 @@ export default function App() {
                       <div className="flex items-start gap-2.5">
                         <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <strong className="text-slate-900">Primary Archive URL:</strong> Must be a direct canonical link (e.g. <code>https://catalog.afi.com/Film/57007</code>). Unverified forums, reddit posts, or LLM pastebins are scored as zero provenance.
+                          <strong className="text-slate-900">Mandatory Archive Conversion:</strong> Primary URLs must be converted to immutable Wayback snapshots (<code>https://web.archive.org/web/...</code>) before submission. Submissions remain locked until conversion is completed.
                         </div>
                       </div>
                       <div className="flex items-start gap-2.5">
                         <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                         <div>
-                          <strong className="text-slate-900">Verbatim Excerpt:</strong> Must be character-for-character accurate with the cited archive. Paraphrasing reduces fidelity scores.
+                          <strong className="text-slate-900">Multi-Source Corroboration:</strong> Use "+ Add Supporting Link" to attach secondary and tertiary citations for complex criteria.
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2.5">
+                        <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="text-slate-900">Verbatim Excerpt:</strong> Must be character-for-character accurate with the cited archive snapshot. Paraphrasing reduces fidelity scores.
                         </div>
                       </div>
                       <div className="flex items-start gap-2.5">
@@ -2125,6 +2226,20 @@ export default function App() {
                         Clear, deductive synthesis showing how quotes verify the claim with zero circular logic.
                       </p>
                     </div>
+                  </div>
+
+                  {/* Bot-Firewall & Equivalence Principle Protocol Standard */}
+                  <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-5 space-y-2 text-xs">
+                    <div className="flex items-center gap-2 font-bold text-amber-950">
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      <span>Equivalence Principle & Cloudflare Bot-Firewall Protocol</span>
+                    </div>
+                    <p className="text-slate-700 leading-relaxed text-[11px]">
+                      Under GenLayer's Equivalence Principle, 5 heterogeneous validator nodes independently execute <code>gl.nondet.web.render(url)</code> to scrape and verify submitted quotes against the primary source. Corporate and institutional websites (e.g. NASA, Library of Congress, SEC, news portals) deploy Cloudflare/Akamai anti-bot screens that block automated AI nodes (returning HTTP 403 <code>WEB_FETCH_UNAVAILABLE</code>), causing validators to fail consensus.
+                    </p>
+                    <p className="text-slate-700 leading-relaxed text-[11px]">
+                      <strong>The Archive Mandate:</strong> Submitting a Wayback Machine snapshot (<code>https://web.archive.org/web/...</code>) bypasses bot-firewalls completely while preserving an immutable, tamper-proof record of the exact web page. All primary evidence must be converted to an archive snapshot before submission.
+                    </p>
                   </div>
 
                   {/* Benchmark Suite Cards */}
@@ -2617,37 +2732,111 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Primary Archive URL</label>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      <span>Primary Archive URL</span>
+                      <span className="text-[10px] text-red-500 font-bold ml-1">* Mandatory Wayback Snapshot</span>
+                    </label>
                     <input
                       required
                       type="url"
                       value={evidencePrimaryUrl}
                       onChange={(e) => setEvidencePrimaryUrl(e.target.value)}
-                      placeholder="https://..."
+                      placeholder="https://web.archive.org/web/... or raw URL to snapshot"
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono"
                     />
-                    {evidencePrimaryUrl && evidencePrimaryUrl.includes('web.archive.org') ? (
+                    {evidencePrimaryUrl && isBotSafeUrl(evidencePrimaryUrl) ? (
                       <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-emerald-600 font-medium">
                         <Check className="w-3.5 h-3.5" />
-                        <span>Bot-Safe Wayback Archive Link (GenLayer Validators can read without Cloudflare blocks)</span>
+                        <span>Bot-Safe Archive Snapshot (Verified for GenLayer Validators)</span>
                       </div>
-                    ) : evidencePrimaryUrl && evidencePrimaryUrl.trim().startsWith('http') ? (
-                      <div className="flex items-center justify-between mt-1.5 text-[11px]">
-                        <span className="text-amber-700 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3 text-amber-500" />
-                          Institutional links may block validator AI bots.
+                    ) : evidencePrimaryUrl && evidencePrimaryUrl.trim().length > 0 ? (
+                      <div className="flex items-center justify-between mt-1.5 text-[11px] bg-amber-50 p-2 rounded-lg border border-amber-200">
+                        <span className="text-amber-800 flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                          <span>Raw links block validator AI nodes. Convert to Wayback snapshot to submit:</span>
                         </span>
                         <button
                           type="button"
                           onClick={handleConvertWaybackSnapshot}
                           disabled={isSnapshotting}
-                          className="text-xs font-bold text-[#EF4444] hover:text-[#DC2626] flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 transition-colors"
+                          className="text-xs font-bold text-white bg-[#EF4444] hover:bg-[#DC2626] flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-md shadow-xs transition-colors flex-shrink-0"
                         >
                           <Camera className="w-3 h-3" />
-                          {isSnapshotting ? "Converting..." : "1-Click Snapshot to Wayback"}
+                          {isSnapshotting ? "Converting..." : "1-Click Snapshot"}
                         </button>
                       </div>
                     ) : null}
+                  </div>
+
+                  {/* Supporting / Secondary Links (Dynamic - Add as many as needed) */}
+                  <div className="space-y-2 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                        <span>Supporting / Secondary Links</span>
+                        <span className="text-[10px] text-slate-400 font-normal">({evidenceSecondaryUrls.length} added)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddSecondaryUrl}
+                        className="text-[11px] font-bold text-[#EF4444] hover:text-[#DC2626] flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg border border-red-200 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Supporting Link</span>
+                      </button>
+                    </div>
+
+                    {evidenceSecondaryUrls.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 italic">
+                        Optional: If the dare requires multiple corroborating records, click "+ Add Supporting Link" to attach them.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {evidenceSecondaryUrls.map((secUrl, idx) => (
+                          <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="font-semibold text-slate-600">Supporting Source #{idx + 1}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSecondaryUrl(idx)}
+                                className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer transition-colors"
+                                title="Remove link"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                value={secUrl}
+                                onChange={(e) => handleUpdateSecondaryUrl(idx, e.target.value)}
+                                placeholder="https://web.archive.org/web/... or raw link"
+                                className="flex-1 bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-mono"
+                              />
+                              {secUrl && !isBotSafeUrl(secUrl) && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConvertSecondaryWayback(idx)}
+                                  className="text-[10px] font-bold text-[#EF4444] hover:text-[#DC2626] flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-2 rounded-lg border border-red-200 whitespace-nowrap transition-colors"
+                                >
+                                  <Camera className="w-3 h-3" />
+                                  <span>Snapshot</span>
+                                </button>
+                              )}
+                            </div>
+                            {secUrl && isBotSafeUrl(secUrl) ? (
+                              <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                                <Check className="w-3 h-3" />
+                                <span>Bot-Safe Archive Snapshot</span>
+                              </div>
+                            ) : secUrl && secUrl.trim().length > 0 ? (
+                              <div className="text-[10px] text-amber-600">
+                                ⚠️ Convert to Wayback snapshot so validator nodes can read it.
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -2674,12 +2863,34 @@ export default function App() {
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/25 transition-all cursor-pointer"
-                  >
-                    Submit Evidence for Validator Consensus
-                  </button>
+                  <div className="space-y-1.5 pt-1">
+                    <button
+                      type="submit"
+                      disabled={!isBotSafeUrl(evidencePrimaryUrl) || isSnapshotting}
+                      className={`w-full py-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                        isBotSafeUrl(evidencePrimaryUrl) && !isSnapshotting
+                          ? 'bg-[#EF4444] hover:bg-[#DC2626] text-white shadow-lg shadow-red-500/25 cursor-pointer active:scale-98'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300'
+                      }`}
+                    >
+                      {isBotSafeUrl(evidencePrimaryUrl) ? (
+                        <>
+                          <ShieldCheck className="w-4 h-4 text-white" />
+                          <span>Submit Evidence for Validator Consensus</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                          <span>Convert Primary Link to Bot-Safe Archive to Enable Submit</span>
+                        </>
+                      )}
+                    </button>
+                    {!isBotSafeUrl(evidencePrimaryUrl) && (
+                      <p className="text-[11px] text-amber-700 text-center font-medium">
+                        🔒 Submission locked until primary link is converted to a Wayback snapshot. This prevents Cloudflare bot-firewalls from causing consensus forfeiture.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </form>
             )}
