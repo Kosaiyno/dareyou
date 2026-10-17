@@ -735,7 +735,7 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
               verdictScore,
               verdictRationale,
               txHash,
-              settlementTxHash: status === "FINALIZED" ? (existingCanonical?.settlementTxHash || (escrowClaimed ? "0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8" : txHash)) : undefined,
+              settlementTxHash: status === "FINALIZED" ? (existingCanonical?.settlementTxHash || txHash) : undefined,
               payoutRecipient: escrowRecipient || existingCanonical?.payoutRecipient || (verdict === "CHALLENGER_WINS" ? (meta.challenger || parsed.challenger) : (existingCanonical?.investigator || parsed.investigator)),
               payoutClaimed: escrowClaimed || existingCanonical?.payoutClaimed || false
             };

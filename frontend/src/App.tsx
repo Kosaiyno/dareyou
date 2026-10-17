@@ -42,7 +42,6 @@ import {
   sendMetaMaskStakeDeposit,
   getOnChainAdjudication,
   claimWinnerPayoutOnChain,
-  GENLAYER_ADJUDICATOR_ADDRESS,
   GENLAYER_REGISTRY_ADDRESS
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
@@ -2699,7 +2698,6 @@ export default function App() {
                 walletAddress && winnerAddress &&
                 walletAddress.toLowerCase() === winnerAddress.toLowerCase()
               );
-              const settlementTx = selectedDare.settlementTxHash || selectedDare.txHash;
               const categoricalOutcome = selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'MET' : selectedDare.verdict === 'CHALLENGER_WINS' ? 'NOT_MET' : 'INSUFFICIENT_EVIDENCE';
 
               return (
@@ -2760,65 +2758,7 @@ export default function App() {
                           )}
                         </div>
                       </div>
-
-                      {/* On-Chain Settlement Tx Hash with direct StudioNet Explorer Link */}
-                      {settlementTx ? (
-                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
-                          <span className="text-slate-500 font-semibold flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                            StudioNet Proof Tx:
-                          </span>
-                          <a
-                            href={`https://explorer-studio.genlayer.com/tx/${settlementTx}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-emerald-700 hover:text-emerald-900 hover:underline font-mono text-[11px] font-bold flex items-center gap-1 group"
-                            title="View on GenLayer StudioNet Explorer"
-                          >
-                            <span>{settlementTx.slice(0, 10)}...{settlementTx.slice(-6)}</span>
-                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
-                          </a>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
-                          <span className="text-slate-500 font-semibold">StudioNet Proof Tx:</span>
-                          <span className="text-slate-400 font-mono text-[11px]">Pending / Unverified</span>
-                        </div>
-                      )}
-
-                      {/* DareAdjudicator Contract Explorer Link */}
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 font-semibold">Adjudicator Contract:</span>
-                        <a
-                          href={`https://explorer-studio.genlayer.com/address/${GENLAYER_ADJUDICATOR_ADDRESS}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-slate-700 hover:text-slate-900 hover:underline font-mono text-[11px] font-semibold flex items-center gap-1"
-                        >
-                          <span>{GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...{GENLAYER_ADJUDICATOR_ADDRESS.slice(-6)}</span>
-                          <ExternalLink className="w-3 h-3 flex-shrink-0 text-slate-500" />
-                        </a>
-                      </div>
-
-                      {/* On-Chain Claim Record with direct StudioNet Explorer Link */}
-                      {selectedDare.payoutClaimed && (
-                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-dashed border-slate-200/80">
-                          <span className="text-slate-500 font-semibold flex items-center gap-1.5">
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            Escrow Payout Claim Tx:
-                          </span>
-                          <a
-                            href={`https://explorer-studio.genlayer.com/tx/0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-emerald-700 hover:text-emerald-900 hover:underline font-mono text-[11px] font-bold flex items-center gap-1 group"
-                            title="View on GenLayer StudioNet Explorer"
-                          >
-                            <span>0x6a086b03...8c3d8</span>
-                            <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600 group-hover:text-emerald-900" />
-                          </a>
-                        </div>
-                      )}
+                    </div>
 
                       {/* Settlement Confirmation Badge */}
                       {isUserWinner && (
@@ -2852,7 +2792,6 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                  </div>
 
                   {/* Live StudioNet RPC Read Box (Separating Recorded Proof from Live Reads) */}
                   <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 text-xs space-y-2.5 border border-slate-800">

@@ -643,9 +643,9 @@ export const useStore = create<AppState>((set, get) => ({
                 verdictScore: existing.verdictScore ?? oc.verdictScore ?? 100,
                 verdictRationale: existing.verdictRationale || oc.verdictRationale || 'Adjudicated and finalized on-chain.',
                 payoutRecipient: winnerAddress,
-                payoutClaimed: existing.payoutClaimed ?? oc.payoutClaimed ?? true,
-                settlementTxHash: existing.settlementTxHash || oc.settlementTxHash || '0x6a086b034a948dead3909da541f2ff20aefd6448673c788c6929fc2381f8c3d8',
-                txHash: existing.txHash || oc.txHash || '0x6013531c051af8815e3c0628b8993d6feda43c39ae6a39b5732ecb02aadcb0c3',
+                payoutClaimed: existing.payoutClaimed !== undefined ? existing.payoutClaimed : (oc.payoutClaimed || false),
+                settlementTxHash: existing.settlementTxHash || oc.settlementTxHash || undefined,
+                txHash: existing.txHash || oc.txHash || undefined,
                 id: oc.id,
                 onChainId: oc.onChainId
               });
