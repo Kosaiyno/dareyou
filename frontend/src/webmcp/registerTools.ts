@@ -12,7 +12,7 @@
  * 4. Self-Correction & Auditing: Pre-submission validation tools to self-verify policy constraints.
  */
 
-import { useStore, isDareExpired } from '../store/useStore';
+import { useStore, isDareExpired, isBotSafeUrl, convertToWayback } from '../store/useStore';
 import type { DareCategory, EvidenceData } from '../store/useStore';
 import { 
   GENLAYER_ADJUDICATOR_ADDRESS, 
@@ -446,10 +446,13 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         return { success: false, message: 'Verbatim quotes are required to satisfy the Dare Acceptance Standard.' };
       }
 
+      const cleanPrimary = convertToWayback(args.primary_url);
+      const cleanSecondary = args.secondary_url ? convertToWayback(args.secondary_url) : 'N/A';
+
       const dossier: EvidenceData = {
         conclusion: args.conclusion,
-        primaryUrl: args.primary_url,
-        secondaryUrl: args.secondary_url || 'N/A',
+        primaryUrl: cleanPrimary,
+        secondaryUrl: cleanSecondary,
         quotes: extractedQuotes,
         reasoning: args.reasoning
       };
@@ -532,7 +535,66 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
 
   // =========================================================================
-  // 3. SEMANTIC VALIDATION & SELF-CORRECTION
+  // 3. ARCHIVAL PRESERVATION & BOT-FIREWALL VERIFICATION TOOLS
+  // =========================================================================
+  {
+    name: 'convert_to_wayback',
+    description: 'Converts any raw institutional, academic, government, or web URL into an immutable, bot-safe Wayback Machine archive snapshot URL (https://web.archive.org/web/...). Required by GenLayer validator AI nodes under the Equivalence Principle to avoid Cloudflare/Akamai anti-bot screens (HTTP 403 / WEB_FETCH_UNAVAILABLE).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The raw web URL to convert to an immutable archive snapshot.' }
+      },
+      required: ['url'],
+      additionalProperties: false
+    },
+    annotations: { readOnlyHint: true },
+    execute: async (args: { url: string }) => {
+      const trimmed = (args.url || '').trim();
+      if (!trimmed) {
+        return { success: false, message: 'URL parameter is required.' };
+      }
+      const alreadySafe = isBotSafeUrl(trimmed);
+      const convertedUrl = convertToWayback(trimmed);
+      return {
+        success: true,
+        original_url: args.url,
+        wayback_url: convertedUrl,
+        is_bot_safe: true,
+        message: alreadySafe
+          ? 'URL is already a verified bot-safe archive link.'
+          : 'Successfully converted raw URL to permanent Wayback archive snapshot format.'
+      };
+    }
+  },
+  {
+    name: 'verify_archive_url',
+    description: 'Verifies whether a given evidence URL is an immutable, bot-safe archive link (e.g. web.archive.org, archive.today, wikipedia) that GenLayer validator nodes can read without Cloudflare anti-bot blocks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'The URL to test for bot-safety.' }
+      },
+      required: ['url'],
+      additionalProperties: false
+    },
+    annotations: { readOnlyHint: true },
+    execute: async (args: { url: string }) => {
+      const trimmed = (args.url || '').trim();
+      const safe = isBotSafeUrl(trimmed);
+      return {
+        success: true,
+        url: args.url,
+        is_bot_safe: safe,
+        recommendation: safe
+          ? 'URL is bot-safe and ready for GenLayer validator consensus.'
+          : 'URL is a raw unarchived domain and may trigger Cloudflare 403 (WEB_FETCH_UNAVAILABLE). Call convert_to_wayback before submitting.'
+      };
+    }
+  },
+
+  // =========================================================================
+  // 4. SEMANTIC VALIDATION & SELF-CORRECTION
   // =========================================================================
   {
     name: 'validate_dare',

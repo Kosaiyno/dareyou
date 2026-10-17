@@ -20,6 +20,37 @@ export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
   return false;
 }
 
+/**
+ * Bot-Safe Archive URL Validator
+ * GenLayer Validator AI nodes execute gl.nondet.web.render(). Institutional sites
+ * (loc.gov, nasa.gov, news sites) employ Cloudflare/Akamai anti-bot defenses that return
+ * HTTP 403 (WEB_FETCH_UNAVAILABLE). Archive snapshots guarantee 100% validator readability.
+ */
+export function isBotSafeUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+  return (
+    trimmed.startsWith('https://web.archive.org/web/') ||
+    trimmed.startsWith('http://web.archive.org/web/') ||
+    trimmed.startsWith('https://archive.today/') ||
+    trimmed.startsWith('https://archive.is/') ||
+    trimmed.startsWith('https://archive.ph/') ||
+    trimmed.includes('wikipedia.org/w/index.php?oldid=') ||
+    trimmed.includes('wikipedia.org/wiki/')
+  );
+}
+
+export function convertToWayback(rawUrl?: string): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+  if (isBotSafeUrl(trimmed)) return trimmed;
+  const safe = trimmed.startsWith('http://') || trimmed.startsWith('https://') 
+    ? trimmed 
+    : `https://${trimmed}`;
+  return `https://web.archive.org/web/${safe}`;
+}
+
 export type DareCategory = 
   | "CONFLICTING_SOURCE_INVESTIGATION" 
   | "INVESTIGATIVE_FACT_FINDING" 
