@@ -29,15 +29,137 @@ export function isBotSafeUrl(url?: string): boolean {
   return trimmed.startsWith('https://') || trimmed.startsWith('http://');
 }
 
+export interface UrlHealth {
+  status: 'OPTIMAL' | 'SAFE' | 'WARNING';
+  label: string;
+  tip?: string;
+  suggestedUrl?: string;
+}
+
+/**
+ * Evaluates whether a URL is reliably readable by headless GenLayer validator nodes.
+ */
+export function evaluateEvidenceUrlHealth(url?: string): UrlHealth {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return { status: 'WARNING', label: 'Empty Link', tip: 'Enter a valid HTTP/HTTPS link' };
+  }
+  const trimmed = url.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (!lower.startsWith('http://') && !lower.startsWith('https://')) {
+    return { status: 'WARNING', label: 'Missing Protocol', tip: 'Must start with https:// or http://' };
+  }
+
+  // 1. Direct Open Academic & Encyclopedic Repositories (100% crawlable, zero bot blocks)
+  const openRepoPatterns = [
+    'wikipedia.org',
+    'arxiv.org',
+    'biorxiv.org',
+    'medrxiv.org',
+    'ncbi.nlm.nih.gov',
+    'raw.githubusercontent.com',
+    'github.com',
+    'nasa.gov',
+    'esa.int',
+    'isro.gov.in',
+    'congress.gov',
+    'supremecourt.gov',
+    'sec.gov'
+  ];
+  if (openRepoPatterns.some(pattern => lower.includes(pattern))) {
+    return {
+      status: 'OPTIMAL',
+      label: 'Direct Open Repository (100% Validator Readable)',
+      tip: 'Public repository that does not block decentralized validator nodes.'
+    };
+  }
+
+  // 2. Archive.org URLs
+  if (lower.includes('web.archive.org/web/')) {
+    if (lower.includes('id_/')) {
+      return {
+        status: 'OPTIMAL',
+        label: 'Wayback Raw Identity Snapshot (id_ Active)',
+        tip: 'Bypasses Wayback iframe wrappers and redirects directly to raw HTML.'
+      };
+    } else {
+      const fixed = convertToWayback(trimmed);
+      return {
+        status: 'SAFE',
+        label: 'Wayback Standard Snapshot',
+        tip: 'Auto-converting to id_ mode to strip redirects for GenLayer validators.',
+        suggestedUrl: fixed
+      };
+    }
+  }
+
+  // 3. Known Paywalls / Bot-Blockers (Risk of 403 or redirect loop)
+  const paywallPatterns = [
+    'nature.com',
+    'sciencedirect.com',
+    'springer.com',
+    'wiley.com',
+    'nytimes.com',
+    'wsj.com',
+    'bloomberg.com',
+    'ft.com',
+    'washingtonpost.com'
+  ];
+  if (paywallPatterns.some(p => lower.includes(p))) {
+    return {
+      status: 'WARNING',
+      label: 'Paywall / Bot Firewall Risk',
+      tip: 'This domain often blocks cloud validators. We recommend using arXiv, Wikipedia, or an Archive.org id_ snapshot.',
+      suggestedUrl: convertToWayback(trimmed)
+    };
+  }
+
+  return {
+    status: 'SAFE',
+    label: 'Standard Web URL',
+    tip: 'Ensure the link is publicly accessible without logins or captchas.'
+  };
+}
+
 export function convertToWayback(rawUrl?: string): string {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
   const trimmed = rawUrl.trim();
   if (!trimmed) return '';
-  if (isBotSafeUrl(trimmed)) return trimmed;
+
+  const lower = trimmed.toLowerCase();
+
+  // If already a Wayback URL, ensure it has the id_ raw identity modifier
+  if (lower.includes('web.archive.org/web/')) {
+    if (lower.includes('id_/')) return trimmed; // already has id_
+    // Match pattern: https://web.archive.org/web/<digits>/<rest>
+    const match = trimmed.match(/^(https?:\/\/web\.archive\.org\/web\/\d+)(\/.*)$/i);
+    if (match) {
+      return `${match[1]}id_${match[2]}`;
+    }
+    // Fallback if no specific timestamp: insert id_/
+    return trimmed.replace(/\/web\/([0-9*]+)?\/?/i, (_, ts) => `/web/${ts || '20240101000000'}id_/`);
+  }
+
+  // If already an open repository that doesn't block bots (Wikipedia, arXiv, GitHub raw), keep direct
+  const openRepoPatterns = [
+    'wikipedia.org',
+    'arxiv.org',
+    'biorxiv.org',
+    'medrxiv.org',
+    'ncbi.nlm.nih.gov',
+    'raw.githubusercontent.com'
+  ];
+  if (openRepoPatterns.some(p => lower.includes(p))) {
+    return trimmed.startsWith('http://') || trimmed.startsWith('https://') 
+      ? trimmed 
+      : `https://${trimmed}`;
+  }
+
+  // Otherwise, wrap in Wayback raw identity mode (id_)
   const safe = trimmed.startsWith('http://') || trimmed.startsWith('https://') 
     ? trimmed 
     : `https://${trimmed}`;
-  return `https://web.archive.org/web/${safe}`;
+  return `https://web.archive.org/web/20240101000000id_/${safe}`;
 }
 
 export type DareCategory = 

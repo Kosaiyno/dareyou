@@ -120,13 +120,39 @@ class DareAdjudicator(gl.Contract):
         def fetch_and_prepare_evidence() -> str:
             fetched_text = ""
             fetch_ok = False
+            active_url = clean_url
             try:
                 raw_web = gl.nondet.web.render(clean_url, mode="text")
                 fetched_text = " ".join(str(raw_web).split())
-                if len(fetched_text) > 20:
+                is_interstitial = (
+                    ("redirect" in fetched_text.lower() and len(fetched_text) < 600)
+                    or ("wayback machine" in fetched_text.lower() and "redirect" in fetched_text.lower())
+                )
+                if len(fetched_text) > 30 and not is_interstitial:
                     fetch_ok = True
+                elif clean_sec_url.startswith("http"):
+                    try:
+                        raw_sec = gl.nondet.web.render(clean_sec_url, mode="text")
+                        sec_text = " ".join(str(raw_sec).split())
+                        if len(sec_text) > 30:
+                            fetched_text = sec_text
+                            active_url = clean_sec_url
+                            fetch_ok = True
+                    except Exception:
+                        pass
             except Exception as e:
-                fetched_text = f"WEB_FETCH_UNAVAILABLE: {str(e)}"
+                if clean_sec_url.startswith("http"):
+                    try:
+                        raw_sec = gl.nondet.web.render(clean_sec_url, mode="text")
+                        sec_text = " ".join(str(raw_sec).split())
+                        if len(sec_text) > 30:
+                            fetched_text = sec_text
+                            active_url = clean_sec_url
+                            fetch_ok = True
+                    except Exception as e2:
+                        fetched_text = f"WEB_FETCH_UNAVAILABLE: Primary ({str(e)}), Secondary ({str(e2)})"
+                else:
+                    fetched_text = f"WEB_FETCH_UNAVAILABLE: {str(e)}"
 
             # Bound size in code before passing to the LLM (max 3,000 chars centered on quote match)
             bounded_excerpt = ""
@@ -166,7 +192,7 @@ class DareAdjudicator(gl.Contract):
                 f"Required Sources: {clean_req_sources}\n"
                 f"Evaluation Criterion: {clean_criteria}\n\n"
                 f"=== VALIDATOR-FETCHED ARCHIVAL EXCERPT ===\n"
-                f"Source URL: {clean_url}\n"
+                f"Source URL: {active_url}\n"
                 f"Fetch Status: {'SUCCESS' if fetch_ok else 'UNREACHABLE'}\n"
                 f"Deterministic Substring Match: {exact_substring_found}\n"
                 f"Extracted Section SHA-256 Digest: {digest}\n"

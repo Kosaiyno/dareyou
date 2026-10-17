@@ -40,7 +40,7 @@ import {
   Plus,
   Info
 } from 'lucide-react';
-import { useStore, isDareExpired, isBotSafeUrl, convertToWayback } from './store/useStore';
+import { useStore, isDareExpired, isBotSafeUrl, convertToWayback, evaluateEvidenceUrlHealth } from './store/useStore';
 import { 
   getGenLayerBalance,
   connectMetaMask,
@@ -2598,41 +2598,90 @@ export default function App() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
-                      <span>Primary Archive URL</span>
-                      <span className="text-[10px] text-red-500 font-bold ml-1">* Mandatory Wayback Snapshot</span>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      <span>Primary Evidence Source URL</span>
+                      <span className="text-[10px] text-red-500 font-bold ml-1">* Required</span>
                     </label>
                     <input
                       required
                       type="url"
                       value={evidencePrimaryUrl}
                       onChange={(e) => setEvidencePrimaryUrl(e.target.value)}
-                      placeholder="https://web.archive.org/web/... or raw URL to snapshot"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono"
+                      placeholder="https://arxiv.org/abs/... or https://en.wikipedia.org/... or https://web.archive.org/web/...id_/"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono focus:border-red-500 focus:bg-white transition-all outline-none"
                     />
-                    {evidencePrimaryUrl && isBotSafeUrl(evidencePrimaryUrl) ? (
-                      <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-emerald-600 font-medium">
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Bot-Safe Archive Snapshot (Verified for GenLayer Validators)</span>
+
+                    {/* URL Health & Crawlability Evaluation */}
+                    {evidencePrimaryUrl && evidencePrimaryUrl.trim().length > 0 && (() => {
+                      const health = evaluateEvidenceUrlHealth(evidencePrimaryUrl);
+                      if (health.status === 'OPTIMAL') {
+                        return (
+                          <div className="flex items-center gap-1.5 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-700">
+                            <Check className="w-3.5 h-3.5 flex-shrink-0 text-emerald-600" />
+                            <div className="flex-1">
+                              <span className="font-bold">{health.label}</span>
+                              {health.tip && <span className="text-emerald-600 ml-1">· {health.tip}</span>}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (health.status === 'SAFE') {
+                        return (
+                          <div className="flex items-center justify-between gap-1.5 p-2 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-700">
+                            <div className="flex items-center gap-1.5 flex-1">
+                              <Check className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
+                              <div>
+                                <span className="font-bold">{health.label}</span>
+                                {health.tip && <span className="text-blue-600 ml-1">· {health.tip}</span>}
+                              </div>
+                            </div>
+                            {health.suggestedUrl && health.suggestedUrl !== evidencePrimaryUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setEvidencePrimaryUrl(health.suggestedUrl!)}
+                                className="text-[10px] font-bold px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white cursor-pointer transition-colors flex-shrink-0"
+                              >
+                                Auto-Format id_
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex items-center justify-between gap-1.5 p-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-900">
+                          <div className="flex items-center gap-1.5 flex-1">
+                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-600" />
+                            <div>
+                              <span className="font-bold">{health.label}</span>
+                              {health.tip && <span className="text-amber-800 ml-1">· {health.tip}</span>}
+                            </div>
+                          </div>
+                          {health.suggestedUrl && (
+                            <button
+                              type="button"
+                              onClick={handleConvertWaybackSnapshot}
+                              disabled={isSnapshotting}
+                              className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#EF4444] hover:bg-[#DC2626] text-white cursor-pointer transition-colors flex-shrink-0 flex items-center gap-1 shadow-xs"
+                            >
+                              <Camera className="w-3 h-3" />
+                              <span>Convert to id_ Snapshot</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* GenLayer Validator Link Standards Card */}
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-1 mt-1">
+                      <div className="font-semibold text-slate-800 flex items-center gap-1.5">
+                        <Info className="w-3.5 h-3.5 text-blue-500" />
+                        <span>GenLayer Validator Crawling Standard</span>
                       </div>
-                    ) : evidencePrimaryUrl && evidencePrimaryUrl.trim().length > 0 ? (
-                      <div className="flex items-center justify-between mt-1.5 text-[11px] bg-amber-50 p-2 rounded-lg border border-amber-200">
-                        <span className="text-amber-800 flex items-center gap-1">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
-                          <span>Raw links block validator AI nodes. Convert to Wayback snapshot to submit:</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleConvertWaybackSnapshot}
-                          disabled={isSnapshotting}
-                          className="text-xs font-bold text-white bg-[#EF4444] hover:bg-[#DC2626] flex items-center gap-1 cursor-pointer px-2.5 py-1 rounded-md shadow-xs transition-colors flex-shrink-0"
-                        >
-                          <Camera className="w-3 h-3" />
-                          {isSnapshotting ? "Converting..." : "1-Click Snapshot"}
-                        </button>
-                      </div>
-                    ) : null}
+                      <p className="leading-relaxed">
+                        Validators run headless Python nodes that read raw text. <strong className="text-slate-800">Preferred bot-safe sources:</strong> arXiv, Wikipedia, GitHub raw, or Archive.org <code className="bg-slate-200 px-1 py-0.5 rounded text-[10px]">id_</code> snapshots. Avoid paywalls (Nature, Science, Bloomberg) that return redirect loops or Cloudflare captchas.
+                      </p>
+                    </div>
                   </div>
 
                   {/* Supporting / Secondary Links (Dynamic - Add as many as needed) */}
