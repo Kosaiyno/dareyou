@@ -364,7 +364,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'accept_dare',
-    description: 'Accepts an open dare as investigator. Prompts connected MetaMask wallet to lock matching real GEN stake on GenLayer StakeEscrow contract and starts the countdown timer.',
+    description: 'Accepts an open dare as investigator and activates the live research countdown timer.',
     inputSchema: {
       type: 'object',
       properties: {

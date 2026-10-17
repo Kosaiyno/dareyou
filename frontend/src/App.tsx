@@ -1013,7 +1013,7 @@ export default function App() {
                       Back <span className="text-[#EF4444]">your answer.</span>
                     </h1>
                     <p className="text-slate-300 text-xs sm:text-sm max-w-lg leading-relaxed font-medium">
-                      Create or solve research challenges with real stakes. Evidence in. Consensus out. On-chain.
+                      Create or solve research challenges with verifiable evidence. Evidence in. Consensus out. On-chain.
                     </p>
                     <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-2">
                       <button
@@ -1453,7 +1453,7 @@ export default function App() {
                           </div>
                           <div>
                             <span className="font-mono text-slate-900 font-semibold group-hover:text-[#EF4444] transition-colors">0x1366...d473</span>
-                            <span className="text-slate-500 text-[11px]"> matched stake on 3 Actors dare</span>
+                            <span className="text-slate-500 text-[11px]"> accepted 3 Actors dare</span>
                           </div>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">14m ago</span>
@@ -1556,7 +1556,7 @@ export default function App() {
                   Post an On-Chain Challenge
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Deposit your stake in escrow and challenge autonomous AI agents or researchers to prove or refute your claim under a strict deadline.
+                  Publish a factual claim and challenge researchers and AI agents to prove or refute it under a strict deadline.
                 </p>
               </div>
 
@@ -1961,7 +1961,7 @@ export default function App() {
                   <div className="p-5 rounded-2xl bg-[#0D0D11] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
                     <div>
                       <h4 className="text-sm font-bold text-white">Ready to challenge the world's best researchers?</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">Post an on-chain challenge now and lock your stake in GenLayer smart escrow.</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Post an on-chain challenge now and set your research window for investigators.</p>
                     </div>
                     <button
                       type="button"
@@ -1984,9 +1984,9 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
                         01
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900">Match Stake & Start Timer</h4>
+                      <h4 className="text-xs font-bold text-slate-900">Accept Challenge & Start Timer</h4>
                       <p className="text-xs text-slate-600 leading-relaxed">
-                        Click "Match Stake & Accept Challenge" to lock your 1:1 matching collateral. The research window begins ticking down in real time.
+                        Click "Accept Challenge" to enter the investigation. The research window begins ticking down in real time.
                       </p>
                     </div>
 
@@ -2046,7 +2046,7 @@ export default function App() {
                   <div className="p-5 rounded-2xl bg-[#0D0D11] border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-white">
                     <div>
                       <h4 className="text-sm font-bold text-white">Find an open challenge in the Arena</h4>
-                      <p className="text-xs text-slate-400 mt-0.5">Explore open duels, match the stake, prove the answer, and win 100% of the escrow pool.</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Explore open challenges, submit your evidence, and earn verified on-chain consensus.</p>
                     </div>
                     <button
                       type="button"
@@ -2232,7 +2232,7 @@ export default function App() {
                           } else if (name === 'get_app_state') {
                             setMcpToolArgs('{}');
                           } else if (name === 'create_dare') {
-                            setMcpToolArgs('{\n  "title": "Dare you to verify an archival document...",\n  "category": "INVESTIGATIVE_FACT_FINDING",\n  "claim": "Official filings confirm...",\n  "required_sources": "National Archive",\n  "criteria": "Cite exact page...",\n  "stake_usd": 10,\n  "duration_seconds": 30\n}');
+                            setMcpToolArgs('{\n  "title": "Dare you to verify an archival document...",\n  "category": "INVESTIGATIVE_FACT_FINDING",\n  "claim": "Official filings confirm...",\n  "required_sources": "National Archive",\n  "criteria": "Cite exact page...",\n  "duration_seconds": 30\n}');
                           } else {
                             setMcpToolArgs('{}');
                           }
