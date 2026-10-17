@@ -2348,7 +2348,7 @@ export default function App() {
                     StudioNet Activity & Consensus Audit Log
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Immutable event stream of challenges, matched escrow deposits, and multi-LLM validator decisions.
+                    Immutable event stream of challenges, verified submissions, and multi-LLM validator decisions.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -3027,7 +3027,7 @@ export default function App() {
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
                 GenLayer StudioNet (Chain ID 61999)
               </span>
-              <span className="text-slate-400 font-mono">On-Chain Escrow</span>
+              <span className="text-slate-400 font-mono">AI Consensus Arena</span>
             </div>
           </div>
         </div>
