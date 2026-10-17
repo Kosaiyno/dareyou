@@ -33,7 +33,9 @@ import {
   XCircle,
   Code,
   Play,
-  HelpCircle
+  HelpCircle,
+  Camera,
+  AlertTriangle
 } from 'lucide-react';
 import { useStore, isDareExpired } from './store/useStore';
 import { 
@@ -317,6 +319,21 @@ export default function App() {
   const [evidenceSecondaryUrl, setEvidenceSecondaryUrl] = useState('');
   const [evidenceQuotes, setEvidenceQuotes] = useState('');
   const [evidenceReasoning, setEvidenceReasoning] = useState('');
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
+
+  const handleConvertWaybackSnapshot = () => {
+    if (!evidencePrimaryUrl) return;
+    const trimmed = evidencePrimaryUrl.trim();
+    if (trimmed.includes('web.archive.org')) return;
+    setIsSnapshotting(true);
+    try {
+      const safeUrl = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      const waybackUrl = `https://web.archive.org/web/${safeUrl}`;
+      setEvidencePrimaryUrl(waybackUrl);
+    } finally {
+      setIsSnapshotting(false);
+    }
+  };
 
   // Transaction Progress Modal State
   const [txState, setTxState] = useState<{
@@ -621,35 +638,39 @@ export default function App() {
       return;
     }
     if (!selectedDare) return;
+
+    // Normalize URL to bot-safe Wayback URL if it's a raw unarchived domain
+    let finalUrl = evidencePrimaryUrl.trim();
+    if (
+      finalUrl &&
+      !finalUrl.includes('web.archive.org') &&
+      !finalUrl.includes('archive.is') &&
+      !finalUrl.includes('archive.today') &&
+      !finalUrl.includes('wikipedia.org')
+    ) {
+      finalUrl = `https://web.archive.org/web/${finalUrl.startsWith('http') ? finalUrl : 'https://' + finalUrl}`;
+    }
+
+    // CRITICAL: Synchronously freeze the research countdown timer on LINE 1.
+    // Transitioning status to "SUBMITTED" permanently disarms processAllExpiredDares()
+    // so no consensus or network delay can ever forfeit the investigator.
+    store.submitEvidence(selectedDare.id, {
+      conclusion: evidenceConclusion,
+      primaryUrl: finalUrl,
+      secondaryUrl: evidenceSecondaryUrl,
+      quotes: evidenceQuotes,
+      reasoning: evidenceReasoning
+    });
+
     setTxState({
       active: true,
-      message: "Freezing immutable evidence snapshot on GenLayer StudioNet...",
+      message: "Evidence submitted! Research timer stopped. Broadcasting to GenLayer validators...",
       step: 1
     });
+
     setTimeout(() => {
-      setTxState({
-        active: true,
-        message: "Broadcasting evidence to GenLayer multi-LLM consensus validators...",
-        step: 2
-      });
-      setTimeout(() => {
-        store.submitEvidence(selectedDare.id, {
-          conclusion: evidenceConclusion,
-          primaryUrl: evidencePrimaryUrl,
-          secondaryUrl: evidenceSecondaryUrl,
-          quotes: evidenceQuotes,
-          reasoning: evidenceReasoning
-        });
-        setTxState({
-          active: true,
-          message: "Step 3/3: Dossier accepted! Multi-LLM validator voting initiated.",
-          step: 3
-        });
-        setTimeout(() => {
-          setTxState({ active: false, message: '', step: 0 });
-        }, 1000);
-      }, 1200);
-    }, 1000);
+      setTxState({ active: false, message: '', step: 0 });
+    }, 1200);
   };
 
   // Filter logic
@@ -2605,6 +2626,28 @@ export default function App() {
                       placeholder="https://..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 font-mono"
                     />
+                    {evidencePrimaryUrl && evidencePrimaryUrl.includes('web.archive.org') ? (
+                      <div className="flex items-center gap-1.5 mt-1.5 text-[11px] text-emerald-600 font-medium">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Bot-Safe Wayback Archive Link (GenLayer Validators can read without Cloudflare blocks)</span>
+                      </div>
+                    ) : evidencePrimaryUrl && evidencePrimaryUrl.trim().startsWith('http') ? (
+                      <div className="flex items-center justify-between mt-1.5 text-[11px]">
+                        <span className="text-amber-700 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 text-amber-500" />
+                          Institutional links may block validator AI bots.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleConvertWaybackSnapshot}
+                          disabled={isSnapshotting}
+                          className="text-xs font-bold text-[#EF4444] hover:text-[#DC2626] flex items-center gap-1 cursor-pointer bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 transition-colors"
+                        >
+                          <Camera className="w-3 h-3" />
+                          {isSnapshotting ? "Converting..." : "1-Click Snapshot to Wayback"}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   <div>
