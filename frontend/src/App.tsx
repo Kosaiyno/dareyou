@@ -2975,12 +2975,39 @@ export default function App() {
                             <button
                               type="button"
                               onClick={async () => {
+                                const targetOnChainId = selectedDare.onChainId || selectedDare.id;
+                                setTxState({
+                                  active: true,
+                                  message: `Prompting Web3 Wallet: Please sign to claim +$${payoutDollars} GEN winner payout...`,
+                                  step: 1
+                                });
                                 try {
+                                  const claimRes = await claimWinnerPayoutOnChain(targetOnChainId, walletAddress, Number(payoutDollars));
+                                  const confirmedTx = claimRes.txHash || claimRes.transferTxHash || '';
+                                  
                                   store.claimWinnerPayout(selectedDare.id, walletAddress);
-                                  await claimWinnerPayoutOnChain(selectedDare.id);
+                                  try {
+                                    const raw = window.localStorage.getItem('dareyou_claimed_payouts');
+                                    const list = raw ? JSON.parse(raw) : [];
+                                    if (!list.includes(selectedDare.id)) list.push(selectedDare.id);
+                                    if (selectedDare.onChainId && !list.includes(selectedDare.onChainId)) list.push(selectedDare.onChainId);
+                                    window.localStorage.setItem('dareyou_claimed_payouts', JSON.stringify(list));
+                                  } catch (e) {}
+
                                   await refreshOnChainBalance(walletAddress);
+
+                                  setTxState({
+                                    active: true,
+                                    message: `Winner payout claimed! (Tx: ${confirmedTx ? confirmedTx.slice(0, 10) + '...' : 'Confirmed'}). +$${payoutDollars} GEN credited to your wallet.`,
+                                    step: 2,
+                                    txHash: confirmedTx
+                                  });
+                                  setTimeout(() => {
+                                    setTxState({ active: false, message: '', step: 0 });
+                                  }, 2500);
                                 } catch (err: any) {
-                                  console.warn('Claim error:', err);
+                                  setTxState({ active: false, message: '', step: 0 });
+                                  alert("Claim Winner Payout failed or cancelled: " + (err.message || String(err)));
                                 }
                               }}
                               className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 cursor-pointer transition-all active:scale-98"

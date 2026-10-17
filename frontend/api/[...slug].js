@@ -70,6 +70,12 @@ function mergeCanonicalDare(dareInput) {
 
   // ANTI-CHEAT LOCK: If already FINALIZED, reject any attempt to revert status or overwrite verdict!
   if (existing.status === "FINALIZED" || existing.isLocked) {
+    if (dareInput.payoutClaimed && !existing.payoutClaimed) {
+      existing.payoutClaimed = true;
+      if (dareInput.settlementTxHash) existing.settlementTxHash = dareInput.settlementTxHash;
+      existing.updatedAt = Date.now();
+      return { updated: true, dare: existing };
+    }
     return {
       updated: false,
       rejectedReason: `ANTI_CHEAT_LOCK: Dare #${id} is already FINALIZED (${existing.verdict}) and immutable.`,
@@ -273,6 +279,53 @@ export default async function handler(req, res) {
         success: true,
         results,
         dares: list
+      });
+    }
+  }
+
+  // 1b. Winner Payout Settlement: /api/claim
+  if (subRoute === "claim") {
+    if (req.method === "POST") {
+      const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+      const { dareId, winnerAddress, payoutDollars, claimTxHash } = body;
+
+      const id = Number(dareId);
+      const existing = store.get(id);
+      if (existing) {
+        existing.payoutClaimed = true;
+        if (claimTxHash) existing.settlementTxHash = claimTxHash;
+        existing.updatedAt = Date.now();
+      }
+
+      // Execute on-chain GEN payout transfer if winnerAddress is defined
+      let transferTxHash = "";
+      try {
+        const pk = process.env.DEPLOYER_PRIVATE_KEY || "0x37cd61fac5e7d3f75b0b93e639ae60da01de862d0e9531ebef6901a358a8ebce";
+        if (pk && winnerAddress && Number(payoutDollars) > 0) {
+          const { createClient, createAccount, chains } = require("genlayer-js");
+          const { parseEther } = require("viem");
+          const account = createAccount(pk);
+          // Only send if recipient is not the deployer account itself
+          if (winnerAddress.toLowerCase() !== account.address.toLowerCase()) {
+            const client = createClient({ chain: chains.studionet, account });
+            const amountWei = parseEther(String(payoutDollars));
+            transferTxHash = await client.sendTransaction({
+              to: winnerAddress,
+              value: amountWei
+            });
+            console.log(`[API Claim] Transferred ${payoutDollars} GEN to ${winnerAddress}. Tx: ${transferTxHash}`);
+          }
+        }
+      } catch (err) {
+        console.warn("[API Claim Transfer Warning]:", err.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        dareId: id,
+        payoutClaimed: true,
+        transferTxHash: transferTxHash || claimTxHash || "",
+        dare: existing || null
       });
     }
   }

@@ -666,6 +666,17 @@ export const useStore = create<AppState>((set, get) => ({
               const finalizedVerdict = existing.verdict || oc.verdict || 'CHALLENGER_WINS';
               const isChallengerWon = finalizedVerdict === 'CHALLENGER_WINS';
               const winnerAddress = existing.payoutRecipient || oc.payoutRecipient || (isChallengerWon ? (existing.challenger || oc.challenger) : (existing.investigator || oc.investigator));
+              let isLocallyClaimed = false;
+              try {
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  const raw = window.localStorage.getItem('dareyou_claimed_payouts');
+                  const list = raw ? JSON.parse(raw) : [];
+                  isLocallyClaimed = list.includes(oc.id) || (oc.onChainId && list.includes(oc.onChainId)) || (existing && (list.includes(existing.id) || (existing.onChainId && list.includes(existing.onChainId))));
+                }
+              } catch (e) {}
+
+              const isClaimedFinal = oc.id === 2 || Boolean(existing.payoutClaimed) || Boolean(oc.payoutClaimed) || isLocallyClaimed;
+
               mergedOnChain.push({
                 ...existing,
                 ...oc,
@@ -674,7 +685,7 @@ export const useStore = create<AppState>((set, get) => ({
                 verdictScore: existing.verdictScore ?? oc.verdictScore ?? 100,
                 verdictRationale: existing.verdictRationale || oc.verdictRationale || 'Adjudicated and finalized on-chain.',
                 payoutRecipient: winnerAddress,
-                payoutClaimed: oc.id === 2 ? true : (oc.payoutClaimed || false),
+                payoutClaimed: isClaimedFinal,
                 settlementTxHash: existing.settlementTxHash || oc.settlementTxHash || undefined,
                 txHash: existing.txHash || oc.txHash || undefined,
                 id: oc.id,
@@ -773,10 +784,22 @@ export const useStore = create<AppState>((set, get) => ({
     const payoutDollars = (dare.stakeCents * 2) / 100;
     const newDares = state.dares.map(d => {
       if (d.id === id) {
-        return { ...d, payoutClaimed: true };
+        const updated = { ...d, payoutClaimed: true };
+        syncDareToCanonicalApi(updated).catch(() => {});
+        return updated;
       }
       return d;
     });
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const raw = window.localStorage.getItem('dareyou_claimed_payouts');
+        const list = raw ? JSON.parse(raw) : [];
+        if (!list.includes(id)) list.push(id);
+        if (dare.onChainId && !list.includes(dare.onChainId)) list.push(dare.onChainId);
+        window.localStorage.setItem('dareyou_claimed_payouts', JSON.stringify(list));
+      }
+    } catch (e) {}
 
     set({
       ...pushSnapshot(state, newDares),
