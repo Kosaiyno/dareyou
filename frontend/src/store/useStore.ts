@@ -3,9 +3,6 @@ import {
   submitRealGenLayerAdjudication, 
   formatRealValidatorVotes, 
   GENLAYER_ADJUDICATOR_ADDRESS,
-  depositChallengerStakeOnChain,
-  depositInvestigatorStakeOnChain,
-  settleWinnerPayoutOnChain,
   createDareOnChain,
   acceptDareOnChain,
   fetchOnChainDares,
@@ -305,8 +302,8 @@ export const useStore = create<AppState>((set, get) => ({
       claim: item.claim.trim(),
       requiredSources: item.requiredSources.trim(),
       criteria: item.criteria.trim(),
-      stakeCents: item.stakeCents || 2500,
-      creationBondCents: 500,
+      stakeCents: item.stakeCents || 0,
+      creationBondCents: 0,
       durationSeconds: item.durationSeconds || 1800,
       acceptanceDeadlineTs: Date.now() + 86400000,
       researchDeadlineTs: 0,
@@ -340,10 +337,6 @@ export const useStore = create<AppState>((set, get) => ({
       get().loadOnChainDares();
     }).catch((err) => {
       console.warn('[DareRegistry] create_dare on-chain fallback:', err);
-    });
-
-    depositChallengerStakeOnChain(nextId, newDare.challenger, newDare.stakeCents).catch((err) => {
-      console.warn('[StakeEscrow] Deposit challenger stake fallback:', err);
     });
 
     return nextId;
@@ -412,10 +405,6 @@ export const useStore = create<AppState>((set, get) => ({
         console.warn('[DareRegistry] accept_dare fallback:', err);
       });
     }
-
-    depositInvestigatorStakeOnChain(id, investigatorAddress, target.stakeCents).catch((err) => {
-      console.warn('[StakeEscrow] Deposit investigator stake fallback:', err);
-    });
 
     return true;
   },
@@ -546,9 +535,6 @@ export const useStore = create<AppState>((set, get) => ({
         txHash: onChainResult.txHash
       }).catch(() => {});
 
-      settleWinnerPayoutOnChain(id, winnerAddress).catch((err) => {
-        console.warn('[StakeEscrow] Settle winner payout record fallback:', err);
-      });
     }).catch((err) => {
       console.warn('[GenLayer Live Adjudication Error]', err);
       const cur = get().dares.find(d => d.id === id);
@@ -743,7 +729,6 @@ export const useStore = create<AppState>((set, get) => ({
       if ((d.status === "ACCEPTED" || d.status === "EXPIRED") && d.researchDeadlineTs > 0 && now > d.researchDeadlineTs) {
         processed++;
         const txHash = d.settlementTxHash || d.txHash || undefined;
-        settleWinnerPayoutOnChain(d.id, d.challenger).catch(() => {});
         const forfeited: Dare = {
           ...d,
           status: "FINALIZED" as DareStatus,
@@ -893,9 +878,6 @@ export const useStore = create<AppState>((set, get) => ({
       if (!valid.includes(dare.category)) {
         errors.push(`Category Error: '${dare.category}' is invalid. Allowed: ${valid.join(', ')}`);
       }
-    }
-    if (dare.stakeCents !== undefined && dare.stakeCents <= 0) {
-      errors.push("Economic Policy Error: Duel stake must be greater than 0 GEN.");
     }
     if (dare.durationSeconds !== undefined && dare.durationSeconds < 1) {
       errors.push("Time Constraint Error: Research window must be at least 1 second.");

@@ -24,9 +24,7 @@ import {
   GENLAYER_POLICY_ADDRESS,
   GENLAYER_PROBE_NETWORK_ADDRESS,
   GENLAYER_INTELLIGENT_CONTRACTS,
-  GENLAYER_STUDIONET_CHAIN_ID,
-  sendMetaMaskStakeDeposit,
-  claimWinnerPayoutOnChain
+  GENLAYER_STUDIONET_CHAIN_ID
 } from '../services/genlayerService';
 
 export interface WebMCPToolDefinition {
@@ -300,18 +298,18 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         },
         stake_usd: {
           type: 'number',
-          description: 'Duel stake in USD/GEN (minimum $5.00).'
+          description: 'Optional duel score weight (default 0).'
         },
         duration_minutes: {
           type: 'number',
-          description: 'Research time limit in minutes (5 to 120 minutes).'
+          description: 'Research time limit in minutes (1 to 120 minutes).'
         },
         challenger_address: {
           type: 'string',
           description: 'Optional challenger wallet address. If omitted, uses connected GenLayer wallet.'
         }
       },
-      required: ['title', 'category', 'claim', 'required_sources', 'criteria', 'stake_usd', 'duration_minutes'],
+      required: ['title', 'category', 'claim', 'required_sources', 'criteria', 'duration_minutes'],
       additionalProperties: false
     },
     execute: async (args: {
@@ -320,18 +318,17 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       claim: string;
       required_sources: string;
       criteria: string;
-      stake_usd: number;
+      stake_usd?: number;
       duration_minutes?: number;
       duration_seconds?: number;
       challenger_address?: string;
     }) => {
       const state = useStore.getState();
-      const { validateDare, addDare, walletAddress, walletConnected } = state;
+      const { validateDare, addDare, walletAddress } = state;
       const durSec = Math.max(1, Math.round(args.duration_seconds || (args.duration_minutes ? args.duration_minutes * 60 : 30)));
       const validation = validateDare({
         title: args.title,
         category: args.category,
-        stakeCents: Math.round(args.stake_usd * 100),
         durationSeconds: durSec
       });
 
@@ -344,44 +341,24 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         };
       }
 
-      if (!walletConnected || !walletAddress) {
-        return {
-          success: false,
-          message: 'No Web3 wallet connected. Creating a dare requires depositing real GEN stake from your connected wallet. Please connect MetaMask in DareYou.'
-        };
-      }
+      const effectiveChallenger = args.challenger_address || walletAddress || '0xChallenger';
 
-      // Prompt user's connected MetaMask wallet for the real GEN stake deposit!
-      console.log(`[WebMCP create_dare] Prompting connected MetaMask wallet for ${args.stake_usd} GEN stake deposit...`);
-      let realTxHash = '';
-      try {
-        realTxHash = await sendMetaMaskStakeDeposit(String(args.stake_usd));
-      } catch (err: any) {
-        return {
-          success: false,
-          message: `MetaMask deposit rejected or failed: ${err?.message || err}. Dare was NOT created.`
-        };
-      }
-
-      // Only after real on-chain deposit confirms in MetaMask, add dare with real txHash
       const newId = addDare({
         title: args.title,
         category: args.category,
         claim: args.claim,
         requiredSources: args.required_sources,
         criteria: args.criteria,
-        stakeCents: Math.round(args.stake_usd * 100),
+        stakeCents: 0,
         durationSeconds: durSec,
-        challenger: walletAddress,
-        txHash: realTxHash
+        challenger: effectiveChallenger
       });
 
       return {
         success: true,
         dare_id: newId,
-        tx_hash: realTxHash,
-        message: `Dare #${newId} successfully published with ${args.stake_usd} GEN deposited on StudioNet (Tx: ${realTxHash}).`,
-        challenger: walletAddress
+        message: `Dare #${newId} successfully published! Open for investigation.`,
+        challenger: effectiveChallenger
       };
     }
   },
@@ -404,34 +381,16 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       if (target.status !== 'OPEN') {
         return { success: false, message: `Cannot accept dare in status "${target.status}". Must be OPEN.` };
       }
-      if (!state.walletConnected || !state.walletAddress) {
-        return {
-          success: false,
-          message: "No Web3 wallet connected. Challenge acceptance requires matching stake collateral signed by a connected wallet. Please connect MetaMask in DareYou."
-        };
-      }
+      const investigator = args.investigator_address || state.walletAddress || '0xInvestigator';
 
-      const matchAmountGen = (target.stakeCents / 100).toFixed(2);
-      console.log(`[WebMCP accept_dare] Prompting connected MetaMask wallet for matching ${matchAmountGen} GEN stake deposit...`);
-      let txHash = '';
-      try {
-        txHash = await sendMetaMaskStakeDeposit(matchAmountGen);
-      } catch (err: any) {
-        return {
-          success: false,
-          message: `MetaMask matching deposit rejected or failed: ${err?.message || err}. Challenge was NOT accepted.`
-        };
-      }
-
-      // Record accepted dare in store with real solver
-      state.acceptDare(args.dare_id, state.walletAddress);
+      // Record accepted dare in store with solver and start timer
+      state.acceptDare(args.dare_id, investigator);
 
       return {
         success: true,
         dare_id: args.dare_id,
-        tx_hash: txHash,
-        investigator: state.walletAddress,
-        message: `Dare #${args.dare_id} successfully accepted! ${matchAmountGen} GEN matching stake confirmed on StudioNet (Tx: ${txHash}). Research timer activated.`
+        investigator,
+        message: `Dare #${args.dare_id} successfully accepted! Research countdown timer activated.`
       };
     }
   },
@@ -476,8 +435,8 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       }
 
       const extractedQuotes = args.quotes || args.verbatim_quotes || '';
-      if (!extractedQuotes.trim()) {
-        return { success: false, message: 'Verbatim quotes are required to satisfy the Dare Acceptance Standard.' };
+      if (!extractedQuotes.trim() || extractedQuotes.trim().length < 10) {
+        return { success: false, message: 'Verbatim quotes must be at least 10 characters from the authoritative source to satisfy GenLayer contract validation.' };
       }
 
       const cleanPrimary = convertToWayback(args.primary_url);
@@ -569,11 +528,11 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
   },
   {
     name: 'claim_winner_payout',
-    description: 'Claims settled winner payout on-chain from StakeEscrow contract on StudioNet, releasing real GEN tokens directly to the winning wallet.',
+    description: 'Adjudication status query. DareYou operates as a pure decentralized AI-validated fact-checking arena with zero staking barriers.',
     inputSchema: {
       type: 'object',
       properties: {
-        dare_id: { type: 'number', description: 'ID of the finalized dare to claim.' }
+        dare_id: { type: 'number', description: 'ID of the finalized dare.' }
       },
       required: ['dare_id'],
       additionalProperties: false
@@ -582,48 +541,14 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const state = useStore.getState();
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
-      if (target.status !== 'FINALIZED') {
-        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}", must be FINALIZED to claim.` };
-      }
-      if (target.payoutClaimed) {
-        return { success: false, message: `Payout for Dare #${args.dare_id} has already been claimed.` };
-      }
-      if (!state.walletConnected || !state.walletAddress) {
-        return { success: false, message: 'No Web3 wallet connected. Please connect your wallet first.' };
-      }
-
-      const isInvestigatorWinner = target.verdict === 'INVESTIGATOR_WINS';
-      const isChallengerWinner = target.verdict === 'CHALLENGER_WINS';
-      const winnerAddress = isInvestigatorWinner 
-        ? target.investigator 
-        : (isChallengerWinner ? target.challenger : target.payoutRecipient);
-
-      if (!winnerAddress || winnerAddress.toLowerCase() !== state.walletAddress.toLowerCase()) {
-        return {
-          success: false,
-          message: `Connected wallet "${state.walletAddress}" is not the verified winner ("${winnerAddress}"). Claim denied.`
-        };
-      }
-
-      const payoutDollars = (target.stakeCents * 2) / 100;
-      console.log(`[WebMCP claim_winner_payout] Claiming $${payoutDollars} GEN payout for Dare #${args.dare_id} to ${winnerAddress}...`);
-      try {
-        const res = await claimWinnerPayoutOnChain(args.dare_id, winnerAddress, payoutDollars);
-        state.claimWinnerPayout(args.dare_id, winnerAddress);
-        return {
-          success: true,
-          dare_id: args.dare_id,
-          tx_hash: res.txHash,
-          payout_recipient: winnerAddress,
-          payout_amount_gen: payoutDollars,
-          message: `Winner payout for Dare #${args.dare_id} claimed! ${payoutDollars} GEN transferred on StudioNet (Tx: ${res.txHash}).`
-        };
-      } catch (err: any) {
-        return {
-          success: false,
-          message: `Claim failed: ${err?.message || err}`
-        };
-      }
+      return {
+        success: true,
+        dare_id: args.dare_id,
+        status: target.status,
+        verdict: target.verdict,
+        score: target.verdictScore,
+        message: `Dare #${args.dare_id} outcome finalized on GenLayer StudioNet: ${target.verdict || 'PENDING'}. Staking and payouts have been eliminated.`
+      };
     }
   },
 

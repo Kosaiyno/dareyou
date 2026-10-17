@@ -44,8 +44,6 @@ import { useStore, isDareExpired, isBotSafeUrl, convertToWayback } from './store
 import { 
   getGenLayerBalance,
   connectMetaMask,
-  sendMetaMaskStakeDeposit,
-  claimWinnerPayoutOnChain,
   GENLAYER_REGISTRY_ADDRESS
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
@@ -261,7 +259,6 @@ export default function App() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
   const [walletBalance, setWalletBalance] = useState('0.00');
-  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
@@ -283,7 +280,6 @@ export default function App() {
       setWalletBalance('0.00');
       return '0.00';
     }
-    setIsRefreshingBalance(true);
     try {
       const bal = await getGenLayerBalance(addr);
       const cleanBal = parseFloat(bal || '0.00').toFixed(2);
@@ -292,8 +288,6 @@ export default function App() {
     } catch (e) {
       console.warn('Failed to fetch on-chain balance:', e);
       return walletBalance;
-    } finally {
-      setIsRefreshingBalance(false);
     }
   };
 
@@ -304,7 +298,6 @@ export default function App() {
   const [createClaim, setCreateClaim] = useState('');
   const [createSources, setCreateSources] = useState('');
   const [createCriteria, setCreateCriteria] = useState('');
-  const [createStakeUsd, setCreateStakeUsd] = useState('20.00');
   const [createDurationValue, setCreateDurationValue] = useState('30');
   const [createDurationUnit, setCreateDurationUnit] = useState<'SECONDS' | 'MINUTES' | 'HOURS' | 'DAYS'>('SECONDS');
 
@@ -520,27 +513,14 @@ export default function App() {
       return;
     }
 
-    const stakeGen = parseFloat(createStakeUsd) || 0;
-    const curBal = parseFloat(walletBalance) || 0;
-    if (curBal < stakeGen) {
-      alert(`Insufficient on-chain GEN balance (${curBal.toFixed(2)} GEN). Needed: ${stakeGen.toFixed(2)} GEN.`);
-      return;
-    }
-
     setTxState({
       active: true,
-      message: "Step 1/3: Validating deterministic policy & qualification criteria...",
+      message: "Validating deterministic policy & registering challenge on StudioNet...",
       step: 1
     });
 
     try {
-      setTxState({
-        active: true,
-        message: `Step 2/3: Prompting Web3 Wallet: Confirm deposit of ${createStakeUsd} GEN stake to escrow...`,
-        step: 2
-      });
-      const realTxHash = await sendMetaMaskStakeDeposit(createStakeUsd);
-      await refreshOnChainBalance(walletAddress);
+      const challengerAddr = walletAddress || '0xChallenger';
 
       const newId = store.addDare({
         title: createTitle,
@@ -549,17 +529,15 @@ export default function App() {
         claim: createClaim,
         requiredSources: createSources,
         criteria: createCriteria,
-        stakeCents: Math.round(parseFloat(createStakeUsd) * 100),
+        stakeCents: 0,
         durationSeconds: computedDurationSeconds,
-        challenger: walletAddress,
-        txHash: realTxHash
+        challenger: challengerAddr
       });
 
       setTxState({
         active: true,
-        message: `Step 3/3: Registering Challenge #${newId} on GenLayer StudioNet DareRegistry (Tx: ${realTxHash.slice(0, 10)}...)...`,
-        step: 3,
-        txHash: realTxHash
+        message: `Challenge #${newId} successfully published!`,
+        step: 2
       });
 
       setTimeout(() => {
@@ -569,10 +547,10 @@ export default function App() {
         setCreateClaim('');
         setCreateSources('');
         setCreateCriteria('');
-      }, 1500);
+      }, 1000);
     } catch (err: any) {
       setTxState({ active: false, message: '', step: 0 });
-      alert("Transaction failed: " + (err.message || String(err)));
+      alert("Failed to publish challenge: " + (err.message || String(err)));
     }
   };
 
@@ -595,58 +573,46 @@ export default function App() {
   };
 
   const handleAcceptDare = async (dareId: number) => {
-    if (!walletConnected || !walletAddress) {
-      setShowConnectModal(true);
-      return;
-    }
     const dare = dares.find(d => d.id === dareId);
     if (!dare) return;
 
-    const matchAmountNum = dare.stakeCents / 100;
-    const matchAmountGen = matchAmountNum.toFixed(2);
-    const curBal = parseFloat(walletBalance) || 0;
-    if (curBal < matchAmountNum) {
-      alert(`Insufficient on-chain GEN balance (${curBal.toFixed(2)} GEN). Needed: ${matchAmountNum.toFixed(2)} GEN to match duel stake.`);
-      return;
-    }
+    const investigatorAddr = walletAddress || '0xInvestigator';
 
+    store.acceptDare(dareId, investigatorAddr);
     setTxState({
       active: true,
-      message: `Prompting Web3 Wallet: Please confirm matching ${matchAmountGen} GEN stake...`,
+      message: `Challenge accepted! Research countdown timer activated.`,
       step: 1
     });
-
-    try {
-      const txHash = await sendMetaMaskStakeDeposit(matchAmountGen);
-      await refreshOnChainBalance(walletAddress);
-
-      store.acceptDare(dareId, walletAddress);
-      setTxState({
-        active: true,
-        message: `Accepted! Duel stake matched (Tx: ${txHash.slice(0, 10)}...). Countdown timer activated.`,
-        step: 2,
-        txHash
-      });
-      setTimeout(() => {
-        setTxState({ active: false, message: '', step: 0 });
-      }, 1500);
-    } catch (err: any) {
+    setTimeout(() => {
       setTxState({ active: false, message: '', step: 0 });
-      alert("Accept Challenge failed: " + (err.message || String(err)));
-    }
+    }, 1200);
   };
 
   const handleSubmitEvidence = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!walletConnected || !walletAddress) {
-      setShowConnectModal(true);
+    if (!selectedDare) return;
+
+    // DOM fallback for quotes and reasoning in case React synthetic events didn't propagate
+    const quotesEl = document.querySelector('textarea[name="verbatimQuotes"]') as HTMLTextAreaElement | null;
+    const finalQuotes = (evidenceQuotes || quotesEl?.value || '').trim();
+
+    const reasoningEl = document.querySelector('textarea[name="reasoningDefense"]') as HTMLTextAreaElement | null;
+    const finalReasoning = (evidenceReasoning || reasoningEl?.value || '').trim();
+
+    if (!finalQuotes || finalQuotes.length < 10) {
+      alert("Please provide at least 10 characters of verbatim quoted text from the source to satisfy GenLayer contract validation.");
       return;
     }
-    if (!selectedDare) return;
+
+    if (!finalReasoning || finalReasoning.length < 10) {
+      alert("Please provide at least 10 characters of reasoning defense to satisfy GenLayer contract validation.");
+      return;
+    }
 
     // Enforce that primary URL must be converted to an immutable archive snapshot
     if (!isBotSafeUrl(evidencePrimaryUrl)) {
-      alert("Please convert your primary URL to an immutable Wayback snapshot before submitting. Validator AI nodes will be blocked by Cloudflare if raw links are used.");
+      alert("Please provide an accessible HTTP/HTTPS URL before submitting.");
       return;
     }
 
@@ -670,8 +636,8 @@ export default function App() {
       conclusion: evidenceConclusion,
       primaryUrl: finalPrimaryUrl,
       secondaryUrl: finalSecondaryString,
-      quotes: evidenceQuotes,
-      reasoning: evidenceReasoning
+      quotes: finalQuotes,
+      reasoning: finalReasoning
     });
 
     setTxState({
@@ -720,8 +686,6 @@ export default function App() {
 
   // Reactive Protocol Metrics computed directly from live dares state
   const totalDaresCount = dares.length;
-  const totalVolumeGen = dares.reduce((sum, d) => sum + (d.stakeCents * (d.status === 'OPEN' ? 1 : 2)) / 100, 0);
-  const totalVolumeUsd = (totalVolumeGen * 2).toFixed(0);
   const uniqueParticipantsCount = new Set(
     dares.flatMap(d => [d.challenger, d.investigator].filter(Boolean) as string[])
   ).size;
@@ -969,7 +933,7 @@ export default function App() {
                     title="Manage Connected Wallet"
                   >
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-                    <span className="font-mono">{walletBalance} GEN</span>
+                    <span className="font-mono">{walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}</span>
                     <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />
                   </div>
 
@@ -1073,10 +1037,10 @@ export default function App() {
 
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-400 flex items-center gap-1 font-medium">
-                        <Coins className="w-3 h-3 text-amber-400" /> Escrow Volume
+                        <Trophy className="w-3 h-3 text-amber-400" /> Verified Duels
                       </span>
-                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">${totalVolumeGen} GEN</span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block">(${totalVolumeUsd} USD)</span>
+                      <span className="text-sm sm:text-base font-extrabold text-white font-mono">{dares.filter(d => d.status === 'FINALIZED').length} Resolved</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono block">On-Chain Quorum</span>
                     </div>
 
                     <div className="space-y-0.5">
@@ -1168,7 +1132,7 @@ export default function App() {
                   {/* Table Column Headers (Hidden on mobile) */}
                   <div className="hidden md:flex items-center justify-between px-4 py-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                     <span className="flex-1">DARE</span>
-                    <span className="w-24 text-left">POOL</span>
+                    <span className="w-28 text-left">CATEGORY</span>
                     <span className="w-32 text-left">TIME LEFT</span>
                     <span className="w-24 text-right">STATUS</span>
                   </div>
@@ -1214,9 +1178,6 @@ export default function App() {
                     </div>
                   ) : (
                     filteredDares.map((dare) => {
-                      const poolGenNum = (dare.stakeCents * (dare.status === 'OPEN' ? 1 : 2)) / 100;
-                      const totalPoolGen = poolGenNum % 1 === 0 ? poolGenNum.toFixed(0) : poolGenNum.toFixed(2);
-                      const totalPoolUsd = (poolGenNum * 2) % 1 === 0 ? (poolGenNum * 2).toFixed(0) : (poolGenNum * 2).toFixed(2);
                       const domainLabel = dare.domain || dare.category.replace(/_/g, ' ');
 
                       return (
@@ -1307,15 +1268,15 @@ export default function App() {
 
                           {/* Bottom Row on Mobile / Columns 2-4 on Desktop */}
                           <div className="flex items-center justify-between md:contents pt-2.5 md:pt-0 border-t border-slate-100 md:border-0">
-                            {/* Pool Column */}
-                            <div className="md:w-24 text-left flex-shrink-0">
-                              <span className="text-[10px] text-slate-400 block md:hidden uppercase font-bold">Pool</span>
-                              <div className="text-xs md:text-sm font-bold text-slate-900 font-mono flex items-center gap-1">
-                                <Coins className="w-3.5 h-3.5 text-[#EF4444]" />
-                                <span>{totalPoolGen} GEN</span>
+                            {/* Category Column */}
+                            <div className="md:w-28 text-left flex-shrink-0">
+                              <span className="text-[10px] text-slate-400 block md:hidden uppercase font-bold">Category</span>
+                              <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-[#EF4444]" />
+                                <span>{dare.category === 'CONFLICTING_SOURCE_INVESTIGATION' ? 'Conflicting' : dare.category === 'EVIDENCE_SYNTHESIS' ? 'Synthesis' : 'Fact-Finding'}</span>
                               </div>
                               <span className="text-[10px] text-slate-400 font-medium block">
-                                (${totalPoolUsd})
+                                {dare.domain || 'General'}
                               </span>
                             </div>
 
@@ -1436,9 +1397,9 @@ export default function App() {
                       {/* 2 Metrics Box */}
                       <div className="grid grid-cols-2 gap-2 py-2.5 px-3 bg-slate-50 rounded-xl border border-slate-100 text-center mb-4">
                         <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Pool</span>
+                          <span className="text-[10px] text-slate-400 block font-medium">Domain</span>
                           <span className="text-xs font-bold text-slate-900 font-mono">
-                            ${((featuredDare.stakeCents * 2) / 100).toFixed(0)} GEN
+                            {featuredDare.domain || 'General'}
                           </span>
                         </div>
                         <div>
@@ -1512,7 +1473,7 @@ export default function App() {
                           </div>
                           <div>
                             <span className="font-mono text-slate-900 font-semibold group-hover:text-[#EF4444] transition-colors">0x6da2...405e</span>
-                            <span className="text-slate-500 text-[11px]"> posted Man City dare ($10 GEN)</span>
+                            <span className="text-slate-500 text-[11px]"> posted Man City dare (Finance)</span>
                           </div>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">42m ago</span>
@@ -1572,7 +1533,7 @@ export default function App() {
                           </div>
                           <div>
                             <span className="font-mono text-slate-900 font-semibold group-hover:text-[#EF4444] transition-colors">0x1366...d473</span>
-                            <span className="text-slate-500 text-[11px]"> won $20 GEN (Score: 96/100)</span>
+                            <span className="text-slate-500 text-[11px]"> won verdict (Score: 96/100)</span>
                           </div>
                         </div>
                         <span className="text-[10px] text-slate-400 font-mono">4h ago</span>
@@ -1717,111 +1678,71 @@ export default function App() {
                       />
                     </div>
 
-                    {/* Stake & Duration */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Stake Amount */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-slate-700">Duel Stake (GEN)</label>
-                          <span className="text-[10px] text-slate-400 font-mono">Any amount</span>
-                        </div>
-                        <div className="relative">
-                          <Coins className="w-3.5 h-3.5 text-[#EF4444] absolute left-3 top-1/2 -translate-y-1/2" />
+                    {/* Research Window Duration */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700">Research Window Duration</label>
+                        <span className="text-[10px] font-bold text-[#EF4444] font-mono">
+                          {formatDurationWindow(computedDurationSeconds)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2 relative">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                           <input
                             type="number"
-                            step="any"
-                            min="0.0001"
-                            placeholder="e.g. 5.00"
-                            value={createStakeUsd}
-                            onChange={(e) => setCreateStakeUsd(e.target.value)}
+                            min="1"
+                            step="1"
+                            placeholder="1"
+                            value={createDurationValue}
+                            onChange={(e) => setCreateDurationValue(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#EF4444]"
                           />
                         </div>
-                        {/* Quick Stake Preset Pills */}
-                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                          {['0.5', '1', '5', '10', '20', '50'].map((amt) => (
-                            <button
-                              key={amt}
-                              type="button"
-                              onClick={() => setCreateStakeUsd(amt)}
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition-all cursor-pointer ${
-                                createStakeUsd === amt 
-                                  ? 'bg-[#EF4444] text-white shadow-xs' 
-                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {amt} GEN
-                            </button>
-                          ))}
+                        <div>
+                          <select
+                            value={createDurationUnit}
+                            onChange={(e) => setCreateDurationUnit(e.target.value as any)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#EF4444] font-medium cursor-pointer"
+                          >
+                            <option value="SECONDS">Seconds</option>
+                            <option value="MINUTES">Minutes</option>
+                            <option value="HOURS">Hours</option>
+                            <option value="DAYS">Days</option>
+                          </select>
                         </div>
                       </div>
 
-                      {/* Research Window Duration */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-semibold text-slate-700">Research Window</label>
-                          <span className="text-[10px] font-bold text-[#EF4444] font-mono">
-                            {formatDurationWindow(computedDurationSeconds)}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="col-span-2 relative">
-                            <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              placeholder="1"
-                              value={createDurationValue}
-                              onChange={(e) => setCreateDurationValue(e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#EF4444]"
-                            />
-                          </div>
-                          <div>
-                            <select
-                              value={createDurationUnit}
-                              onChange={(e) => setCreateDurationUnit(e.target.value as any)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-[#EF4444] font-medium cursor-pointer"
-                            >
-                              <option value="SECONDS">Seconds</option>
-                              <option value="MINUTES">Minutes</option>
-                              <option value="HOURS">Hours</option>
-                              <option value="DAYS">Days</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Quick Window Preset Pills */}
-                        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                          {[
-                            { label: '⚡ 1s', val: '1', unit: 'SECONDS' },
-                            { label: '5s', val: '5', unit: 'SECONDS' },
-                            { label: '10s', val: '10', unit: 'SECONDS' },
-                            { label: '30s', val: '30', unit: 'SECONDS' },
-                            { label: '1m', val: '1', unit: 'MINUTES' },
-                            { label: '5m', val: '5', unit: 'MINUTES' },
-                            { label: '15m', val: '15', unit: 'MINUTES' },
-                            { label: '30m', val: '30', unit: 'MINUTES' },
-                            { label: '1h', val: '1', unit: 'HOURS' },
-                          ].map((preset) => (
-                            <button
-                              key={preset.label}
-                              type="button"
-                              onClick={() => {
-                                setCreateDurationValue(preset.val);
-                                setCreateDurationUnit(preset.unit as any);
-                              }}
-                              className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition-all cursor-pointer ${
-                                createDurationValue === preset.val && createDurationUnit === preset.unit
-                                  ? 'bg-[#EF4444] text-white shadow-xs'
-                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
+                      {/* Quick Window Preset Pills */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {[
+                          { label: '⚡ 1s', val: '1', unit: 'SECONDS' },
+                          { label: '5s', val: '5', unit: 'SECONDS' },
+                          { label: '10s', val: '10', unit: 'SECONDS' },
+                          { label: '30s', val: '30', unit: 'SECONDS' },
+                          { label: '1m', val: '1', unit: 'MINUTES' },
+                          { label: '5m', val: '5', unit: 'MINUTES' },
+                          { label: '15m', val: '15', unit: 'MINUTES' },
+                          { label: '30m', val: '30', unit: 'MINUTES' },
+                          { label: '1h', val: '1', unit: 'HOURS' },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              setCreateDurationValue(preset.val);
+                              setCreateDurationUnit(preset.unit as any);
+                            }}
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition-all cursor-pointer ${
+                              createDurationValue === preset.val && createDurationUnit === preset.unit
+                                ? 'bg-[#EF4444] text-white shadow-xs'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
@@ -1830,7 +1751,7 @@ export default function App() {
                       disabled={!formatPassed}
                       className="w-full py-3.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-red-500/25 cursor-pointer"
                     >
-                      <span>Lock Stake & Publish Challenge ({createStakeUsd || '0'} GEN · {formatDurationWindow(computedDurationSeconds)})</span>
+                      <span>Publish Challenge & Start Duel Arena ({formatDurationWindow(computedDurationSeconds)})</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </form>
@@ -1997,9 +1918,9 @@ export default function App() {
                       <div className="w-8 h-8 rounded-xl bg-red-50 text-[#EF4444] font-bold flex items-center justify-center text-xs">
                         04
                       </div>
-                      <h4 className="text-sm font-bold text-slate-900">Set Window (Down to 1s) & Stake</h4>
+                      <h4 className="text-sm font-bold text-slate-900">Set Research Window (Down to 1s)</h4>
                       <p className="text-xs text-slate-600 leading-relaxed">
-                        You decide the research window from as little as <strong>1 second (1s)</strong> to minutes, hours, or days. Lock collateral in GEN. If no investigator proves it within the window, you reclaim 100% of your stake + escrow!
+                        You decide the research window from as little as <strong>1 second (1s)</strong> to minutes, hours, or days. If no investigator proves it within the window, the challenger is recorded as the winner by timeout forfeit!
                       </p>
                     </div>
                   </div>
@@ -2441,9 +2362,6 @@ export default function App() {
               {/* Activity Timeline List */}
               <div className="space-y-4">
                 {dares.map((dare) => {
-                  const poolGen = ((dare.stakeCents * (dare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(0);
-                  const poolUsd = (Number(poolGen) * 2).toFixed(0);
-
                   return (
                     <div 
                       key={dare.id}
@@ -2495,9 +2413,9 @@ export default function App() {
                           </code>
                         </div>
                         <div>
-                          <span className="text-[10px] text-slate-400 block uppercase font-bold">Escrow Stake</span>
+                          <span className="text-[10px] text-slate-400 block uppercase font-bold">Consensus Status</span>
                           <span className="text-[#EF4444] font-bold font-mono text-xs">
-                            {poolGen} GEN (${poolUsd})
+                            {dare.status === 'FINALIZED' ? (dare.verdict === 'INVESTIGATOR_WINS' ? 'Investigator Won' : 'Challenger Won') : dare.status}
                           </span>
                         </div>
                       </div>
@@ -2603,12 +2521,12 @@ export default function App() {
               </div>
             </div>
 
-            {/* Duel Pool & Parameters */}
+            {/* Duel Parameters */}
             <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-center text-xs">
               <div>
-                <span className="text-slate-400 block text-[10px]">Duel Stake Pool</span>
-                <span className="font-bold text-[#EF4444] font-mono text-sm">
-                  ${((selectedDare.stakeCents * (selectedDare.status === 'OPEN' ? 1 : 2)) / 100).toFixed(2)} GEN
+                <span className="text-slate-400 block text-[10px]">Category</span>
+                <span className="font-bold text-[#EF4444] text-xs">
+                  {selectedDare.domain || selectedDare.category.replace(/_/g, ' ')}
                 </span>
               </div>
               <div>
@@ -2638,8 +2556,8 @@ export default function App() {
                   onClick={() => handleAcceptDare(selectedDare.id)}
                   className="w-full py-3.5 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-red-500/25 transition-all cursor-pointer"
                 >
-                  <Coins className="w-4 h-4" />
-                  <span>Match Stake & Accept Challenge (${(selectedDare.stakeCents / 100).toFixed(2)} GEN)</span>
+                  <Zap className="w-4 h-4" />
+                  <span>Accept Challenge & Start Research Timer</span>
                 </button>
               </div>
             )}
@@ -2791,6 +2709,7 @@ export default function App() {
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">Verbatim Quotes from Source</label>
                     <textarea
+                      name="verbatimQuotes"
                       required
                       rows={2}
                       value={evidenceQuotes}
@@ -2803,6 +2722,7 @@ export default function App() {
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">Reasoning Defense</label>
                     <textarea
+                      name="reasoningDefense"
                       required
                       rows={2}
                       value={evidenceReasoning}
@@ -2878,7 +2798,6 @@ export default function App() {
 
             {/* Phase 4: Finalized / Closed Outcome */}
             {selectedDare.status === 'FINALIZED' && (() => {
-              const payoutDollars = ((selectedDare.stakeCents * 2) / 100).toFixed(2);
               const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
               const isInvestigatorWinner = selectedDare.verdict === 'INVESTIGATOR_WINS';
               const winnerAddress = isInvestigatorWinner 
@@ -2928,84 +2847,28 @@ export default function App() {
 
                     <p className="text-xs leading-relaxed font-medium">{selectedDare.verdictRationale}</p>
                     
-                    {/* Escrow Release & Winner Recipient Breakdown */}
+                    {/* Consensus Result & Winner Breakdown */}
                     <div className="pt-3 border-t border-slate-200/80 space-y-2.5">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 font-semibold">Deterministic Consequence:</span>
+                        <span className="text-slate-500 font-semibold">Adjudication Verdict:</span>
                         <span className="font-bold font-mono text-emerald-700 text-xs">
-                          ${payoutDollars} GEN ({selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'RELEASE_TO_INVESTIGATOR' : 'FORFEIT_TO_CHALLENGER'})
+                          {selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'INVESTIGATOR_WINS (Fact Verified)' : 'CHALLENGER_WINS (Unproven / Forfeit)'}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 font-semibold">Payout Recipient:</span>
+                        <span className="text-slate-500 font-semibold">Winner:</span>
                         <div className="flex items-center gap-1.5 font-mono font-semibold text-slate-800">
                           <span>{winnerAddress.slice(0, 10)}...{winnerAddress.slice(-6)}</span>
                           {isUserWinner && (
                             <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold uppercase">
-                              Your Wallet
+                              Your Address
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-
-                      {/* Winner Claim Action vs Claimed Confirmation Badge */}
-                      {isUserWinner && (
-                        <div className="pt-2">
-                          {selectedDare.payoutClaimed ? (
-                            <div className="p-3 rounded-xl bg-emerald-100/90 border border-emerald-300 text-emerald-900 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-2xs">
-                              <Check className="w-4 h-4 text-emerald-700" />
-                              <span>On-Chain Payout Claimed: +${payoutDollars} GEN Escrow Released to Your Wallet</span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                const targetOnChainId = selectedDare.onChainId || selectedDare.id;
-                                setTxState({
-                                  active: true,
-                                  message: `Prompting Web3 Wallet: Please sign to claim +$${payoutDollars} GEN winner payout...`,
-                                  step: 1
-                                });
-                                try {
-                                  const claimRes = await claimWinnerPayoutOnChain(targetOnChainId, walletAddress, Number(payoutDollars));
-                                  const confirmedTx = claimRes.txHash || claimRes.transferTxHash || '';
-                                  
-                                  store.claimWinnerPayout(selectedDare.id, walletAddress);
-                                  try {
-                                    const raw = window.localStorage.getItem('dareyou_claimed_payouts');
-                                    const list = raw ? JSON.parse(raw) : [];
-                                    if (!list.includes(selectedDare.id)) list.push(selectedDare.id);
-                                    if (selectedDare.onChainId && !list.includes(selectedDare.onChainId)) list.push(selectedDare.onChainId);
-                                    window.localStorage.setItem('dareyou_claimed_payouts', JSON.stringify(list));
-                                  } catch (e) {}
-
-                                  await refreshOnChainBalance(walletAddress);
-
-                                  setTxState({
-                                    active: true,
-                                    message: `Winner payout claimed! (Tx: ${confirmedTx ? confirmedTx.slice(0, 10) + '...' : 'Confirmed'}). +$${payoutDollars} GEN credited to your wallet.`,
-                                    step: 2,
-                                    txHash: confirmedTx
-                                  });
-                                  setTimeout(() => {
-                                    setTxState({ active: false, message: '', step: 0 });
-                                  }, 2500);
-                                } catch (err: any) {
-                                  setTxState({ active: false, message: '', step: 0 });
-                                  alert("Claim Winner Payout failed or cancelled: " + (err.message || String(err)));
-                                }
-                              }}
-                              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 cursor-pointer transition-all active:scale-98"
-                            >
-                              <Trophy className="w-4 h-4" />
-                              <span>Claim +${payoutDollars} GEN Winner Payout to Connected Wallet</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                  </div>
 
                 {/* Evidence Archive Record */}
                 {selectedDare.evidence && (
@@ -3216,28 +3079,23 @@ export default function App() {
                 </code>
               </div>
 
-              {/* Real On-Chain Balance Card + Live Sync Refresh */}
+              {/* Network Status Card */}
               <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
-                    On-Chain Balance (StudioNet)
+                    Network Status
                   </span>
-                  <div className="flex items-baseline gap-2 mt-0.5">
-                    <span className="text-2xl font-black font-mono text-white">
-                      {walletBalance} GEN
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-sm font-bold font-mono text-white">
+                      GenLayer StudioNet (Chain 61999)
                     </span>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => refreshOnChainBalance(walletAddress)}
-                  disabled={isRefreshingBalance}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-xs cursor-pointer flex items-center gap-1.5 flex-shrink-0 active:scale-95 transition-all"
-                  title="Sync real on-chain balance from GenLayer StudioNet"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingBalance ? 'animate-spin text-emerald-400' : ''}`} />
-                  <span>{isRefreshingBalance ? 'Syncing...' : 'Refresh'}</span>
-                </button>
+                <div className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-xs">
+                  Zero-Stake Arena
+                </div>
               </div>
 
               {/* Modal Bottom Actions */}
