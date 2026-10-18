@@ -174,7 +174,7 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 
 ## 9. Next Milestones & Roadmap
 
-Our development roadmap for taking DareYou from hackathon finality to production protocol:
+Our development roadmap for scaling the DareYou production protocol:
 
 ### Milestone 1: Decentralized Content-Addressed Evidence (IPFS & Arweave CIDs)
 * **Goal**: Eliminate reliance on DNS domains and centralized web servers entirely.
