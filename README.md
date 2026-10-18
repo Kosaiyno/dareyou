@@ -11,7 +11,7 @@
 
 ## 1. Overview & Why This Needs GenLayer
 
-Ordinary smart contracts and price oracles can read a number from an API, but they cannot resolve an adversarial evidentiary dispute such as:
+Ordinary smart contracts and price oracles can read numeric feeds from APIs, but they cannot resolve an adversarial evidentiary dispute such as:
 - *"Does this peer-reviewed publication or mission archive definitively confirm the detection of atmospheric carbon dioxide on exoplanet WASP-39b?"*
 - *"Does this statutory filing contradict the leaked consultancy agreement?"*
 - *"Does this archival specification prove that the initial base fee is burned rather than paid to miners?"*
@@ -22,7 +22,44 @@ A decentralized committee of **5 GenLayer validator AI nodes** independently cra
 
 ---
 
-## 2. Core GenLayer Steward Design Principles Enforced
+## 2. Value Mechanism & Protocol Economics
+
+DareYou introduces **Truth-as-a-Service (TaaS)**—a decentralized market mechanism that makes authentic real-world truth verifiable, unforgeable, and composable across Web3:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        DAREYOU VALUE FLYWHEEL                          │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   1. CHALLENGERS (DAOs, Prediction Markets, Enterprises, Researchers)   │
+│      └─► Need authentic factual clarity under strict deadlines.        │
+│      └─► Post high-stakes factual dares with frozen criteria.          │
+│                                                                        │
+│   2. INVESTIGATORS (Human Specialists & Autonomous AI Agents)          │
+│      └─► Compete against the clock to unearth primary archival proof.  │
+│      └─► Submit frozen evidence dossiers with verbatim quotes & URLs.  │
+│                                                                        │
+│   3. GENLAYER VALIDATOR COMMITTEE (5 Multi-LLM Consensus Nodes)       │
+│      └─► Crawl live source documents independently.                    │
+│      └─► Hash text excerpts & verify quotes under Equivalence Principle│
+│      └─► Issue un-bribable, consensus-backed truth verdicts.          │
+│                                                                        │
+│   4. DOWNSTREAM VALUE CAPTURE (Web3 Oracles & Reputation)             │
+│      └─► Verifiable truth feeds exported to external smart contracts.  │
+│      └─► AgentReputation mints immutable on-chain credibility scores.  │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Core Value Drivers:
+1. **Adversarial Crowdsourced Research**: Challengers extract rapid, high-signal investigative research within minutes rather than waiting weeks for centralized auditors.
+2. **Un-Bribable AI Consensus**: Instead of trusting a centralized oracle or human jury prone to collusion, consensus is determined by multi-model GenLayer validator committees operating under cryptographic equivalence.
+3. **On-Chain Epistemic Reputation (`AgentReputation`)**: Researchers and autonomous AI agents build provable, on-chain track records of factual accuracy, establishing an unforgeable credibility primitive for the decentralized web.
+4. **Composability for Prediction Markets & DAOs**: External protocols (Polymarket, governance DAOs, decentralized insurance) can query DareYou's finalized truth verdicts to resolve complex subjective claims trustlessly.
+
+---
+
+## 3. Core GenLayer Steward Design Principles Enforced
 
 1. **The Model Judges; Deterministic Code Moves State:**
    - The LLM never outputs arbitrary scores, prices, or payouts.
@@ -52,7 +89,7 @@ A decentralized committee of **5 GenLayer validator AI nodes** independently cra
 
 ---
 
-## 3. Architecture Diagram
+## 4. Architecture Diagram
 
 ```mermaid
 flowchart TD
@@ -85,31 +122,65 @@ flowchart TD
 
 ---
 
-## 4. Deployed Intelligent Contracts on StudioNet (Chain ID 61999)
+## 5. The 8 Intelligent Contracts Suite on StudioNet (Chain ID 61999)
 
-All 8 Intelligent Contracts are deployed on GenLayer StudioNet (`Chain ID 61999`) and verified in [`deploy/proof.json`](./deploy/proof.json):
+DareYou is architected as a modular suite of **8 specialized Intelligent Contracts** deployed on GenLayer StudioNet (`Chain ID 61999`). Each contract isolates a single responsibility, separating non-deterministic GenVM AI execution from deterministic state logic:
 
-| Contract | File | StudioNet Address | Deploy Tx Hash | Explorer Link |
-|---|---|---|---|---|
-| **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | `0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b` | `0x67de5fb99c16...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b) |
-| **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | `0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6` | `0x7241bcf182f5...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6) |
-| **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | `0x68E73e3e2075A3978510c93437C5F6248ba85f4D` | `0x4328b8500aef...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D) |
-| **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | `0xB28858fA47C3648746f38c99dC4e46AA80444BD3` | `0x0d37ad4655fb...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3) |
-| **StakeEscrow** | [`contracts/stake_escrow.py`](./contracts/stake_escrow.py) | `0x82De72ea7D86A6ef69B6bB2eeE4054E762838105` | `0x457eaee9561e...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x82De72ea7D86A6ef69B6bB2eeE4054E762838105) |
-| **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | `0x3C3F2982Caa3B204214bAf3f24A67c33799d89de` | `0xf278af244707...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de) |
-| **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | `0x59AF57218Bc417a2390cE373094Cc83E43DdD403` | `0x2e3e3ef0e187...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403) |
-| **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | `0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19` | `0x02eae17c927b...` | [View on Explorer](https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19) |
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                          THE 8 INTELLIGENT CONTRACTS                             │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  [GENVM NON-DETERMINISTIC AI & WEB CONTRACTS]                                    │
+│  1. DareAdjudicator   │ Multi-LLM Equivalence consensus, web crawling, quote     │
+│                       │ verification, digest hashing, prompt-injection defense.  │
+│  2. DareQualifier     │ AI gatekeeper: evaluates challenge proposals up front,   │
+│                       │ rejects subjective criteria, and freezes rules_sha256.   │
+│  3. NetworkProbe      │ Diagnostic reachability oracle: tests live URL crawl     │
+│                       │ availability & keyword extraction across validators.     │
+│                                                                                  │
+│  [DETERMINISTIC STATE, LIFECYCLE & REGISTRY CONTRACTS]                           │
+│  4. DareRegistry      │ State machine for dare lifecycles (OPEN, ACCEPTED,       │
+│                       │ FINALIZED), research window deadlines, and timeouts.     │
+│  5. EvidenceRegistry  │ Permanent evidentiary archive: stores frozen URLs,        │
+│                       │ verbatim quotes, syntheses, and SHA-256 evidence digests.│
+│  6. DarePolicy        │ Deterministic bounds: validates character thresholds,    │
+│                       │ category enums, and allowable research durations.        │
+│  7. AgentReputation   │ On-chain epistemic score: tracks researcher accuracy,    │
+│                       │ verification counts, and validator consensus agreement.  │
+│  8. StakeEscrow       │ Value coordination: manages protocol financial state,    │
+│                       │ dispute accounting, and settlement consequence routing.  │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Contract Deployment & Verification Registry
+
+All 8 contracts are deployed on StudioNet and verified in [`deploy/proof.json`](./deploy/proof.json):
+
+| # | Contract Name | File | Role & GenVM Capabilities | StudioNet Address | Explorer Link |
+|---|---|---|---|---|---|
+| **1** | **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | **Core AI Adjudication**: `gl.nondet.web.render()` + `gl.eq_principle.prompt_non_comparative()` | `0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b` | [View Explorer](https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b) |
+| **2** | **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | **AI Proposal Gatekeeper**: Filters subjective inputs & freezes `rules_sha256` | `0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6` | [View Explorer](https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6) |
+| **3** | **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | **Web Reachability Oracle**: Independent URL crawler probing for archives | `0xB28858fA47C3648746f38c99dC4e46AA80444BD3` | [View Explorer](https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3) |
+| **4** | **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | **Lifecycle State Machine**: Window countdowns, deadline timeouts, status changes | `0x68E73e3e2075A3978510c93437C5F6248ba85f4D` | [View Explorer](https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D) |
+| **5** | **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | **Evidentiary Vault**: Immutable storage of dossiers, verbatim quotes & digests | `0x3C3F2982Caa3B204214bAf3f24A67c33799d89de` | [View Explorer](https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de) |
+| **6** | **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | **Protocol Boundary Guard**: Deterministic policy rules, format & string validation | `0x59AF57218Bc417a2390cE373094Cc83E43DdD403` | [View Explorer](https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403) |
+| **7** | **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | **On-Chain Epistemic Score**: Tracks verified investigations & consensus accuracy | `0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19` | [View Explorer](https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19) |
+| **8** | **StakeEscrow** | [`contracts/stake_escrow.py`](./contracts/stake_escrow.py) | **Value Coordination**: Dispute accounting, deposit tracking & settlement routing | `0x82De72ea7D86A6ef69B6bB2eeE4054E762838105` | [View Explorer](https://explorer-studio.genlayer.com/address/0x82De72ea7D86A6ef69B6bB2eeE4054E762838105) |
 
 ---
 
-## 5. Live On-Chain Proof Transactions
+## 6. Live On-Chain Proof Transactions
 
-Every critical path has been executed to finality (`ACCEPTED` / `MAJORITY_AGREE`) on StudioNet:
+Every critical protocol path has been executed to finality (`ACCEPTED` / `MAJORITY_AGREE`) on StudioNet:
 
 | Proof Case | Description | Outcome / Verdict | StudioNet Transaction Link |
 |---|---|---|---|
-| **Live Proof #1 (Dare #6)** | CMB Radiation Temperature Verification via arXiv | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0xccbb2795f657...`](https://explorer-studio.genlayer.com/tx/0xccbb2795f65764a5638ca079db3843994c40b89df9c8be2400d5517837ccf0d8) |
-| **Live Proof #2 (Dare #1003)** | Missing Excerpt Detection (Wayback Redirect Trap Caught) | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xb396604fbcc4...`](https://explorer-studio.genlayer.com/tx/0xb396604fbcc45b415f44de853ea62793261886aca249cb3db7c92068883029c2) |
+| **Live Proof #1 (Dare #1004)** | Apollo 11 Sea of Tranquility Coordinates (NASA NSSDC) | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0x4c92db601d0e...`](https://explorer-studio.genlayer.com/tx/0x4c92db601d0eb518eac3bc15806389af700e42f0ad417e9dcf86583d22dc2b81) |
+| **Live Proof #2 (Dare #1003)** | Transformer Architecture arXiv Date & Title Verification | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0xf443de63d245...`](https://explorer-studio.genlayer.com/tx/0xf443de63d245794187273664f16169434491e900a2b2f546afae228698bf345e) |
+| **Live Proof #3 (Dare #6)** | CMB Radiation Temperature Verification via arXiv | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0xccbb2795f657...`](https://explorer-studio.genlayer.com/tx/0xccbb2795f65764a5638ca079db3843994c40b89df9c8be2400d5517837ccf0d8) |
+| **Live Proof #4 (Dare #1003-Old)** | Missing Excerpt Detection (Wayback Redirect Trap Caught) | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xb396604fbcc4...`](https://explorer-studio.genlayer.com/tx/0xb396604fbcc45b415f44de853ea62793261886aca249cb3db7c92068883029c2) |
 | **Proof Case #101** | Historical Specification Adjudication | `outcome: "MET"`, `quote_verified: true` | [`0x6f2ba43ab0c1...`](https://explorer-studio.genlayer.com/tx/0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6) |
 | **Proof Case #102** | Fabricated Verbatim Quote Rejected | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xeeb293b5d560...`](https://explorer-studio.genlayer.com/tx/0xeeb293b5d560b8f38410b2f33c6c967c242a9a2ea7776a05c4135aa996075da5) |
 | **Proof Case #103** | Adversarial Prompt-Injection Blocked | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xe69900b4e846...`](https://explorer-studio.genlayer.com/tx/0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245) |
@@ -118,7 +189,7 @@ Every critical path has been executed to finality (`ACCEPTED` / `MAJORITY_AGREE`
 
 ---
 
-## 6. Setup & Verification
+## 7. Setup & Verification
 
 ```bash
 # 1. Clone repository
@@ -136,7 +207,7 @@ npm run dev
 
 ---
 
-## 7. Autonomous AI Agent Gateway (WebMCP)
+## 8. Autonomous AI Agent Gateway (WebMCP)
 
 DareYou features a first-class **WebMCP Agent Studio** integrated directly into the web application at [`window.__WEBMCP_TOOLS__`](./frontend/src/webmcp/registerTools.ts). Autonomous AI agents (Claude Code, Grok, LangChain agents, or custom LLM bots) can connect, inspect dares, and participate autonomously:
 
@@ -149,15 +220,15 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 
 ---
 
-## 8. GenLayer Submission Fields (Ready to Copy-Paste)
+## 9. GenLayer Submission Fields (Ready to Copy-Paste)
 
 - **Contribution Type:** Project / Deployed Intelligent Contract + Frontend + MCP Agent Gateway
 - **One-Liner:** Adversarial fact-checking duel protocol where GenLayer AI validators crawl immutable archives, verify verbatim quotes, and reach multi-LLM consensus under the Equivalence Principle.
 - **Short Description (<1,000 chars):**  
-  DareYou is an epistemic duel protocol on GenLayer StudioNet (Chain ID 61999) where Challengers post verifiable multi-source investigations and Investigators (humans or autonomous AI agents via WebMCP) submit frozen evidence dossiers. Built strictly according to GenLayer steward principles: (1) DareQualifier rejects vague or unobservable criteria up front and freezes a canonical SHA-256 rules hash; (2) DareAdjudicator validators independently fetch source documents via `gl.nondet.web.render()`, bound the text in Python, compute SHA-256 digests, and verify that submitted verbatim quotes exist in the downloaded text; (3) the multi-LLM committee outputs a strict categorical outcome (`MET`, `NOT_MET`, `INSUFFICIENT_EVIDENCE`), while deterministic Python code maps outcomes to finality; (4) prompt injection is blocked deterministically; (5) includes automatic Wayback `id_` raw identity conversion and dual-URL contract fallback. Includes live production app on Vercel, WebMCP agent tools, `deploy/proof.json`, and `npm run verify:proof`.
+  DareYou is an epistemic duel protocol on GenLayer StudioNet (Chain ID 61999) where Challengers post verifiable multi-source investigations and Investigators (humans or autonomous AI agents via WebMCP) submit frozen evidence dossiers. Built strictly according to GenLayer steward principles across 8 modular Intelligent Contracts: (1) DareQualifier rejects vague or unobservable criteria up front and freezes a canonical SHA-256 rules hash; (2) DareAdjudicator validators independently fetch source documents via `gl.nondet.web.render()`, bound the text in Python, compute SHA-256 digests, and verify that submitted verbatim quotes exist in the downloaded text; (3) the multi-LLM committee outputs a strict categorical outcome (`MET`, `NOT_MET`, `INSUFFICIENT_EVIDENCE`), while deterministic Python code maps outcomes to finality; (4) prompt injection is blocked deterministically; (5) includes automatic Wayback `id_` raw identity conversion and dual-URL contract fallback. Includes live production app on Vercel, WebMCP agent tools, `deploy/proof.json`, and `npm run verify:proof`.
 - **How-To Steps for Reviewer:**
   1. Visit [https://dareyou-seven.vercel.app](https://dareyou-seven.vercel.app) (no wallet required to inspect live proofs).
-  2. Click "View Outcome" on Dare #6, #101, #102, or #103 to inspect the validator votes, extracted text digests, and consensus rationales.
+  2. Click "View Outcome" on Dare #1004, #1003, #6, or #101 to inspect the validator votes, extracted text digests, and consensus rationales.
   3. Inside any dossier modal, click the StudioNet Proof Tx link to inspect the finalized transaction on `explorer-studio.genlayer.com`.
   4. Run `npm run verify:proof` in the repository to verify all 8 deployed contracts and proof transactions against `https://studio.genlayer.com/api`.
 - **Primary Contract Explorer Links:**
@@ -172,7 +243,7 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 
 ---
 
-## 9. Next Milestones & Roadmap
+## 10. Next Milestones & Roadmap
 
 Our development roadmap for scaling the DareYou production protocol:
 
