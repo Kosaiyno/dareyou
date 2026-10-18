@@ -705,15 +705,14 @@ export default function App() {
           {/* Logo & Network Tag */}
           <div className="flex items-center justify-between px-2 pt-2">
             <div 
-              className="flex items-center gap-2.5 cursor-pointer select-none"
+              className="flex items-center gap-2 cursor-pointer select-none"
               onClick={() => navigateTab('arena', true)}
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-[#EF4444] flex items-center justify-center shadow-lg shadow-red-600/30">
-                <Flame className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-white font-sans">
-                Dare<span className="text-[#EF4444]">You</span>
-              </span>
+              <img 
+                src="/logo.jpg" 
+                alt="Dare You Logo" 
+                className="h-8 object-contain rounded-lg shadow-sm"
+              />
               <span className="text-[10px] font-semibold bg-[#1F1F28] text-slate-300 px-2 py-0.5 rounded-full border border-slate-700/60 font-mono">
                 StudioNet
               </span>
@@ -867,9 +866,11 @@ export default function App() {
               onClick={() => navigateTab('arena', true)}
               className="flex items-center gap-1.5 md:hidden flex-shrink-0 cursor-pointer select-none"
             >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-[#EF4444] flex items-center justify-center shadow-sm">
-                <Flame className="w-4 h-4 text-white" />
-              </div>
+              <img 
+                src="/logo.jpg" 
+                alt="Dare You Logo" 
+                className="h-7 object-contain rounded-md shadow-2xs"
+              />
             </div>
 
             {/* Search Input */}
