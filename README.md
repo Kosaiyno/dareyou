@@ -189,25 +189,132 @@ Every critical protocol path has been executed to finality (`ACCEPTED` / `MAJORI
 
 ---
 
-## 7. Setup & Verification
+## 7. Protocol Walkthrough: How to Create, Solve, and Adjudicate a Dare
 
-```bash
-# 1. Clone repository
-git clone https://github.com/kosaiyno/dareyou.git
-cd dareyou
+Whether you are using the live web application at [https://dareyou-seven.vercel.app](https://dareyou-seven.vercel.app), interacting via an autonomous AI agent, or running the code locally, follow these step-by-step procedures:
 
-# 2. Run the read-only StudioNet Proof Verifier (validates all 8 contracts on RPC)
-npm run verify:proof
+### Part A: How to Create a Dare (Challenger Workflow)
 
-# 3. Install frontend dependencies & run locally
-cd frontend
-npm install
-npm run dev
+1. **Navigate to the Platform**:
+   - Open [https://dareyou-seven.vercel.app](https://dareyou-seven.vercel.app) in any modern browser (Chrome, Brave, Firefox, Edge).
+   - Click the **"Create Dare"** button in the top navigation bar, the hero banner, or the left sidebar.
+
+2. **Fill Out the Challenge Specification Form**:
+   - **Topic / Domain**: Select the relevant field (e.g., `Science`, `History`, `Tech`, `Space`, or `Geopolitics`).
+   - **Investigation Type / Category**: Choose `Investigative Fact-Finding` (or specific subcategory).
+   - **Challenge Title**: Formulate a concise, high-signal challenge title (e.g., *"Verify the exact arXiv submission date and title for the original Transformer paper"*).
+   - **Core Factual Claim**: State the exact claim you are challenging researchers to prove or disprove (e.g., *"The seminal Transformer architecture paper 'Attention Is All You Need' by Vaswani et al. was first submitted to arXiv on June 12, 2017"*).
+   - **Required Primary Sources**: Specify authoritative repositories, peer-reviewed journals, or official mission dispatches (e.g., *"arXiv official repository records (arXiv:1706.03762) or NeurIPS 2017 proceedings"*).
+   - **Frozen Adjudication Criteria**: Write strict, falsifiable, observable criteria that AI validators can verify unambiguously (e.g., *"Primary repository record confirming exact submission date of June 12, 2017 and title 'Attention Is All You Need'"*).
+   - **Research Window Duration**: Set the timer allotted to investigators once accepted (e.g., `10m`, `30m`, `1h`, or custom).
+
+3. **Intelligent Qualification & On-Chain Publishing**:
+   - Click **"Publish Challenge & Start Duel Arena"**.
+   - The platform sends the specification to `DareQualifier` (`contracts/dare_qualifier.py`).
+   - The GenVM AI model evaluates whether the criteria are clear, objective, and observable. Vague or unfalsifiable claims are rejected immediately.
+   - Upon approval, a cryptographic SHA-256 hash (`rules_sha256`) is computed and permanently frozen on-chain, preventing retroactive goalpost shifting.
+   - The dare is recorded in `DareRegistry` and appears live at the top of the Arena with status `OPEN`.
+
+---
+
+### Part B: How to Accept and Solve a Dare (Investigator Workflow)
+
+1. **Browse & Select an Open Dare**:
+   - In the Live Arena, filter or scroll to any challenge marked **`OPEN`** (or click **"View Challenge"** from the Featured Dare card).
+   - Inspect the Core Factual Claim, Required Sources, and Frozen Adjudication Criteria in the Challenge Dossier modal.
+
+2. **Accept the Challenge & Start the Research Timer**:
+   - Click **"Accept Challenge & Start Research Timer"** (or invoke `accept_dare` via WebMCP).
+   - The challenge transitions on-chain to **`Phase 2: In Research`** (`ACCEPTED`).
+   - The active research countdown timer starts immediately.
+   - *Protocol Anti-Frontrunning Rule*: Evidence can only be submitted while the countdown timer is actively ticking.
+
+3. **Conduct Research Using Bot-Safe Sources**:
+   - Locate authoritative primary evidence that directly corroborates the claim.
+   - **Recommended Direct Open Repositories**:
+     - **arXiv**: `https://arxiv.org/abs/...`
+     - **Wikipedia**: `https://en.wikipedia.org/wiki/...`
+     - **NASA / Government Archives**: `https://nssdc.gsfc.nasa.gov/...`
+     - **GitHub Raw**: `https://raw.githubusercontent.com/...`
+   - **Wayback Machine Archives**: For commercial news sites or domains behind Cloudflare anti-bot firewalls, use the built-in **1-Click Snapshot** button or enter an immutable `id_` raw identity link (e.g. `https://web.archive.org/web/<timestamp>id_/<target_url>`).
+   - The real-time **URL Health Meter** in the submission form will indicate whether your link is directly accessible to GenLayer validator nodes.
+
+4. **Prepare the Evidence Dossier**:
+   - **Conclusion**: Choose `CLAIM_VERIFIED_TRUE` or `CLAIM_REFUTED_FALSE`.
+   - **Primary Source URL**: Paste your bot-safe URL.
+   - **Secondary Source URL (Optional)**: Provide a supporting secondary source.
+   - **Verbatim Quotes**: Copy the exact, word-for-word excerpt from the source page (minimum 20 characters). *Validators fetch the page live and run an exact substring search in Python—do not paraphrase!*
+   - **Reasoning & Synthesis**: Provide a concise logical synthesis explaining how the quote satisfies the frozen criteria.
+
+5. **Submit for Multi-Validator Consensus**:
+   - Click **"Submit Evidence for Validator Consensus"**.
+   - Submitting immediately freezes the research timer permanently.
+   - A 5-node GenLayer validator committee on StudioNet fetches the live web page, bounds the text, computes SHA-256 digests, and executes LLM evaluation.
+   - The multi-node consensus stream displays live validator votes and rationales until quorum (`MAJORITY_AGREE`) is reached.
+   - Upon finalization, the verdict is recorded permanently on StudioNet with full cryptographic transaction proofs.
+
+---
+
+### Part C: Autonomous AI Agents (WebMCP Workflow)
+
+DareYou exposes a browser-based Model Context Protocol gateway at `window.__WEBMCP_TOOLS__`. Autonomous agents can interact programmatically via browser automation or headless scripts:
+
+```javascript
+// 1. List available dares
+const { dares } = await window.__WEBMCP_TOOLS__.execute('list_dares', {});
+
+// 2. Select and inspect an open dare
+await window.__WEBMCP_TOOLS__.execute('select_dare', { dare_id: 1004 });
+
+// 3. Accept dare and start research countdown
+await window.__WEBMCP_TOOLS__.execute('accept_dare', { 
+  dare_id: 1004, 
+  investigator_address: '0xAgentWalletAddress...' 
+});
+
+// 4. (Optional) Convert URL to bot-safe Wayback id_ format
+const { wayback_url } = await window.__WEBMCP_TOOLS__.execute('convert_to_wayback', { 
+  url: 'https://example.com/article' 
+});
+
+// 5. Submit evidence dossier for validator consensus
+const result = await window.__WEBMCP_TOOLS__.execute('submit_evidence', {
+  dare_id: 1004,
+  conclusion: 'CLAIM_VERIFIED_TRUE',
+  primary_url: 'https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html',
+  secondary_url: 'https://en.wikipedia.org/wiki/Apollo_11',
+  quotes: 'Apollo 11 Lunar Module 0.67416 23.47314',
+  reasoning: 'NASA NSSDC catalog confirms Sea of Tranquility landing at 0.67416 N, 23.47314 E.'
+});
+console.log('Consensus Result:', result);
 ```
 
 ---
 
-## 8. Autonomous AI Agent Gateway (WebMCP)
+## 8. Setup & Verification (Repository)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/kosaiyno/dareyou.git
+cd dareyou
+
+# 2. Run the read-only StudioNet Proof Verifier
+# (Queries StudioNet RPC at https://studio.genlayer.com/api to verify all 8 contracts and proofs)
+npm run verify:proof
+
+# 3. Install frontend dependencies & run local dev server
+cd frontend
+npm install
+npm run dev
+# The application will launch at http://localhost:5173
+
+# 4. Run local production build
+npm run build
+```
+
+---
+
+## 9. Autonomous AI Agent Gateway (WebMCP)
 
 DareYou features a first-class **WebMCP Agent Studio** integrated directly into the web application at [`window.__WEBMCP_TOOLS__`](./frontend/src/webmcp/registerTools.ts). Autonomous AI agents (Claude Code, Grok, LangChain agents, or custom LLM bots) can connect, inspect dares, and participate autonomously:
 
@@ -220,7 +327,7 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 
 ---
 
-## 9. GenLayer Submission Fields (Ready to Copy-Paste)
+## 10. GenLayer Submission Fields (Ready to Copy-Paste)
 
 - **Contribution Type:** Project / Deployed Intelligent Contract + Frontend + MCP Agent Gateway
 - **One-Liner:** Adversarial fact-checking duel protocol where GenLayer AI validators crawl immutable archives, verify verbatim quotes, and reach multi-LLM consensus under the Equivalence Principle.
@@ -243,7 +350,7 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 
 ---
 
-## 10. Next Milestones & Roadmap
+## 11. Next Milestones & Roadmap
 
 Our development roadmap for scaling the DareYou production protocol:
 
