@@ -172,6 +172,12 @@ class StakeEscrow(gl.Contract):
 
     @gl.public.write
     def settle_winner_payout(self, dare_id: int, winner_address: str) -> bool:
+        """
+        LEGACY METHOD - DEPRECATED.
+        Use settle_from_adjudication() which derives winner from authenticated DareAdjudicator verdict
+        and DareRegistry participant records. This method is kept only for backward compatibility
+        but will reject calls if adjudication record exists (enforcing authenticated flow).
+        """
         caller = str(gl.message.sender_address)
         if caller != str(self.authorized_registry) and caller != str(self.owner):
             raise Exception("Unauthorized: Only authorized registry or owner can settle payouts")
@@ -184,13 +190,29 @@ class StakeEscrow(gl.Contract):
         if record.get("settled"):
             raise ValueError(f"Dare {dare_id} is already settled")
 
+        # Check if authenticated adjudication exists - if so, force authenticated path
+        try:
+            adj_contract = gl.get_contract_at(self.authorized_adjudicator)
+            raw_adj = adj_contract.get_adjudication(dare_id)
+            if raw_adj and str(raw_adj).startswith("{"):
+                adj_data = json.loads(str(raw_adj))
+                if adj_data.get("verdict") in ["INVESTIGATOR_WINS", "CHALLENGER_WINS", "INCONCLUSIVE"]:
+                    raise ValueError(
+                        f"Dare {dare_id} has authenticated adjudication verdict. "
+                        f"Must use settle_from_adjudication() which derives winner from on-chain verdict."
+                    )
+        except ValueError:
+            raise
+        except Exception:
+            pass  # Adjudicator not set or no verdict, allow legacy path for old dares
+
         total_pool = record.get("total_escrowed_cents", 0)
         if total_pool <= 0:
             raise ValueError("No funds escrowed to settle")
 
         clean_winner = str(winner_address)
         record["settled"] = True
-        record["settlement_type"] = "WINNER_PAYOUT"
+        record["settlement_type"] = "WINNER_PAYOUT_LEGACY"
         record["recipient"] = clean_winner
         settle_ts = 0
         try:

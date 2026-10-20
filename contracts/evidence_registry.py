@@ -8,10 +8,11 @@ class EvidenceRegistry(gl.Contract):
     EvidenceRegistry records and freezes evidence submitted by investigating agents.
     
     Responsibilities:
-    1. Accepts submissions only from authorized participants.
+    1. Accepts submissions only from the assigned investigator (authenticated via DareRegistry).
     2. Records timestamps, source URLs, and verbatim quotes.
     3. Enforces an immutable freeze on the evidence dossier prior to adjudication.
     4. Prevents post-submission tampering.
+    5. Validates dare status is ACCEPTED (research window active) before accepting evidence.
     """
     owner: Address
     authorized_registry: Address
@@ -54,6 +55,34 @@ class EvidenceRegistry(gl.Contract):
         d_key = u256(dare_id)
         if d_key in self.evidence_dossiers:
             raise ValueError(f"Evidence already submitted and frozen for dare {dare_id}")
+
+        # Authenticate investigator against frozen DareRegistry record
+        reg_contract = gl.get_contract_at(self.authorized_registry)
+        raw_dare = reg_contract.get_dare(dare_id)
+        dare_data = json.loads(str(raw_dare))
+        
+        # Verify dare is in ACCEPTED status (research window active)
+        dare_status = dare_data.get("status")
+        if dare_status != "ACCEPTED":
+            raise ValueError(f"Cannot submit evidence: dare status is '{dare_status}', must be 'ACCEPTED' (research window active).")
+
+        assigned_investigator = dare_data.get("investigator")
+        if not assigned_investigator:
+            raise ValueError(f"Dare {dare_id} has no assigned investigator. Cannot submit evidence.")
+        
+        caller = str(gl.message.sender_address)
+        if caller != assigned_investigator:
+            raise Exception(f"Unauthorized: Only assigned investigator ({assigned_investigator}) can submit evidence for this dare.")
+        
+        # Verify research deadline hasn't passed
+        current_ts = 0
+        try:
+            current_ts = int(gl.block.timestamp)
+        except Exception:
+            pass
+        research_deadline = dare_data.get("research_deadline_ts", 0)
+        if current_ts > research_deadline and research_deadline > 0:
+            raise ValueError("Research window deadline has elapsed. Challenge forfeited.")
 
         clean_conclusion = str(conclusion).strip()
         clean_primary = str(primary_source_url).strip()

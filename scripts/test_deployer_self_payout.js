@@ -15,6 +15,8 @@ const ADJUDICATOR_ADDR = contracts.DareAdjudicator.address;
 async function testDeployerAsInvestigator() {
   console.log('=== VERIFYING PAYOUT TO THE EXACT SOLVER WALLET ===');
   console.log('Deployer Wallet (Challenger & Investigator):', account.address);
+  console.log('NOTE: This test uses LEGACY adjudicate_evidence/settle_winner_payout');
+  console.log('      Production flow requires DareRegistry + EvidenceRegistry authentication\n');
 
   const dareId = 6001;
   const stakeCents = 10;
@@ -44,8 +46,8 @@ async function testDeployerAsInvestigator() {
   await client.waitForTransactionReceipt({ hash: tx2, status: 'ACCEPTED', retries: 25, interval: 3000 });
   console.log('Investigator Tx:', tx2);
 
-  // 3. Adjudicate
-  console.log('\n3. Adjudicating Evidence on DareAdjudicator...');
+  // 3. Adjudicate (LEGACY - for direct adjudicator testing)
+  console.log('\n3. Adjudicating Evidence on DareAdjudicator (LEGACY PATH)...');
   const tx3 = await client.writeContract({
     address: ADJUDICATOR_ADDR,
     functionName: 'adjudicate_evidence',
@@ -73,8 +75,8 @@ async function testDeployerAsInvestigator() {
   });
   console.log('Adjudication Decision:', decision);
 
-  // 4. Settle Winner (Deployer)
-  console.log('\n4. Settling Winner as Deployer on StakeEscrow...');
+  // 4. Settle Winner (Deployer) - LEGACY
+  console.log('\n4. Settling Winner as Deployer on StakeEscrow (LEGACY PATH)...');
   const tx4 = await client.writeContract({
     address: ESCROW_ADDR,
     functionName: 'settle_winner_payout',

@@ -23,6 +23,7 @@ async function run() {
   console.log('Deployer Address:', account.address);
   console.log('StakeEscrow Address:', ESCROW_ADDR);
   console.log('DareRegistry Address:', REGISTRY_ADDR);
+  console.log('NOTE: Uses LEGACY settle_winner_payout. Production uses settle_from_adjudication().\n');
 
   const initialBal = await client.getBalance({ address: account.address });
   console.log(`Initial Deployer Balance: ${formatEther(initialBal)} GEN`);
@@ -67,7 +68,7 @@ async function run() {
   const contractBal = await client.getBalance({ address: ESCROW_ADDR });
   console.log(`StakeEscrow Contract Native Balance: ${formatEther(contractBal)} GEN`);
 
-  console.log(`\n4. Settling Payout to Winner: ${account.address}...`);
+  console.log(`\n4. Settling Payout to Winner: ${account.address} (LEGACY settle_winner_payout)...`);
   const tx3 = await client.writeContract({
     address: ESCROW_ADDR,
     functionName: 'settle_winner_payout',

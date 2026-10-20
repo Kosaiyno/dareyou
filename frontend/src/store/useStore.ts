@@ -7,7 +7,8 @@ import {
   acceptDareOnChain,
   fetchOnChainDares,
   syncDareToCanonicalApi,
-  freezeEvidenceOnChain
+  submitEvidenceOnChain,
+  settleWinnerPayoutOnChain,
 } from '../services/genlayerService';
 
 export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
@@ -571,7 +572,18 @@ export const useStore = create<AppState>((set, get) => ({
     // Lock SUBMITTED state across all browsers so duplicate submissions are blocked
     syncDareToCanonicalApi(submittedDare).catch(() => {});
 
-    // Trigger real on-chain GenLayer Intelligent Contract adjudication on StudioNet
+    // Step 1: Submit & FREEZE evidence on-chain FIRST (authenticated investigator)
+    submitEvidenceOnChain({
+      dareId: id,
+      investigator: target.investigator || get().walletAddress || '',
+      conclusion: evidence.conclusion,
+      primaryUrl: evidence.primaryUrl,
+      secondaryUrl: evidence.secondaryUrl,
+      quotes: evidence.quotes,
+      reasoning: evidence.reasoning
+    }).catch(err => console.warn('[EvidenceRegistry] Early freeze notice:', err));
+
+    // Step 2: Trigger real on-chain GenLayer Intelligent Contract adjudication (adjudicate_from_records)
     submitRealGenLayerAdjudication(target, evidence, (txHash) => {
       const cur = get().dares.find(d => d.id === id);
       if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
@@ -643,19 +655,8 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       syncDareToCanonicalApi(finalizedDare).catch(() => {});
-      freezeEvidenceOnChain({
-        dareId: id,
-        investigator: cur.investigator || '',
-        conclusion: evidence.conclusion,
-        primaryUrl: evidence.primaryUrl,
-        secondaryUrl: evidence.secondaryUrl,
-        quotes: evidence.quotes,
-        reasoning: evidence.reasoning,
-        verdict: onChainResult.verdict,
-        score: onChainResult.score,
-        rationale: onChainResult.rationale,
-        txHash: onChainResult.txHash
-      }).catch(() => {});
+      // Step 3: Settle escrow pool via authenticated adjudication verdict
+      settleWinnerPayoutOnChain(id, winnerAddress).catch(err => console.warn('[StakeEscrow] Settle notice:', err));
 
     }).catch((err) => {
       console.warn('[GenLayer Live Adjudication Error]', err);
@@ -1056,3 +1057,5 @@ export const useStore = create<AppState>((set, get) => ({
     };
   }
 }));
+
+

@@ -156,6 +156,7 @@ export interface OnChainAdjudicationResult {
 /**
  * Executes a REAL on-chain Intelligent Contract transaction on GenLayer StudioNet (Chain ID 61999).
  * Real GenLayer validator nodes evaluate the evidence dossier under the Equivalence Principle.
+ * Uses authenticated flow: adjudicate_from_records() binds to frozen DareRegistry + EvidenceRegistry.
  */
 export async function submitRealGenLayerAdjudication(
   dare: {
@@ -166,36 +167,16 @@ export async function submitRealGenLayerAdjudication(
     requiredSources: string;
     criteria: string;
   },
-  evidence: {
-    conclusion: string;
-    primaryUrl: string;
-    secondaryUrl?: string;
-    quotes: string;
-    reasoning: string;
-  },
+  _evidence?: any,
   onTxSubmitted?: (txHash: string) => void
 ): Promise<OnChainAdjudicationResult> {
   const client = getGenLayerClient();
 
-  const args = [
-    dare.id,
-    dare.title,
-    dare.category,
-    dare.claim,
-    dare.requiredSources,
-    dare.criteria,
-    evidence.conclusion || "CLAIM_VERIFIED_TRUE",
-    evidence.primaryUrl || "",
-    evidence.secondaryUrl || "N/A",
-    evidence.quotes || "",
-    evidence.reasoning || ""
-  ];
-
-  console.log(`[GenLayer Live] Broadcasting transaction to DareAdjudicator at ${GENLAYER_ADJUDICATOR_ADDRESS}...`);
+  console.log(`[GenLayer Live] Broadcasting authenticated adjudication to DareAdjudicator at ${GENLAYER_ADJUDICATOR_ADDRESS}...`);
   const txHash = await client.writeContract({
     address: GENLAYER_ADJUDICATOR_ADDRESS as `0x${string}`,
-    functionName: 'adjudicate_evidence',
-    args,
+    functionName: 'adjudicate_from_records',
+    args: [dare.id],
     value: 0n,
     leaderOnly: false
   });
@@ -350,21 +331,24 @@ export async function depositInvestigatorStakeOnChain(
 }
 
 /**
- * Settles and releases the total escrowed GEN pool to the winning agent on StudioNet.
+ * Settles the escrow pool using the authenticated adjudication verdict.
+ * Calls settle_from_adjudication() which derives winner from on-chain DareAdjudicator verdict
+ * and DareRegistry participant records.
  */
 export async function settleWinnerPayoutOnChain(
   dareId: number,
-  winnerAddress: string
+  _winnerAddress?: string
 ): Promise<string> {
+  void _winnerAddress;
   const client = getGenLayerClient();
   const txHash = await client.writeContract({
     address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
-    functionName: 'settle_winner_payout',
-    args: [dareId, winnerAddress],
+    functionName: 'settle_from_adjudication',
+    args: [dareId],
     value: 0n,
     leaderOnly: false
   });
-  console.log(`[StakeEscrow] Escrow pool settled to winner ${winnerAddress} for Dare #${dareId}. Tx: ${txHash}`);
+  console.log(`[StakeEscrow] Escrow pool settled via authenticated adjudication for Dare #${dareId}. Tx: ${txHash}`);
   return txHash;
 }
 
@@ -405,16 +389,10 @@ export async function claimWinnerPayoutOnChain(
     console.warn('[API Claim Note]:', err);
   }
 
-  // 2. Record settled & claimed on StakeEscrow smart contract on StudioNet
+  // 2. Record claimed on StakeEscrow smart contract on StudioNet
+  // (settle_from_adjudication should have been called already to derive winner from verdict)
   try {
     const client = getGenLayerClient();
-    await client.writeContract({
-      address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
-      functionName: 'settle_winner_payout',
-      args: [dareId, winnerAddress || client.account?.address || ''],
-      value: 0n,
-      leaderOnly: false
-    }).catch(() => {});
     claimTxHash = await client.writeContract({
       address: GENLAYER_ESCROW_ADDRESS as `0x${string}`,
       functionName: 'claim_winner_payout',
@@ -568,8 +546,43 @@ export async function syncDareToCanonicalApi(dare: any): Promise<any | null> {
 }
 
 /**
- * Permanently freezes the submitted evidence and final verdict on EvidenceRegistry on StudioNet
- * (0x5Ceaf77e8c7347FA8C4e3768cd5543F9abbA89E9). The contract reverts if anyone attempts a second submission.
+ * Submits and permanently freezes evidence on EvidenceRegistry on StudioNet.
+ * This MUST be called BEFORE adjudication (adjudicate_from_records).
+ * Authenticates investigator against DareRegistry's assigned investigator.
+ * The contract reverts if anyone attempts a second submission or wrong investigator.
+ */
+export async function submitEvidenceOnChain(params: {
+  dareId: number;
+  investigator: string;
+  conclusion: string;
+  primaryUrl: string;
+  secondaryUrl?: string;
+  quotes: string;
+  reasoning: string;
+}): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_EVIDENCE_REGISTRY_ADDRESS as `0x${string}`,
+    functionName: 'submit_evidence',
+    args: [
+      params.dareId,
+      params.investigator,
+      params.conclusion || 'CLAIM_VERIFIED_TRUE',
+      params.primaryUrl,
+      params.secondaryUrl || 'N/A',
+      params.quotes,
+      params.reasoning
+    ],
+    value: 0n,
+    leaderOnly: false
+  });
+  console.log(`[EvidenceRegistry] Evidence permanently frozen on StudioNet for Dare #${params.dareId}. Tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * @deprecated Use submitEvidenceOnChain() which freezes evidence BEFORE adjudication.
+ * This function is kept for backward compatibility but submits evidence with verdict metadata.
  */
 export async function freezeEvidenceOnChain(params: {
   dareId: number;
@@ -584,37 +597,8 @@ export async function freezeEvidenceOnChain(params: {
   rationale: string;
   txHash?: string;
 }): Promise<string | null> {
-  try {
-    const client = getGenLayerClient();
-    const verdictMeta = JSON.stringify({
-      status: 'FINALIZED',
-      verdict: params.verdict,
-      score: params.score,
-      rationale: params.rationale,
-      txHash: params.txHash || ''
-    });
-    const packedSecondary = `${params.secondaryUrl || 'N/A'}|||VERDICT_META:${verdictMeta}`;
-    const txHash = await client.writeContract({
-      address: GENLAYER_EVIDENCE_REGISTRY_ADDRESS as `0x${string}`,
-      functionName: 'submit_evidence',
-      args: [
-        params.dareId,
-        params.investigator || '0x0000000000000000000000000000000000000000',
-        params.conclusion || 'CLAIM_VERIFIED_TRUE',
-        params.primaryUrl || 'https://studio.genlayer.com',
-        packedSecondary,
-        params.quotes || 'Frozen on-chain record',
-        params.reasoning || 'Frozen on-chain record'
-      ],
-      value: 0n,
-      leaderOnly: false
-    });
-    console.log(`[EvidenceRegistry] Evidence & verdict permanently frozen on StudioNet for Dare #${params.dareId}. Tx: ${txHash}`);
-    return txHash;
-  } catch (err) {
-    console.warn(`[EvidenceRegistry] freezeEvidenceOnChain(#${params.dareId}) notice:`, err);
-    return null;
-  }
+  console.warn('[DEPRECATED] freezeEvidenceOnChain runs after adjudication. Use submitEvidenceOnChain() BEFORE adjudication.');
+  return submitEvidenceOnChain(params);
 }
 
 /**
