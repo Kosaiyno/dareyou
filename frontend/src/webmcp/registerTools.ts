@@ -342,12 +342,13 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       }
 
       const effectiveChallenger = args.challenger_address || walletAddress || '0xChallenger';
+      const reqSources = (args as any).requiredSources || args.required_sources || 'Independent authoritative repositories or archives';
 
       const newId = addDare({
         title: args.title,
         category: args.category,
         claim: args.claim,
-        requiredSources: args.required_sources,
+        requiredSources: reqSources,
         criteria: args.criteria,
         stakeCents: 0,
         durationSeconds: durSec,
@@ -499,12 +500,18 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const now = Date.now();
       const expired = isDareExpired(target, now);
       if (target.status !== 'ACCEPTED' && target.status !== 'EXPIRED' && !expired) {
-        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}", cannot claim timeout forfeit.` };
+        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}" and has not expired, cannot claim timeout forfeit.` };
+      }
+      if (!expired && target.status === 'ACCEPTED') {
+        const remaining = Math.max(0, Math.round(((target.researchDeadlineTs || 0) - now) / 1000));
+        return { success: false, message: `Cannot claim timeout forfeit for Dare #${args.dare_id}: research deadline has not elapsed yet (${remaining}s remaining).` };
       }
       const ok = state.claimTimeoutForfeit(args.dare_id, args.challenger_address);
       return {
         success: ok,
-        message: `Timeout forfeit recorded for Dare #${args.dare_id}. Protocol recorded challenger as winner.`
+        message: ok 
+          ? `Timeout forfeit recorded for Dare #${args.dare_id}. Protocol recorded challenger as winner.`
+          : `Failed to claim timeout forfeit for Dare #${args.dare_id}. Research window is still active.`
       };
     }
   },
