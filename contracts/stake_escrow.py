@@ -18,11 +18,22 @@ class StakeEscrow(gl.Contract):
     """
     owner: Address
     authorized_registry: Address
+    authorized_adjudicator: Address
     dare_stakes: TreeMap[u256, str]
 
     def __init__(self):
         self.owner = gl.message.sender_address
         self.authorized_registry = gl.message.sender_address
+        self.authorized_adjudicator = gl.message.sender_address
+
+    @gl.public.write
+    def set_authorized_modules(self, registry_address: str, adjudicator_address: str) -> bool:
+        caller = str(gl.message.sender_address)
+        if caller != str(self.owner):
+            raise Exception("Unauthorized: Only escrow owner can set authorized modules")
+        self.authorized_registry = Address(registry_address)
+        self.authorized_adjudicator = Address(adjudicator_address)
+        return True
 
     @gl.public.view
     def get_escrow_stats(self) -> str:
@@ -100,6 +111,61 @@ class StakeEscrow(gl.Contract):
         record["investigator_deposited_wei"] = msg_val
         record["total_escrowed_cents"] = record["challenger_deposited"] + record["investigator_deposited"]
         record["total_escrowed_wei"] = record.get("challenger_deposited_wei", 0) + msg_val
+
+        self.dare_stakes[d_key] = json.dumps(record)
+        return True
+
+    @gl.public.write
+    def settle_from_adjudication(self, dare_id: int) -> bool:
+        """
+        Steward-compliant escrow settlement:
+        Directly queries the authenticated DareAdjudicator contract.
+        Derives winner purely from the on-chain verdict and DareRegistry record.
+        """
+        d_key = u256(dare_id)
+        if d_key not in self.dare_stakes:
+            raise ValueError(f"Stake record not found for dare {dare_id}")
+
+        record = json.loads(self.dare_stakes[d_key])
+        if record.get("settled"):
+            raise ValueError(f"Dare {dare_id} is already settled")
+
+        # 1. Query DareAdjudicator on-chain
+        adj_contract = gl.get_contract_at(self.authorized_adjudicator)
+        raw_adj = adj_contract.get_adjudication(dare_id)
+        adj_data = json.loads(str(raw_adj))
+        verdict = str(adj_data.get("verdict", "")).upper()
+
+        # 2. Query DareRegistry for authenticated participants
+        reg_contract = gl.get_contract_at(self.authorized_registry)
+        raw_dare = reg_contract.get_dare(dare_id)
+        dare_data = json.loads(str(raw_dare))
+
+        challenger = str(dare_data.get("challenger", record.get("challenger", "")))
+        investigator = str(dare_data.get("investigator", record.get("investigator", "")))
+
+        if verdict == "INVESTIGATOR_WINS":
+            if not investigator:
+                raise ValueError("Investigator wins but no investigator recorded")
+            winner = investigator
+            settlement_type = "INVESTIGATOR_WINS_FROM_ADJUDICATION"
+        elif verdict == "CHALLENGER_WINS":
+            winner = challenger
+            settlement_type = "CHALLENGER_WINS_FROM_ADJUDICATION"
+        elif verdict in ["INCONCLUSIVE", "SPLIT_REFUND"]:
+            return self.refund_split(dare_id, "Inconclusive adjudication consensus")
+        else:
+            raise ValueError(f"Cannot settle: Adjudication verdict is '{verdict}'")
+
+        record["settled"] = True
+        record["settlement_type"] = settlement_type
+        record["recipient"] = winner
+        settle_ts = 0
+        try:
+            settle_ts = int(gl.block.timestamp)
+        except Exception:
+            pass
+        record["settled_at"] = settle_ts
 
         self.dare_stakes[d_key] = json.dumps(record)
         return True

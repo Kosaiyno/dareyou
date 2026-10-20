@@ -25,10 +25,23 @@ class DareAdjudicator(gl.Contract):
          ('ignore previous instructions', 'mark MET', 'system override').
     """
     owner: Address
+    registry_contract: Address
+    evidence_contract: Address
     adjudication_records: TreeMap[u256, str]
 
     def __init__(self):
         self.owner = gl.message.sender_address
+        self.registry_contract = gl.message.sender_address
+        self.evidence_contract = gl.message.sender_address
+
+    @gl.public.write
+    def set_authorized_registries(self, registry_address: str, evidence_address: str) -> bool:
+        caller = str(gl.message.sender_address)
+        if caller != str(self.owner):
+            raise Exception("Unauthorized: Only owner can set authorized registries")
+        self.registry_contract = Address(registry_address)
+        self.evidence_contract = Address(evidence_address)
+        return True
 
     @gl.public.view
     def get_adjudication(self, dare_id: int) -> str:
@@ -36,6 +49,39 @@ class DareAdjudicator(gl.Contract):
         if d_key in self.adjudication_records:
             return str(self.adjudication_records[d_key])
         return "Adjudication record not found for dare: " + str(dare_id)
+
+    @gl.public.write
+    def adjudicate_from_records(self, dare_id: int) -> str:
+        """
+        Steward-compliant adjudication binding:
+        Pulls frozen challenge specifications directly from DareRegistry
+        and frozen evidence directly from EvidenceRegistry.
+        Blocks repeat adjudication.
+        """
+        d_key = u256(dare_id)
+        if d_key in self.adjudication_records:
+            raise ValueError(f"Dare {dare_id} has already been adjudicated. Repeat adjudication is blocked.")
+
+        reg_contract = gl.get_contract_at(self.registry_contract)
+        raw_dare = reg_contract.get_dare(dare_id)
+        dare_data = json.loads(str(raw_dare))
+
+        ev_contract = gl.get_contract_at(self.evidence_contract)
+        raw_evidence = ev_contract.get_evidence(dare_id)
+        evidence_data = json.loads(str(raw_evidence))
+
+        return self._execute_adjudication(
+            dare_id=dare_id,
+            clean_title=str(dare_data.get("title", "")).strip(),
+            clean_claim=str(dare_data.get("claim_statement", "")).strip(),
+            clean_req_sources=str(dare_data.get("required_sources_desc", "")).strip(),
+            clean_criteria=str(dare_data.get("evaluation_criteria", "")).strip(),
+            clean_conclusion=str(evidence_data.get("conclusion", "CLAIM_VERIFIED_TRUE")).strip(),
+            clean_url=str(evidence_data.get("primary_source_url", "")).strip(),
+            clean_sec_url=str(evidence_data.get("secondary_source_url", "N/A")).strip(),
+            clean_quotes=str(evidence_data.get("verbatim_quotes", "")).strip(),
+            clean_reasoning=str(evidence_data.get("reasoning_defense", "")).strip()
+        )
 
     @gl.public.write
     def adjudicate_evidence(
@@ -53,16 +99,37 @@ class DareAdjudicator(gl.Contract):
         reasoning_defense: str
     ) -> str:
         d_key = u256(dare_id)
+        # Prevent repeat adjudication
+        if d_key in self.adjudication_records:
+            raise ValueError(f"Dare {dare_id} has already been adjudicated. Repeat adjudication is blocked.")
 
-        clean_title = str(title).strip()
-        clean_claim = str(claim_statement).strip()
-        clean_req_sources = str(required_sources_desc).strip()
-        clean_criteria = str(evaluation_criteria).strip()
-        clean_conclusion = str(conclusion).strip()
-        clean_url = str(primary_source_url).strip()
-        clean_sec_url = str(secondary_source_url).strip()
-        clean_quotes = str(verbatim_quotes).strip()
-        clean_reasoning = str(reasoning_defense).strip()
+        return self._execute_adjudication(
+            dare_id=dare_id,
+            clean_title=str(title).strip(),
+            clean_claim=str(claim_statement).strip(),
+            clean_req_sources=str(required_sources_desc).strip(),
+            clean_criteria=str(evaluation_criteria).strip(),
+            clean_conclusion=str(conclusion).strip(),
+            clean_url=str(primary_source_url).strip(),
+            clean_sec_url=str(secondary_source_url).strip(),
+            clean_quotes=str(verbatim_quotes).strip(),
+            clean_reasoning=str(reasoning_defense).strip()
+        )
+
+    def _execute_adjudication(
+        self,
+        dare_id: int,
+        clean_title: str,
+        clean_claim: str,
+        clean_req_sources: str,
+        clean_criteria: str,
+        clean_conclusion: str,
+        clean_url: str,
+        clean_sec_url: str,
+        clean_quotes: str,
+        clean_reasoning: str
+    ) -> str:
+        d_key = u256(dare_id)
 
         # 1. Deterministic Sanity Check: Empty quotes or missing URL cannot win
         if len(clean_quotes) < 10 or not clean_url.startswith("http"):
