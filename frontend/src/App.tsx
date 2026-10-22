@@ -2990,7 +2990,7 @@ export default function App() {
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">
                       GenLayer Equivalence Validator Committee ({selectedDare.adjudicationSession.votes.length} Nodes)
                     </span>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    <div className="space-y-2">
                       {selectedDare.adjudicationSession.votes.map((v, i) => (
                         <div key={i} className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs space-y-1 shadow-2xs">
                           <div className="flex items-center justify-between">
