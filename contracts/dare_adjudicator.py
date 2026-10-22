@@ -69,6 +69,10 @@ class DareAdjudicator(gl.Contract):
         raw_dare = reg_contract.view().get_dare(dare_id)
         dare_data = json.loads(str(raw_dare))
 
+        dare_status = dare_data.get("status")
+        if dare_status not in ["SUBMITTED", "ADJUDICATING"]:
+            raise ValueError(f"Cannot adjudicate dare in status '{dare_status}'. Dare must be in SUBMITTED status with evidence frozen.")
+
         ev_contract = gl.get_contract_at(self.evidence_contract)
         if not ev_contract.view().has_evidence(dare_id):
             raise ValueError(f"Cannot adjudicate: no frozen evidence dossier found for dare {dare_id} in EvidenceRegistry.")
@@ -165,11 +169,11 @@ class DareAdjudicator(gl.Contract):
                 self.adjudication_records[d_key] = inj_reject
                 return inj_reject
 
-        # 3. Deterministic Self-Hosted / Mutable Evidence Domain Guard
+        # 3. Deterministic Self-Hosted / Mutable Evidence Domain Guard (Checks both primary and secondary URLs)
         blocked_domains = ["localhost", "127.0.0.1", "dareyou.vercel.app", "dareyou-seven.vercel.app", "pastebin.com"]
-        url_lower = clean_url.lower()
+        combined_urls = (clean_url + " " + clean_sec_url).lower()
         for b_dom in blocked_domains:
-            if b_dom in url_lower:
+            if b_dom in combined_urls:
                 dom_reject = json.dumps({
                     "outcome": "NOT_MET",
                     "verdict": "CHALLENGER_WINS",
@@ -284,8 +288,8 @@ class DareAdjudicator(gl.Contract):
                 1. Output is a valid JSON object with keys: outcome, quote_verified, extracted_quote, rationale.
                 2. outcome is strictly one of: MET, NOT_MET, INSUFFICIENT_EVIDENCE.
                 3. No numeric scores or dollar amounts appear as JSON fields.
-                4. If Deterministic Substring Match is True or the Submitted Verbatim Quote is present in the Archive Text Excerpt and satisfies the Evaluation Criterion, outcome MUST be MET and quote_verified MUST be true.
-                5. If the quote is fabricated, absent from the Archive Text Excerpt, or contradicts the Evaluation Criterion, outcome MUST be NOT_MET and quote_verified MUST be false.
+                4. If the Submitted Verbatim Quote is confirmed present in the Archive Text Excerpt AND the archival evidence directly satisfies the Evaluation Criterion, outcome MUST be MET and quote_verified MUST be true.
+                5. If the quote is fabricated, absent from the Archive Text Excerpt, or fails to prove the Evaluation Criterion, outcome MUST be NOT_MET and quote_verified MUST be false.
                 6. If the archive snapshot failed to load (UNREACHABLE), outcome is INSUFFICIENT_EVIDENCE.
             """
         )

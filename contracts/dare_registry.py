@@ -183,13 +183,16 @@ class DareRegistry(gl.Contract):
             try:
                 qual_contract = gl.get_contract_at(self.qualifier_contract)
                 qual_str = qual_contract.view().get_qualification(rules_sha256)
-                if qual_str != "Qualification record not found":
-                    qual_data = json.loads(str(qual_str))
-                    if qual_data.get("decision") != "APPROVED":
-                        raise ValueError(f"Publication Gate Rejected: DareQualifier record is not APPROVED ({qual_data.get('decision')})")
+                if qual_str == "Qualification record not found" or "record not found" in str(qual_str).lower():
+                    raise ValueError(f"Publication Gate Rejected: No qualification record found in DareQualifier for rules hash {rules_sha256}. Challenge proposal must be qualified and approved first.")
+                qual_data = json.loads(str(qual_str))
+                if qual_data.get("decision") != "APPROVED":
+                    raise ValueError(f"Publication Gate Rejected: DareQualifier record is not APPROVED ({qual_data.get('decision')})")
             except ValueError as ve:
                 raise ve
-            except Exception:
+            except Exception as ex:
+                if "Publication Gate Rejected" in str(ex):
+                    raise ex
                 pass
 
         new_id = u256(int(self.dare_counter) + 1)
@@ -287,6 +290,17 @@ class DareRegistry(gl.Contract):
         if caller != dare.get("investigator") and caller != str(self.owner):
             raise Exception("Unauthorized: Only the assigned single-investigator can submit evidence")
 
+        # Prevent ghost evidence: verify EvidenceRegistry actually holds frozen evidence
+        if hasattr(self, "evidence_contract") and self.evidence_contract and str(self.evidence_contract) != "0x0000000000000000000000000000000000000000":
+            try:
+                ev_c = gl.get_contract_at(self.evidence_contract)
+                if not ev_c.view().has_evidence(dare_id):
+                    raise ValueError(f"Cannot mark submitted: No frozen evidence found for dare {dare_id} in EvidenceRegistry")
+            except ValueError as ve:
+                raise ve
+            except Exception:
+                pass
+
         current_ts = 0
         try:
             current_ts = int(gl.block.timestamp)
@@ -324,7 +338,9 @@ class DareRegistry(gl.Contract):
             pass
 
         research_deadline = dare.get("research_deadline_ts", 0)
-        if current_ts <= research_deadline and research_deadline > 0:
+        if research_deadline <= 0:
+            raise ValueError("Cannot trigger forfeit: Research window deadline is not set")
+        if current_ts <= research_deadline:
             raise ValueError(f"Research window deadline has not elapsed yet. Current: {current_ts}, Deadline: {research_deadline}")
 
         dare["status"] = "FINALIZED"
@@ -398,8 +414,8 @@ class DareRegistry(gl.Contract):
         if dare.get("status") != "OPEN":
             raise ValueError(f"Cannot cancel dare in status '{dare.get('status')}'")
         caller = str(gl.message.sender_address)
-        if caller != dare.get("challenger") and caller != str(self.owner):
-            raise Exception("Unauthorized: Only challenger or owner can cancel an open dare")
+        if caller != dare.get("challenger"):
+            raise Exception("Unauthorized: Only the challenge creator can cancel an open dare")
         dare["status"] = "CANCELLED"
         self.dares[d_key] = json.dumps(dare)
         return True
