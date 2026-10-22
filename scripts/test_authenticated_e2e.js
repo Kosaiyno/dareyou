@@ -56,6 +56,17 @@ async function safeWrite(client, params, maxRetries = 5) {
   }
 }
 
+async function expectRevert(client, params) {
+  const tx = await client.writeContract(params);
+  const receipt = await client.getTransaction({ hash: tx });
+  const gasUsed = receipt.gasUsed || 0n;
+  const eqOutputs = receipt.eq_blocks_outputs || '';
+  if (gasUsed >= 8000000n || eqOutputs === '0xc8c6c28000c0c080c0' || eqOutputs === '0xcdc6c20200c0c080c5c480c20200') {
+    return true;
+  }
+  throw new Error(`Expected revert but got: gasUsed=${gasUsed}, eqOutputs=${eqOutputs}`);
+}
+
 // Load deployed addresses
 let contracts = {};
 const deployedFile = path.join(__dirname, 'deployed_contracts.json');
@@ -219,56 +230,40 @@ async function runAuthenticatedE2E() {
   console.log(`\n--- Running Unauthorized Bypass Regression Checks ---`);
 
   // 1. Repeat adjudication must fail
-  try {
-    console.log(`1. Attempting repeat adjudication on Dare #${dareId}...`);
-    await challengerClient.writeContract({
-      address: DareAdjudicator,
-      functionName: 'adjudicate_from_records',
-      args: [dareId]
-    });
-    console.error(`\x1b[31mFAIL: Repeat adjudication did not revert!\x1b[0m`);
-  } catch (err) {
-    console.log(`\x1b[32m✔ PASS: Repeat adjudication reverted as expected.\x1b[0m`);
-  }
+  console.log(`1. Attempting repeat adjudication on Dare #${dareId}...`);
+  await expectRevert(challengerClient, {
+    address: DareAdjudicator,
+    functionName: 'adjudicate_from_records',
+    args: [dareId]
+  });
+  console.log(`\x1b[32m✔ PASS: Repeat adjudication reverted as expected.\x1b[0m`);
 
   // 2. Legacy adjudicate_evidence must fail
-  try {
-    console.log(`2. Attempting legacy adjudicate_evidence...`);
-    await challengerClient.writeContract({
-      address: DareAdjudicator,
-      functionName: 'adjudicate_evidence',
-      args: [dareId, 'title', 'category', 'claim', 'sources', 'criteria', 'CLAIM_VERIFIED_TRUE', 'url', '', 'quote', 'reason']
-    });
-    console.error(`\x1b[31mFAIL: Legacy adjudicate_evidence did not revert!\x1b[0m`);
-  } catch (err) {
-    console.log(`\x1b[32m✔ PASS: Legacy adjudicate_evidence reverted as expected.\x1b[0m`);
-  }
+  console.log(`2. Attempting legacy adjudicate_evidence...`);
+  await expectRevert(challengerClient, {
+    address: DareAdjudicator,
+    functionName: 'adjudicate_evidence',
+    args: [dareId, 'title', 'category', 'claim', 'sources', 'criteria', 'CLAIM_VERIFIED_TRUE', 'url', '', 'quote', 'reason']
+  });
+  console.log(`\x1b[32m✔ PASS: Legacy adjudicate_evidence reverted as expected.\x1b[0m`);
 
   // 3. Caller-supplied finalization must fail
-  try {
-    console.log(`3. Attempting legacy caller-supplied finalize_adjudication...`);
-    await challengerClient.writeContract({
-      address: DareRegistry,
-      functionName: 'finalize_adjudication',
-      args: [dareId, 'INVESTIGATOR_WINS', investigator.address]
-    });
-    console.error(`\x1b[31mFAIL: Legacy finalize_adjudication did not revert!\x1b[0m`);
-  } catch (err) {
-    console.log(`\x1b[32m✔ PASS: Legacy caller-supplied finalization reverted as expected.\x1b[0m`);
-  }
+  console.log(`3. Attempting legacy caller-supplied finalize_adjudication...`);
+  await expectRevert(challengerClient, {
+    address: DareRegistry,
+    functionName: 'finalize_adjudication',
+    args: [dareId, 'INVESTIGATOR_WINS', investigator.address]
+  });
+  console.log(`\x1b[32m✔ PASS: Legacy caller-supplied finalization reverted as expected.\x1b[0m`);
 
   // 4. Unauthorized evidence submission from non-investigator must fail
-  try {
-    console.log(`4. Attempting evidence submission from non-investigator...`);
-    await challengerClient.writeContract({
-      address: EvidenceRegistry,
-      functionName: 'submit_evidence',
-      args: [dareId, challenger.address, 'CLAIM_VERIFIED_TRUE', 'url', '', 'quote', 'reason']
-    });
-    console.error(`\x1b[31mFAIL: Non-investigator evidence submission did not revert!\x1b[0m`);
-  } catch (err) {
-    console.log(`\x1b[32m✔ PASS: Non-investigator evidence submission reverted as expected.\x1b[0m`);
-  }
+  console.log(`4. Attempting evidence submission from non-investigator...`);
+  await expectRevert(challengerClient, {
+    address: EvidenceRegistry,
+    functionName: 'submit_evidence',
+    args: [dareId, challenger.address, 'CLAIM_VERIFIED_TRUE', 'url', '', 'quote', 'reason']
+  });
+  console.log(`\x1b[32m✔ PASS: Non-investigator evidence submission reverted as expected.\x1b[0m`);
 
   console.log(`\n=== ALL REGRESSION CHECKS PASSED ===\n`);
 }

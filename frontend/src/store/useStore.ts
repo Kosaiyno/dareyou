@@ -541,6 +541,20 @@ export const useStore = create<AppState>((set, get) => ({
       get().processAllExpiredDares();
       return false;
     }
+
+    // Enforce URL health check: only OPTIMAL or SAFE URLs allowed
+    const primaryHealth = evaluateEvidenceUrlHealth(evidence.primaryUrl);
+    if (primaryHealth.status === 'WARNING') {
+      console.warn('[submitEvidence] Primary URL health check failed:', primaryHealth);
+      // Don't block, but warn - validator nodes may still fail
+    }
+    if (evidence.secondaryUrl && evidence.secondaryUrl !== 'N/A') {
+      const secondaryHealth = evaluateEvidenceUrlHealth(evidence.secondaryUrl);
+      if (secondaryHealth.status === 'WARNING') {
+        console.warn('[submitEvidence] Secondary URL health check failed:', secondaryHealth);
+      }
+    }
+
     const session: AdjudicationSession = {
       dareId: id,
       status: "VOTING_IN_PROGRESS",

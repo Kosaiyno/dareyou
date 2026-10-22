@@ -47,7 +47,9 @@ async function safeWait(hash, retries = 35) {
     } catch (e) {
       // ignore temporary RPC blips
     }
-    await new Promise(r => setTimeout(r, 3000));
+    // Exponential backoff: 3s, 4.5s, 6.75s, ... max 30s
+    const delay = Math.min(3000 * Math.pow(1.5, i - 1), 30000);
+    await new Promise(r => setTimeout(r, delay));
   }
 }
 
