@@ -9,7 +9,7 @@ class DareAdjudicator(gl.Contract):
     DareAdjudicator is the GenLayer Intelligent Contract at the core of DareYou.
 
     GenLayer Steward Design Rules Implemented:
-    1. The model judges; plain code moves money:
+    1. The model judges; plain code decides verdicts:
        - The LLM NEVER outputs scores, prices, or payout amounts.
        - The LLM outputs a strict categorical outcome ('MET', 'NOT_MET', 'INSUFFICIENT_EVIDENCE')
          plus 'quote_verified' (boolean) and 'extracted_quote' (verbatim substring).
@@ -23,6 +23,9 @@ class DareAdjudicator(gl.Contract):
     3. Treat fetched content and user submissions as untrusted data:
        - Deterministic pre-filters and prompt rules block prompt injection
          ('ignore previous instructions', 'mark MET', 'system override').
+    4. Exclusive authenticated lifecycle:
+       - Adjudication binds directly to frozen records from DareRegistry and EvidenceRegistry.
+       - Auto-finalizes DareRegistry status via finalize_from_adjudication.
     """
     owner: Address
     registry_contract: Address
@@ -63,13 +66,13 @@ class DareAdjudicator(gl.Contract):
             raise ValueError(f"Dare {dare_id} has already been adjudicated. Repeat adjudication is blocked.")
 
         reg_contract = gl.get_contract_at(self.registry_contract)
-        raw_dare = reg_contract.get_dare(dare_id)
+        raw_dare = reg_contract.view().get_dare(dare_id)
         dare_data = json.loads(str(raw_dare))
 
         ev_contract = gl.get_contract_at(self.evidence_contract)
-        if not ev_contract.has_evidence(dare_id):
+        if not ev_contract.view().has_evidence(dare_id):
             raise ValueError(f"Cannot adjudicate: no frozen evidence dossier found for dare {dare_id} in EvidenceRegistry.")
-        raw_evidence = ev_contract.get_evidence(dare_id)
+        raw_evidence = ev_contract.view().get_evidence(dare_id)
         evidence_data = json.loads(str(raw_evidence))
 
         return self._execute_adjudication(
@@ -104,7 +107,7 @@ class DareAdjudicator(gl.Contract):
         LEGACY METHOD - PERMANENTLY DISABLED.
         Exclusive authenticated lifecycle strictly required: callers MUST use adjudicate_from_records().
         """
-        raise ValueError(
+        raise Exception(
             "Legacy unauthenticated adjudication is permanently disabled. "
             "You MUST use adjudicate_from_records(dare_id), which binds directly "
             "to frozen on-chain evidence in EvidenceRegistry and challenge specs in DareRegistry."
@@ -131,7 +134,7 @@ class DareAdjudicator(gl.Contract):
                 "outcome": "NOT_MET",
                 "verdict": "CHALLENGER_WINS",
                 "quote_verified": False,
-                "consequence": "FORFEIT_ESCROW_TO_CHALLENGER",
+                "extracted_quote": "",
                 "rationale": "Deterministic rejection: Investigator submitted empty verbatim quotes or invalid archive URL."
             })
             self.adjudication_records[d_key] = auto_reject
@@ -156,7 +159,7 @@ class DareAdjudicator(gl.Contract):
                     "outcome": "NOT_MET",
                     "verdict": "CHALLENGER_WINS",
                     "quote_verified": False,
-                    "consequence": "FORFEIT_ESCROW_TO_CHALLENGER",
+                    "extracted_quote": "",
                     "rationale": f"Adversarial prompt-injection attempt detected and blocked ('{marker}')."
                 })
                 self.adjudication_records[d_key] = inj_reject
@@ -171,7 +174,7 @@ class DareAdjudicator(gl.Contract):
                     "outcome": "NOT_MET",
                     "verdict": "CHALLENGER_WINS",
                     "quote_verified": False,
-                    "consequence": "FORFEIT_ESCROW_TO_CHALLENGER",
+                    "extracted_quote": "",
                     "rationale": f"Disallowed self-hosted or unverified domain ('{b_dom}'). Must use independent immutable archives."
                 })
                 self.adjudication_records[d_key] = dom_reject
@@ -295,7 +298,7 @@ class DareAdjudicator(gl.Contract):
             if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
                 clean_json_str = clean_json_str[first_brace : last_brace + 1]
 
-        # 5. Deterministic Python Code Maps the Fixed Outcome to the Financial Consequence
+        # 5. Deterministic Python Code Maps the Fixed Outcome to Final Verdict
         try:
             parsed = json.loads(clean_json_str)
             raw_outcome = str(parsed.get("outcome", "INSUFFICIENT_EVIDENCE")).upper().strip()
@@ -306,31 +309,28 @@ class DareAdjudicator(gl.Contract):
             if raw_outcome == "MET" and quote_ok:
                 outcome = "MET"
                 verdict = "INVESTIGATOR_WINS"
-                consequence = "RELEASE_ESCROW_TO_INVESTIGATOR"
             elif raw_outcome == "NOT_MET" or (raw_outcome == "MET" and not quote_ok):
                 outcome = "NOT_MET"
                 verdict = "CHALLENGER_WINS"
-                consequence = "FORFEIT_ESCROW_TO_CHALLENGER"
             else:
                 outcome = "INSUFFICIENT_EVIDENCE"
                 verdict = "INCONCLUSIVE"
-                consequence = "SPLIT_REFUND"
 
             final_json = json.dumps({
                 "outcome": outcome,
                 "verdict": verdict,
                 "quote_verified": quote_ok,
                 "extracted_quote": ext_quote[:200],
-                "consequence": consequence,
                 "rationale": rat
             })
         except Exception:
+            outcome = "INSUFFICIENT_EVIDENCE"
+            verdict = "INCONCLUSIVE"
             final_json = json.dumps({
-                "outcome": "INSUFFICIENT_EVIDENCE",
-                "verdict": "INCONCLUSIVE",
+                "outcome": outcome,
+                "verdict": verdict,
                 "quote_verified": False,
                 "extracted_quote": "",
-                "consequence": "SPLIT_REFUND",
                 "rationale": "Adjudication fell back deterministically to INSUFFICIENT_EVIDENCE due to malformed output."
             })
 

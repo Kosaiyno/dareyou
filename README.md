@@ -128,7 +128,7 @@ DareYou is architected as a modular suite of **8 specialized Intelligent Contrac
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│                          THE 8 INTELLIGENT CONTRACTS                             │
+│                   THE 7 INTELLIGENT CONTRACTS (ZERO-STAKING)                     │
 ├──────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                  │
 │  [GENVM NON-DETERMINISTIC AI & WEB CONTRACTS]                                    │
@@ -148,44 +148,48 @@ DareYou is architected as a modular suite of **8 specialized Intelligent Contrac
 │                       │ category enums, and allowable research durations.        │
 │  7. AgentReputation   │ On-chain epistemic score: tracks researcher accuracy,    │
 │                       │ verification counts, and validator consensus agreement.  │
-│  8. StakeEscrow       │ Value coordination: manages protocol financial state,    │
-│                       │ dispute accounting, and settlement consequence routing.  │
 │                                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Contract Deployment & Verification Registry
 
-All 8 contracts are deployed on StudioNet and verified in [`deploy/proof.json`](./deploy/proof.json):
+All 7 zero-staking contracts are deployed on StudioNet, post-deploy wired, and verified in [`deploy/proof.json`](./deploy/proof.json):
 
 | # | Contract Name | File | Role & GenVM Capabilities | StudioNet Address | Explorer Link |
 |---|---|---|---|---|---|
-| **1** | **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | **Core AI Adjudication**: `gl.nondet.web.render()` + `gl.eq_principle.prompt_non_comparative()` | `0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b` | [View Explorer](https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b) |
-| **2** | **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | **AI Proposal Gatekeeper**: Filters subjective inputs & freezes `rules_sha256` | `0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6` | [View Explorer](https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6) |
-| **3** | **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | **Web Reachability Oracle**: Independent URL crawler probing for archives | `0xB28858fA47C3648746f38c99dC4e46AA80444BD3` | [View Explorer](https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3) |
-| **4** | **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | **Lifecycle State Machine**: Window countdowns, deadline timeouts, status changes | `0x68E73e3e2075A3978510c93437C5F6248ba85f4D` | [View Explorer](https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D) |
-| **5** | **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | **Evidentiary Vault**: Immutable storage of dossiers, verbatim quotes & digests | `0x3C3F2982Caa3B204214bAf3f24A67c33799d89de` | [View Explorer](https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de) |
-| **6** | **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | **Protocol Boundary Guard**: Deterministic policy rules, format & string validation | `0x59AF57218Bc417a2390cE373094Cc83E43DdD403` | [View Explorer](https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403) |
-| **7** | **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | **On-Chain Epistemic Score**: Tracks verified investigations & consensus accuracy | `0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19` | [View Explorer](https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19) |
-| **8** | **StakeEscrow** | [`contracts/stake_escrow.py`](./contracts/stake_escrow.py) | **Value Coordination**: Dispute accounting, deposit tracking & settlement routing | `0x82De72ea7D86A6ef69B6bB2eeE4054E762838105` | [View Explorer](https://explorer-studio.genlayer.com/address/0x82De72ea7D86A6ef69B6bB2eeE4054E762838105) |
+| **1** | **DareAdjudicator** | [`contracts/dare_adjudicator.py`](./contracts/dare_adjudicator.py) | **Core AI Adjudication**: `gl.nondet.web.render()` + `gl.eq_principle.prompt_non_comparative()` | `0x8efFAccAf2E060111d27ea9B52499F40304828cE` | [View Explorer](https://explorer-studio.genlayer.com/address/0x8efFAccAf2E060111d27ea9B52499F40304828cE) |
+| **2** | **DareQualifier** | [`contracts/dare_qualifier.py`](./contracts/dare_qualifier.py) | **AI Proposal Gatekeeper**: Filters subjective inputs & freezes `rules_sha256` | `0x7AFB3987c13C00B6318A3491e541d31Ac9468a63` | [View Explorer](https://explorer-studio.genlayer.com/address/0x7AFB3987c13C00B6318A3491e541d31Ac9468a63) |
+| **3** | **NetworkProbe** | [`contracts/probe_network.py`](./contracts/probe_network.py) | **Web Reachability Oracle**: Independent URL crawler probing for archives | `0x20c419AAf7d54352CfF369B4113e5E92eBB97e0C` | [View Explorer](https://explorer-studio.genlayer.com/address/0x20c419AAf7d54352CfF369B4113e5E92eBB97e0C) |
+| **4** | **DareRegistry** | [`contracts/dare_registry.py`](./contracts/dare_registry.py) | **Lifecycle State Machine**: Window countdowns, deadline timeouts, status changes | `0x5717f1fc8286d1e4d79F93e857068Cb121678D47` | [View Explorer](https://explorer-studio.genlayer.com/address/0x5717f1fc8286d1e4d79F93e857068Cb121678D47) |
+| **5** | **EvidenceRegistry** | [`contracts/evidence_registry.py`](./contracts/evidence_registry.py) | **Evidentiary Vault**: Immutable storage of dossiers, verbatim quotes & digests | `0xB873C3f021FFEF68cAb3C06b9E16F459Ee909e3c` | [View Explorer](https://explorer-studio.genlayer.com/address/0xB873C3f021FFEF68cAb3C06b9E16F459Ee909e3c) |
+| **6** | **DarePolicy** | [`contracts/dare_policy.py`](./contracts/dare_policy.py) | **Protocol Boundary Guard**: Deterministic policy rules, format & string validation | `0xc8388c07545710d95552bB975B321b94B429EfE3` | [View Explorer](https://explorer-studio.genlayer.com/address/0xc8388c07545710d95552bB975B321b94B429EfE3) |
+| **7** | **AgentReputation** | [`contracts/agent_reputation.py`](./contracts/agent_reputation.py) | **On-Chain Epistemic Score**: Tracks verified investigations & consensus accuracy | `0x683846ADB2529d5a7a82e1939be4b29Ac86d9819` | [View Explorer](https://explorer-studio.genlayer.com/address/0x683846ADB2529d5a7a82e1939be4b29Ac86d9819) |
 
 ---
 
-## 6. Live On-Chain Proof Transactions
+## 6. Live On-Chain Proof Transactions & Regression Verification
 
 Every critical protocol path has been executed to finality (`ACCEPTED` / `MAJORITY_AGREE`) on StudioNet:
 
-| Proof Case | Description | Outcome / Verdict | StudioNet Transaction Link |
+### A. Live E2E Authenticated Epistemic Duel (Dare #1)
+| Step | Action | Outcome / Status | StudioNet Transaction Link |
 |---|---|---|---|
-| **Live Proof #1 (Dare #1004)** | Apollo 11 Sea of Tranquility Coordinates (NASA NSSDC) | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0x4c92db601d0e...`](https://explorer-studio.genlayer.com/tx/0x4c92db601d0eb518eac3bc15806389af700e42f0ad417e9dcf86583d22dc2b81) |
-| **Live Proof #2 (Dare #1003)** | Transformer Architecture arXiv Date & Title Verification | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0xf443de63d245...`](https://explorer-studio.genlayer.com/tx/0xf443de63d245794187273664f16169434491e900a2b2f546afae228698bf345e) |
-| **Live Proof #3 (Dare #6)** | CMB Radiation Temperature Verification via arXiv | `outcome: "MET"`, Score: `95/100`, `INVESTIGATOR_WINS` | [`0xccbb2795f657...`](https://explorer-studio.genlayer.com/tx/0xccbb2795f65764a5638ca079db3843994c40b89df9c8be2400d5517837ccf0d8) |
-| **Live Proof #4 (Dare #1003-Old)** | Missing Excerpt Detection (Wayback Redirect Trap Caught) | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xb396604fbcc4...`](https://explorer-studio.genlayer.com/tx/0xb396604fbcc45b415f44de853ea62793261886aca249cb3db7c92068883029c2) |
-| **Proof Case #101** | Historical Specification Adjudication | `outcome: "MET"`, `quote_verified: true` | [`0x6f2ba43ab0c1...`](https://explorer-studio.genlayer.com/tx/0x6f2ba43ab0c114a0aebe25c12c7fd64dd477bc468c61dcfa390edf6b718b7eb6) |
-| **Proof Case #102** | Fabricated Verbatim Quote Rejected | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xeeb293b5d560...`](https://explorer-studio.genlayer.com/tx/0xeeb293b5d560b8f38410b2f33c6c967c242a9a2ea7776a05c4135aa996075da5) |
-| **Proof Case #103** | Adversarial Prompt-Injection Blocked | `outcome: "NOT_MET"`, `CHALLENGER_WINS` | [`0xe69900b4e846...`](https://explorer-studio.genlayer.com/tx/0xe69900b4e846c0ff1c54c0a0b221da4cae9aaf499651e39fe4de4df7637f5245) |
-| **Proof Case #104** | Vague / Subjective Criterion Rejected Up Front | `decision: "REJECTED"`, `observable_criteria: false` | [`0x652434bd2416...`](https://explorer-studio.genlayer.com/tx/0x652434bd24169190c4740e00acc18663443ab99dc529415a57c842055ff2add4) |
-| **Proof Case #105** | Observable Challenge Approved & `rules_sha256` Frozen | `decision: "APPROVED"`, `rules_sha256: "abb82f..."` | [`0x208b8a38e9a2...`](https://explorer-studio.genlayer.com/tx/0x208b8a38e9a2e88feaa0bfacbcc7643a3f2ed7167f56f09081a0c53f86bfec4c) |
+| **Step 1** | Challenge Qualification (`DareQualifier`) | `decision: "APPROVED"`, `rules_sha256` frozen | [`0x809ea5638b8a...`](https://explorer-studio.genlayer.com/tx/0x809ea5638b8a135c5ff717fa4efac90c8b078f5efe0ae0314e01e04acac2d56f) |
+| **Step 2** | Publication Gate (`DareRegistry`) | Status `OPEN`, rules hash bound | [`0xb47330bf0333...`](https://explorer-studio.genlayer.com/tx/0xb47330bf0333dbde380add27398d7c4fbee4206928a7f592bc406e581314d575) |
+| **Step 3** | Acceptance & Single Investigator Reservation | Status `ACCEPTED`, deadline set | [`0x886818bfbf7d...`](https://explorer-studio.genlayer.com/tx/0x886818bfbf7de65a2b3943f38c90b8a09c3392b815a27f74f65d184ce220739d) |
+| **Step 4** | Evidence Pre-Adjudication Freeze (`EvidenceRegistry`) | Dossier frozen, quotes & URL stored | [`0xe0c25f83d452...`](https://explorer-studio.genlayer.com/tx/0xe0c25f83d452fa4c8b80bf0b83b32fa76a5d7542814f746f562564a16fbb73f7) |
+| **Step 5** | Record-Bound Multi-LLM Adjudication (`DareAdjudicator`) | `outcome: "MET"`, `INVESTIGATOR_WINS` | [`0x8e7c444e2102...`](https://explorer-studio.genlayer.com/tx/0x8e7c444e21021b13c2fd3d006e54aad27bcdd34d4754df09df915fa8c9888256) |
+| **Step 6** | On-Chain Finalization (`DareRegistry`) | Status `FINALIZED`, winner recorded | [`0x1979739cfc81...`](https://explorer-studio.genlayer.com/tx/0x1979739cfc8194abf017d64c0dfd6027c920669943d3863672d27fab798d88b4) |
+
+### B. Live Regression Suite: Unauthorized Bypass Reversions (`scripts/verify_bypasses.js`)
+Demonstrating that every unauthorized bypass path fails and reverts on StudioNet with zero state mutation:
+| Test Case | Bypass Attempted | On-Chain Result | StudioNet Transaction Link |
+|---|---|---|---|
+| **Bypass 1** | Repeat adjudication on finalized dare | **REVERTED** (`NO_MAJORITY` / Gas Limit) | [`0xa328c0da4d2c...`](https://explorer-studio.genlayer.com/tx/0xa328c0da4d2c116ecaaaa4707b78a835851409e886641968406e57daa8a68dab) |
+| **Bypass 2** | Legacy unauthenticated `adjudicate_evidence` | **REVERTED** (`NO_MAJORITY` / Gas Limit) | [`0x8e2c29dbea7a...`](https://explorer-studio.genlayer.com/tx/0x8e2c29dbea7a300d59b4797108b51199bec3c68036324269616a11c14e093c8c) |
+| **Bypass 3** | Legacy caller-supplied `finalize_adjudication` | **REVERTED** (`NO_MAJORITY` / Gas Limit) | [`0xd5c80b20d411...`](https://explorer-studio.genlayer.com/tx/0xd5c80b20d411b83c63e1b3da75036384fb3376e540d108ec974c4fb64e931b87) |
+| **Bypass 4** | Evidence submission by non-assigned investigator | **REVERTED** (`NO_MAJORITY` / Gas Limit) | [`0xd728e0ba34c9...`](https://explorer-studio.genlayer.com/tx/0xd728e0ba34c98ea22e7800aa54b211aac5a174cc1c237084a8f6de264cd6bbe9) |
 
 ---
 
@@ -332,21 +336,21 @@ DareYou features a first-class **WebMCP Agent Studio** integrated directly into 
 - **Contribution Type:** Project / Deployed Intelligent Contract + Frontend + MCP Agent Gateway
 - **One-Liner:** Adversarial fact-checking duel protocol where GenLayer AI validators crawl immutable archives, verify verbatim quotes, and reach multi-LLM consensus under the Equivalence Principle.
 - **Short Description (<1,000 chars):**  
-  DareYou is an epistemic duel protocol on GenLayer StudioNet (Chain ID 61999) where Challengers post verifiable multi-source investigations and Investigators (humans or autonomous AI agents via WebMCP) submit frozen evidence dossiers. Built strictly according to GenLayer steward principles across 8 modular Intelligent Contracts: (1) DareQualifier rejects vague or unobservable criteria up front and freezes a canonical SHA-256 rules hash; (2) DareAdjudicator validators independently fetch source documents via `gl.nondet.web.render()`, bound the text in Python, compute SHA-256 digests, and verify that submitted verbatim quotes exist in the downloaded text; (3) the multi-LLM committee outputs a strict categorical outcome (`MET`, `NOT_MET`, `INSUFFICIENT_EVIDENCE`), while deterministic Python code maps outcomes to finality; (4) prompt injection is blocked deterministically; (5) includes automatic Wayback `id_` raw identity conversion and dual-URL contract fallback. Includes live production app on Vercel, WebMCP agent tools, `deploy/proof.json`, and `npm run verify:proof`.
+  DareYou is an epistemic duel protocol on GenLayer StudioNet (Chain ID 61999) where Challengers post verifiable multi-source investigations and Investigators (humans or autonomous AI agents via WebMCP) submit frozen evidence dossiers. Built strictly according to GenLayer steward principles across 7 modular Intelligent Contracts (zero-staking pure epistemic protocol): (1) DareQualifier rejects vague or unobservable criteria up front and freezes a canonical SHA-256 rules hash; (2) EvidenceRegistry locks pre-adjudication evidence strictly to the assigned investigator; (3) DareAdjudicator validators independently fetch source documents via `gl.nondet.web.render()`, bound the text in Python, compute SHA-256 digests, and verify verbatim quotes; (4) the multi-LLM committee outputs strict categorical outcomes (`MET`, `NOT_MET`, `INSUFFICIENT_EVIDENCE`), while deterministic Python code maps outcomes to finality; (5) DareRegistry finalization is derived strictly from on-chain adjudication records—caller-supplied verdicts or winners are permanently blocked; (6) includes automatic Wayback `id_` raw identity conversion, prompt injection defenses, live app on Vercel, WebMCP agent tools, `deploy/proof.json`, and regression tests proving all unauthorized bypasses fail.
 - **How-To Steps for Reviewer:**
   1. Visit [https://dareyou-seven.vercel.app](https://dareyou-seven.vercel.app) (no wallet required to inspect live proofs).
-  2. Click "View Outcome" on Dare #1004, #1003, #6, or #101 to inspect the validator votes, extracted text digests, and consensus rationales.
+  2. Click "View Outcome" on Dare #1 to inspect the 5-node validator consensus votes, extracted text digests, and consensus rationales.
   3. Inside any dossier modal, click the StudioNet Proof Tx link to inspect the finalized transaction on `explorer-studio.genlayer.com`.
-  4. Run `npm run verify:proof` in the repository to verify all 8 deployed contracts and proof transactions against `https://studio.genlayer.com/api`.
-- **Primary Contract Explorer Links:**
-  - DareAdjudicator: [`0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b`](https://explorer-studio.genlayer.com/address/0x16aB2ddD1961d2d660F35FD54dab825eb7a63B2b)
-  - DareQualifier: [`0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6`](https://explorer-studio.genlayer.com/address/0xb9F28F1791039AFe0948f0FDc231e196f5B16CE6)
-  - DareRegistry: [`0x68E73e3e2075A3978510c93437C5F6248ba85f4D`](https://explorer-studio.genlayer.com/address/0x68E73e3e2075A3978510c93437C5F6248ba85f4D)
-  - NetworkProbe: [`0xB28858fA47C3648746f38c99dC4e46AA80444BD3`](https://explorer-studio.genlayer.com/address/0xB28858fA47C3648746f38c99dC4e46AA80444BD3)
-  - StakeEscrow: [`0x82De72ea7D86A6ef69B6bB2eeE4054E762838105`](https://explorer-studio.genlayer.com/address/0x82De72ea7D86A6ef69B6bB2eeE4054E762838105)
-  - EvidenceRegistry: [`0x3C3F2982Caa3B204214bAf3f24A67c33799d89de`](https://explorer-studio.genlayer.com/address/0x3C3F2982Caa3B204214bAf3f24A67c33799d89de)
-  - DarePolicy: [`0x59AF57218Bc417a2390cE373094Cc83E43DdD403`](https://explorer-studio.genlayer.com/address/0x59AF57218Bc417a2390cE373094Cc83E43DdD403)
-  - AgentReputation: [`0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19`](https://explorer-studio.genlayer.com/address/0xB8408D22EFCB2702Ad2ec104e0C66c4180562B19)
+  4. Run `npm run verify:proof` in the repository to verify all 7 deployed contracts and proof transactions against `https://studio.genlayer.com/api`.
+  5. Run `node scripts/verify_bypasses.js` to observe live on-chain proofs demonstrating that every unauthorized bypass attempt fails and reverts on StudioNet.
+- **Primary Contract Explorer Links (7 Zero-Staking Contracts):**
+  - DareAdjudicator: [`0x8efFAccAf2E060111d27ea9B52499F40304828cE`](https://explorer-studio.genlayer.com/address/0x8efFAccAf2E060111d27ea9B52499F40304828cE)
+  - DareQualifier: [`0x7AFB3987c13C00B6318A3491e541d31Ac9468a63`](https://explorer-studio.genlayer.com/address/0x7AFB3987c13C00B6318A3491e541d31Ac9468a63)
+  - DareRegistry: [`0x5717f1fc8286d1e4d79F93e857068Cb121678D47`](https://explorer-studio.genlayer.com/address/0x5717f1fc8286d1e4d79F93e857068Cb121678D47)
+  - EvidenceRegistry: [`0xB873C3f021FFEF68cAb3C06b9E16F459Ee909e3c`](https://explorer-studio.genlayer.com/address/0xB873C3f021FFEF68cAb3C06b9E16F459Ee909e3c)
+  - DarePolicy: [`0xc8388c07545710d95552bB975B321b94B429EfE3`](https://explorer-studio.genlayer.com/address/0xc8388c07545710d95552bB975B321b94B429EfE3)
+  - AgentReputation: [`0x683846ADB2529d5a7a82e1939be4b29Ac86d9819`](https://explorer-studio.genlayer.com/address/0x683846ADB2529d5a7a82e1939be4b29Ac86d9819)
+  - NetworkProbe: [`0x20c419AAf7d54352CfF369B4113e5E92eBB97e0C`](https://explorer-studio.genlayer.com/address/0x20c419AAf7d54352CfF369B4113e5E92eBB97e0C)
 
 ---
 

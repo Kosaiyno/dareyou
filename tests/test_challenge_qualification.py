@@ -232,6 +232,10 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
     def setUp(self):
         self.challenger = "0xChallengerAgent001"
         self.investigator = "0xInvestigatorAgent002"
+        import dare_policy, dare_qualifier, dare_registry
+        dare_policy.gl = mock_gl
+        dare_qualifier.gl = mock_gl
+        dare_registry.gl = mock_gl
         mock_gl.message.sender_address = Address(self.challenger)
         mock_gl.block.timestamp = 1792100000
         mock_gl.eq_principle.mock_response = None
@@ -242,8 +246,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
 
         self.registry.set_authorized_contracts(
             policy=str(Address("0xPolicy")),
-            qualifier=str(Address("0xQualifier")),
-            escrow=str(Address("0xEscrow"))
+            qualifier=str(Address("0xQualifier"))
         )
 
     # --- Test 1: Trivial Question Rejection ---
@@ -365,42 +368,34 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
         # Unsupported category
         with self.assertRaises(ValueError):
             self.policy.validate_and_record_proposal(
-                self.challenger, "BASIC_STATS_LOOKUP", "Valid title length for testing",
+                self.challenger, "BASIC_STATS_LOOKUP", "Dare you to investigate test topic length within 30 mins.",
                 "Valid claim statement length for testing", "Valid required sources description",
-                "Valid evaluation criteria description", 1000, 500, 3600, 3600
+                "Valid evaluation criteria description", 3600, 3600
             )
 
-        # Low stake
+        # Format violation
         with self.assertRaises(ValueError):
             self.policy.validate_and_record_proposal(
-                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic length within 30 mins.",
+                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Investigate test topic length without dare you prefix.",
                 "Valid claim statement length for testing", "Valid required sources description",
-                "Valid evaluation criteria description", 500, 500, 3600, 3600
-            )
-
-        # Low creation bond
-        with self.assertRaises(ValueError):
-            self.policy.validate_and_record_proposal(
-                self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic length within 30 mins.",
-                "Valid claim statement length for testing", "Valid required sources description",
-                "Valid evaluation criteria description", 1000, 200, 3600, 3600
+                "Valid evaluation criteria description", 3600, 3600
             )
 
         # Rate limit test: allow 3, reject 4th
         self.policy.validate_and_record_proposal(
             self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 1 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
-            "Valid evaluation criteria description", 1000, 500, 3600, 3600
+            "Valid evaluation criteria description", 3600, 3600
         )
         self.policy.validate_and_record_proposal(
             self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 2 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
-            "Valid evaluation criteria description", 1000, 500, 3600, 3600
+            "Valid evaluation criteria description", 3600, 3600
         )
         self.policy.validate_and_record_proposal(
             self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 3 within 30 minutes.",
             "Valid claim statement length for testing", "Valid required sources description",
-            "Valid evaluation criteria description", 1000, 500, 3600, 3600
+            "Valid evaluation criteria description", 3600, 3600
         )
         self.assertEqual(int(self.policy.get_active_dares_count(self.challenger)), 3)
 
@@ -409,7 +404,7 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
             self.policy.validate_and_record_proposal(
                 self.challenger, "INVESTIGATIVE_FACT_FINDING", "Dare you to investigate test topic number 4 within 30 minutes.",
                 "Valid claim statement length for testing", "Valid required sources description",
-                "Valid evaluation criteria description", 1000, 500, 3600, 3600
+                "Valid evaluation criteria description", 3600, 3600
             )
 
     # --- Test 9: Publication Gate Enforcement on DareRegistry ---
@@ -422,8 +417,6 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
                 claim_statement="Valid claim statement length for testing",
                 required_sources_desc="Valid required sources description",
                 evaluation_criteria="Valid evaluation criteria description",
-                stake_amount_cents=1000,
-                creation_bond_cents=500,
                 acceptance_window_seconds=3600,
                 research_window_seconds=3600,
                 qualification_decision="REJECTED"  # Rejected by AI Qualifier!
@@ -436,8 +429,6 @@ class TestChallengeQualificationProtocol(unittest.TestCase):
             claim_statement="Erling Haaland scored with his right foot during the 4-0 second-leg win.",
             required_sources_desc="Official UEFA match sheet and at least 1 Tier-1 broadcast recap archive.",
             evaluation_criteria="Verify official goal minutes and accredited body part, or refute with official dispatch.",
-            stake_amount_cents=1000,
-            creation_bond_cents=500,
             acceptance_window_seconds=3600,
             research_window_seconds=7200,
             qualification_decision="APPROVED"

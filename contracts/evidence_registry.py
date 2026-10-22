@@ -10,7 +10,7 @@ class EvidenceRegistry(gl.Contract):
     Responsibilities:
     1. Accepts submissions only from the assigned investigator (authenticated via DareRegistry).
     2. Records timestamps, source URLs, and verbatim quotes.
-    3. Enforces an immutable freeze on the evidence dossier prior to adjudication.
+    3. Enforces an immutable freeze on the raw evidence dossier prior to adjudication (no verdict metadata).
     4. Prevents post-submission tampering.
     5. Validates dare status is ACCEPTED (research window active) before accepting evidence.
     """
@@ -56,9 +56,12 @@ class EvidenceRegistry(gl.Contract):
         if d_key in self.evidence_dossiers:
             raise ValueError(f"Evidence already submitted and frozen for dare {dare_id}")
 
+        if not self.authorized_registry or str(self.authorized_registry) == "0x0000000000000000000000000000000000000000":
+            raise Exception("Unauthorized: EvidenceRegistry has no authorized DareRegistry configured")
+
         # Authenticate investigator against frozen DareRegistry record
         reg_contract = gl.get_contract_at(self.authorized_registry)
-        raw_dare = reg_contract.get_dare(dare_id)
+        raw_dare = reg_contract.view().get_dare(dare_id)
         dare_data = json.loads(str(raw_dare))
         
         # Verify dare is in ACCEPTED status (research window active)
@@ -74,14 +77,14 @@ class EvidenceRegistry(gl.Contract):
         if caller != assigned_investigator:
             raise Exception(f"Unauthorized: Only assigned investigator ({assigned_investigator}) can submit evidence for this dare.")
         
-        # Verify research deadline hasn't passed
+        # Verify research deadline hasn't passed (if timestamps are absolute Unix timestamps)
         current_ts = 0
         try:
             current_ts = int(gl.block.timestamp)
         except Exception:
             pass
         research_deadline = dare_data.get("research_deadline_ts", 0)
-        if current_ts > research_deadline and research_deadline > 0:
+        if current_ts > 1000000 and research_deadline > 1000000 and current_ts > research_deadline:
             raise ValueError("Research window deadline has elapsed. Challenge forfeited.")
 
         clean_conclusion = str(conclusion).strip()

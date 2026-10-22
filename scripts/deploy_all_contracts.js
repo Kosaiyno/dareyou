@@ -3,7 +3,6 @@ const fs = require('fs');
 
 const frontendNodeModules = path.join(__dirname, '..', 'frontend', 'node_modules');
 const { createClient, createAccount, chains } = require(path.join(frontendNodeModules, 'genlayer-js'));
-const { generatePrivateKey } = require(path.join(frontendNodeModules, 'viem/accounts'));
 
 // Load deployer private key from root .env or fallback to deployer_pk.json
 const envFile = path.join(__dirname, '..', '.env');
@@ -43,19 +42,26 @@ const client = createClient({
   account
 });
 
+// Critical Deployment Order (7 Contracts, Staking Eliminated):
+// 1. NetworkProbe (stateless network test)
+// 2. DarePolicy (stateless proposal validator)
+// 3. DareQualifier (stateless AI qualification gate)
+// 4. EvidenceRegistry (pre-adjudication freeze)
+// 5. AgentReputation (on-chain track records)
+// 6. DareRegistry (publication gate and duel lifecycle)
+// 7. DareAdjudicator (multi-source LLM consensus & auto-finalization)
 const contractsToDeploy = [
   { name: 'NetworkProbe', file: 'probe_network.py' },
   { name: 'DarePolicy', file: 'dare_policy.py' },
-  { name: 'StakeEscrow', file: 'stake_escrow.py' },
+  { name: 'DareQualifier', file: 'dare_qualifier.py' },
   { name: 'EvidenceRegistry', file: 'evidence_registry.py' },
   { name: 'AgentReputation', file: 'agent_reputation.py' },
-  { name: 'DareQualifier', file: 'dare_qualifier.py' },
-  { name: 'DareAdjudicator', file: 'dare_adjudicator.py' },
-  { name: 'DareRegistry', file: 'dare_registry.py' }
+  { name: 'DareRegistry', file: 'dare_registry.py' },
+  { name: 'DareAdjudicator', file: 'dare_adjudicator.py' }
 ];
 
 async function deployAll() {
-  console.log('=== DEPLOYING GENLAYER INTELLIGENT CONTRACTS TO STUDIONET (CHAIN ID 61999) ===\n');
+  console.log('=== DEPLOYING 7 ZERO-STAKE GENLAYER CONTRACTS TO STUDIONET (CHAIN ID 61999) ===\n');
   const results = {};
 
   for (const c of contractsToDeploy) {
@@ -63,6 +69,9 @@ async function deployAll() {
     console.log(`Deploying ${c.name} (${c.file})...`);
     const filePath = path.join(__dirname, '..', 'contracts', c.file);
     const code = fs.readFileSync(filePath, 'utf8');
+
+    // Rate-limit pause between deployments (2 seconds)
+    await new Promise(r => setTimeout(r, 2000));
 
     try {
       const txHash = await client.deployContract({
@@ -76,7 +85,7 @@ async function deployAll() {
       const receipt = await client.waitForTransactionReceipt({
         hash: txHash,
         status: 'ACCEPTED',
-        retries: 30,
+        retries: 45,
         interval: 3500
       });
 

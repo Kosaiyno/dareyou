@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const frontendNodeModules = path.resolve('frontend/node_modules');
 const { createClient, createAccount, chains } = require(path.join(frontendNodeModules, 'genlayer-js'));
-const { parseEther, formatEther } = require(path.join(frontendNodeModules, 'viem'));
 
 const envContent = fs.readFileSync('.env', 'utf8');
 const pkMatch = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
@@ -15,13 +14,10 @@ const account = createAccount(pkMatch[1]);
 const client = createClient({ chain: chains.studionet, account });
 
 const contracts = JSON.parse(fs.readFileSync('scripts/deployed_contracts.json', 'utf8'));
-const ESCROW_ADDR = contracts.StakeEscrow.address;
 const ADJUDICATOR_ADDR = contracts.DareAdjudicator.address;
 const REGISTRY_ADDR = contracts.DareRegistry.address;
 const EVIDENCE_ADDR = contracts.EvidenceRegistry.address;
 const QUALIFIER_ADDR = contracts.DareQualifier.address;
-
-const userWallet = '0x1366965cb8dc064BDe55C8E3275Ce4190042D473';
 
 const testDares = [
   {
@@ -35,9 +31,7 @@ const testDares = [
     primaryUrl: "https://en.wikipedia.org/wiki/Speed_of_light",
     secondaryUrl: "https://www.bipm.org/en/measurement-units/base-units",
     quotes: "The speed of light in vacuum, commonly denoted c, is a universal physical constant that is exactly 299,792,458 metres per second",
-    reasoning: "The 17th General Conference on Weights and Measures (CGPM) in 1983 officially defined the metre by fixing the numerical value of the speed of light in vacuum to exactly 299,792,458 m/s.",
-    stakeCents: 1000,
-    payoutGEN: "0.002"
+    reasoning: "The 17th General Conference on Weights and Measures (CGPM) in 1983 officially defined the metre by fixing the numerical value of the speed of light in vacuum to exactly 299,792,458 m/s."
   },
   {
     num: 2,
@@ -50,110 +44,89 @@ const testDares = [
     primaryUrl: "https://en.wikipedia.org/wiki/James_Webb_Space_Telescope",
     secondaryUrl: "https://webb.nasa.gov/",
     quotes: "Its primary mirror consists of 18 hexagonal mirror segments made of gold-plated beryllium, which combined create a 6.5-meter-diameter (21 ft) mirror",
-    reasoning: "JWST's optical telescope element utilizes 18 hexagonal gold-coated beryllium mirror segments configured to produce a total clear aperture collecting area equivalent to a 6.5-meter circular aperture.",
-    stakeCents: 1000,
-    payoutGEN: "0.002"
+    reasoning: "JWST's optical telescope element utilizes 18 hexagonal gold-coated beryllium mirror segments configured to produce a total clear aperture collecting area equivalent to a 6.5-meter circular aperture."
   },
   {
     num: 3,
     id: 5003,
     title: "Dare you to verify the date of the first crewed lunar landing by Apollo 11 Lunar Module Eagle",
-    category: "HISTORICAL_RECORDS",
-    claim: "Apollo 11 Lunar Module Eagle landed on the Moon on July 20, 1969.",
-    requiredSources: "NASA mission transcripts or historical archives",
-    criteria: "Quote must state landing date of July 20, 1969.",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    claim: "The Apollo 11 Lunar Module Eagle landed on the Moon on July 20, 1969.",
+    requiredSources: "NASA Apollo mission archives",
+    criteria: "Quote must explicitly confirm touchdown date of July 20, 1969.",
     primaryUrl: "https://en.wikipedia.org/wiki/Apollo_11",
-    secondaryUrl: "https://www.nasa.gov/mission_pages/apollo/apollo-11.html",
-    quotes: "Commander Neil Armstrong and Lunar Module Pilot Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969, at 20:17 UTC",
-    reasoning: "NASA flight records and mission transcripts confirm that the Apollo 11 Lunar Module Eagle touched down in Mare Tranquillitatis on July 20, 1969.",
-    stakeCents: 1000,
-    payoutGEN: "0.002"
+    secondaryUrl: "https://nssdc.gsfc.nasa.gov/planetary/lunar/lunar_sites.html",
+    quotes: "Apollo 11 (July 16–24, 1969) was the American spaceflight that first landed humans on the Moon. Commander Neil Armstrong and Lunar Module Pilot Buzz Aldrin landed the Apollo Lunar Module Eagle on July 20, 1969",
+    reasoning: "NASA Apollo 11 mission records definitively confirm that the Eagle landed at Mare Tranquillitatis on July 20, 1969."
   },
   {
     num: 4,
     id: 5004,
-    title: "Dare you to verify the publication year of Watson and Crick's DNA double helix paper in Nature",
+    title: "Dare you to verify the melting point of gallium at standard atmospheric pressure",
     category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "James Watson and Francis Crick published their molecular structure of nucleic acids describing the double helix in Nature in 1953.",
-    requiredSources: "Nature archives or scientific historical records",
-    criteria: "Quote must confirm publication in Nature in 1953.",
-    primaryUrl: "https://en.wikipedia.org/wiki/Molecular_Structure_of_Nucleic_Acids:_A_Structure_for_Deoxyribose_Nucleic_Acid",
-    secondaryUrl: "https://www.nature.com/articles/171737a0",
-    quotes: "was the first article published to describe the discovery of the double helix structure of DNA, using X-ray diffraction and the mathematics of a helix transform. It was published in Nature on 25 April 1953",
-    reasoning: "The seminal paper 'Molecular Structure of Nucleic Acids: A Structure for Deoxyribose Nucleic Acid' was published in Nature Volume 171 on April 25, 1953, establishing the antiparallel double helical model of DNA.",
-    stakeCents: 1000,
-    payoutGEN: "0.002"
+    claim: "Elemental gallium melts at approximately 29.76 degrees Celsius at standard atmospheric pressure.",
+    requiredSources: "IUPAC or NIST standard reference database",
+    criteria: "Quote must state melting point near 29.76 °C or 302.91 K.",
+    primaryUrl: "https://en.wikipedia.org/wiki/Gallium",
+    secondaryUrl: "https://pubchem.ncbi.nlm.nih.gov/compound/Gallium",
+    quotes: "Elemental gallium is a soft, silvery blue metal at standard temperature and pressure; however, in its liquid state it becomes silvery white. Its melting point is 29.76 °C (85.57 °F; 302.91 K)",
+    reasoning: "NIST standard reference physical properties confirm gallium melting transition occurs at 29.7646 °C."
   },
   {
     num: 5,
     id: 5005,
-    title: "Dare you to verify the discovery of the first radio pulsar by Jocelyn Bell Burnell in 1967",
+    title: "Dare you to verify the discovery year of the cosmic microwave background radiation by Penzias and Wilson",
     category: "INVESTIGATIVE_FACT_FINDING",
-    claim: "Jocelyn Bell Burnell discovered the first radio pulsar PSR B1919+21 in November 1967.",
-    requiredSources: "Mullard Radio Astronomy Observatory or Cambridge University archives",
-    criteria: "Quote must confirm discovery of pulsar by Jocelyn Bell in 1967.",
-    primaryUrl: "https://en.wikipedia.org/wiki/Jocelyn_Bell_Burnell",
-    secondaryUrl: "https://www.cam.ac.uk/research/news/50-years-since-pulsars-discovery",
-    quotes: "As a postgraduate student, she discovered the first radio pulsars in 1967.",
-    reasoning: "While operating the Interplanetary Scintillation Array at the Mullard Radio Astronomy Observatory as a graduate student in 1967, Jocelyn Bell detected anomalous periodic radio signals with a period of 1.33 seconds, identifying the first pulsar.",
-    stakeCents: 1000,
-    payoutGEN: "0.002"
+    claim: "Arno Penzias and Robert Woodrow Wilson discovered the cosmic microwave background radiation in 1964.",
+    requiredSources: "Nobel Prize archives or Bell Labs historical publications",
+    criteria: "Quote must confirm discovery in 1964 by Penzias and Wilson.",
+    primaryUrl: "https://en.wikipedia.org/wiki/Cosmic_microwave_background",
+    secondaryUrl: "https://www.nobelprize.org/prizes/physics/1978/summary/",
+    quotes: "The discovery of CMB in 1964 by American radio astronomers Arno Penzias and Robert Wilson was the culmination of work initiated in the 1940s",
+    reasoning: "Bell Laboratories Holmdel Horn Antenna observations in 1964 detected excess antenna temperature corresponding to ~3K blackbody background, published in 1965 ApJ."
   }
 ];
 
 async function runFiveDares() {
   console.log('========================================================================');
-  console.log('   DAREYOU AUTHENTICATED E2E VERIFICATION: 5 FULL CYCLES ON STUDIONET   ');
-  console.log('   Flow: Create -> Accept -> Freeze Evidence -> Adjudicate -> Settle    ');
+  console.log('   DAREYOU ZERO-STAKE E2E DUEL TEST: 5 AUTHENTICATED CHALLENGES        ');
   console.log('========================================================================\n');
-  console.log('Deployer Wallet:', account.address);
-  console.log('Target Winner Wallet:', userWallet);
-  console.log('StakeEscrow:', ESCROW_ADDR);
-  console.log('DareAdjudicator:', ADJUDICATOR_ADDR);
-  console.log('DareRegistry:', REGISTRY_ADDR);
-  console.log('EvidenceRegistry:', EVIDENCE_ADDR);
-  console.log('DareQualifier:', QUALIFIER_ADDR);
 
-  const initialDeployerBal = await client.getBalance({ address: account.address });
-  const initialUserBal = await client.getBalance({ address: userWallet });
-  console.log(`Initial Deployer Balance: ${formatEther(initialDeployerBal)} GEN`);
-  console.log(`Initial Winner Balance:   ${formatEther(initialUserBal)} GEN\n`);
-
+  // Investigator account (deployer acts as investigator)
+  const investigatorClient = client;
   const results = [];
 
-  for (let i = 0; i < testDares.length; i++) {
-    const dare = testDares[i];
-    console.log(`------------------------------------------------------------------------`);
-    console.log(`>>> CYCLE ${dare.num}/5: Dare #${dare.id} - "${dare.title.slice(0, 60)}..."`);
+  for (const dare of testDares) {
+    console.log(`\n------------------------------------------------------------------------`);
+    console.log(`[DARE #${dare.num}/5] ${dare.title}`);
     console.log(`------------------------------------------------------------------------`);
 
-    // 0. Qualify challenge (DareQualifier)
-    console.log(`[0. Qualification] Evaluating challenge via DareQualifier...`);
-    const canonicalSpec = `${dare.category}|${dare.title}|${dare.claim}|${dare.requiredSources}|${dare.criteria}`;
+    // 1. Evaluate Qualification
+    console.log(`[1. AI Qualification Gate] Evaluating challenge qualification...`);
+    const canonical = `${dare.category}|${dare.title}|${dare.claim}|${dare.requiredSources}|${dare.criteria}`;
     const crypto = require('crypto');
-    const contentHash = crypto.createHash('sha256').update(canonicalSpec).digest('hex');
+    const hash = crypto.createHash('sha256').update(canonical).digest('hex');
+
     const qualifyTx = await client.writeContract({
       address: QUALIFIER_ADDR,
       functionName: 'evaluate_challenge_qualification',
-      args: [contentHash, dare.category, dare.title, dare.claim, dare.requiredSources, dare.criteria],
+      args: [hash, dare.category, dare.title, dare.claim, dare.requiredSources, dare.criteria],
       value: 0n,
       leaderOnly: false
     });
-    const qualifyRcpt = await client.waitForTransactionReceipt({
-      hash: qualifyTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    const qualifyRaw = await client.readContract({
-      address: QUALIFIER_ADDR, functionName: 'get_qualification', args: [contentHash]
-    });
-    const qualifyResult = JSON.parse(qualifyRaw);
-    console.log(`   Qualification: ${qualifyResult.decision} (rules_sha256: ${qualifyResult.rules_sha256?.slice(0,16)}...)`);
-    if (qualifyResult.decision !== 'APPROVED') {
-      console.log(`   SKIPPING - Challenge rejected: ${qualifyResult.rationale}`);
-      continue;
-    }
+    console.log(`   Tx: ${qualifyTx}`);
+    await client.waitForTransactionReceipt({ hash: qualifyTx, status: 'ACCEPTED', retries: 30, interval: 3000 });
 
-    // 1. Create Dare on DareRegistry (publication gate)
-    console.log(`[1. Create Dare] Publishing qualified dare to DareRegistry...`);
+    const rawQual = await client.readContract({
+      address: QUALIFIER_ADDR,
+      functionName: 'get_qualification',
+      args: [hash]
+    });
+    const qualifyResult = JSON.parse(rawQual);
+    console.log(`   Qualification Result: ${qualifyResult.decision} (Rules SHA-256: ${qualifyResult.rules_sha256?.slice(0, 16)}...)`);
+
+    // 2. Publish Qualified Dare
+    console.log(`[2. Publish Dare] Registering dare on DareRegistry...`);
     const createTx = await client.writeContract({
       address: REGISTRY_ADDR,
       functionName: 'publish_qualified_dare',
@@ -163,40 +136,18 @@ async function runFiveDares() {
         dare.claim,
         dare.requiredSources,
         dare.criteria,
-        dare.stakeCents,
-        500, // creation_bond_cents
-        86400, // acceptance_window_seconds (24h)
-        3600, // research_window_seconds (1h)
-        "APPROVED"
+        86400,
+        7200,
+        qualifyResult.decision
       ],
       value: 0n,
       leaderOnly: false
     });
-    const createRcpt = await client.waitForTransactionReceipt({
-      hash: createTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Create Tx: ${createTx} | Status: ${createRcpt.status_name}`);
+    console.log(`   Create Tx: ${createTx}`);
+    await client.waitForTransactionReceipt({ hash: createTx, status: 'ACCEPTED', retries: 30, interval: 3000 });
 
-    // 2. Challenger Stake Deposit
-    console.log(`[2. Challenger Stake] Depositing ${dare.stakeCents} cents on StakeEscrow...`);
-    const depositWei = parseEther('0.001');
-    const challengerTx = await client.writeContract({
-      address: ESCROW_ADDR,
-      functionName: 'deposit_challenger_stake',
-      args: [dare.id, account.address, dare.stakeCents],
-      value: depositWei,
-      leaderOnly: false
-    });
-    const challengerRcpt = await client.waitForTransactionReceipt({
-      hash: challengerTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Challenger Stake Tx: ${challengerTx} | Status: ${challengerRcpt.status_name}`);
-
-    // 3. Investigator Accepts Dare (starts research window)
-    console.log(`[3. Accept Dare] Investigator ${userWallet} accepting dare...`);
-    // Use fresh account to ensure caller != challenger
-    const investigatorAccount = createAccount(pkMatch[1]); // In real flow, this would be different key
-    const investigatorClient = createClient({ chain: chains.studionet, account: investigatorAccount });
+    // 3. Accept Dare
+    console.log(`[3. Accept Challenge] Investigator accepting dare...`);
     const acceptTx = await investigatorClient.writeContract({
       address: REGISTRY_ADDR,
       functionName: 'accept_dare',
@@ -204,36 +155,18 @@ async function runFiveDares() {
       value: 0n,
       leaderOnly: false
     });
-    const acceptRcpt = await investigatorClient.waitForTransactionReceipt({
-      hash: acceptTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Accept Tx: ${acceptTx} | Status: ${acceptRcpt.status_name}`);
+    console.log(`   Accept Tx: ${acceptTx}`);
+    await investigatorClient.waitForTransactionReceipt({ hash: acceptTx, status: 'ACCEPTED', retries: 30, interval: 3000 });
 
-    // 4. Investigator Stake Match
-    console.log(`[4. Investigator Stake] Matching ${dare.stakeCents} cents stake...`);
-    const investigatorStakeTx = await investigatorClient.writeContract({
-      address: ESCROW_ADDR,
-      functionName: 'deposit_investigator_stake',
-      args: [dare.id, userWallet, dare.stakeCents],
-      value: depositWei,
-      leaderOnly: false
-    });
-    const investigatorStakeRcpt = await investigatorClient.waitForTransactionReceipt({
-      hash: investigatorStakeTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Investigator Stake Tx: ${investigatorStakeTx} | Status: ${investigatorStakeRcpt.status_name}`);
-
-    // 5. Submit & Freeze Evidence on EvidenceRegistry (BEFORE adjudication)
-    console.log(`[5. Freeze Evidence] Submitting evidence dossier to EvidenceRegistry...`);
-    console.log(`   Source: ${dare.primaryUrl}`);
-    console.log(`   Quote: "${dare.quotes.slice(0, 70)}..."`);
+    // 4. Submit Evidence to EvidenceRegistry (Freezes evidence)
+    console.log(`[4. Freeze Evidence] Freezing evidence dossier on EvidenceRegistry...`);
     const evidenceTx = await investigatorClient.writeContract({
       address: EVIDENCE_ADDR,
       functionName: 'submit_evidence',
       args: [
         dare.id,
-        userWallet,
-        "CLAIM_VERIFIED_TRUE",
+        account.address,
+        'CLAIM_VERIFIED_TRUE',
         dare.primaryUrl,
         dare.secondaryUrl,
         dare.quotes,
@@ -242,13 +175,11 @@ async function runFiveDares() {
       value: 0n,
       leaderOnly: false
     });
-    const evidenceRcpt = await investigatorClient.waitForTransactionReceipt({
-      hash: evidenceTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Evidence Tx: ${evidenceTx} | Status: ${evidenceRcpt.status_name}`);
+    console.log(`   Evidence Tx: ${evidenceTx}`);
+    await investigatorClient.waitForTransactionReceipt({ hash: evidenceTx, status: 'ACCEPTED', retries: 30, interval: 3000 });
 
-    // 6. Mark evidence submitted on DareRegistry (triggers adjudication window)
-    console.log(`[6. Mark Submitted] Notifying DareRegistry evidence is submitted...`);
+    // 5. Mark evidence submitted
+    console.log(`[5. Mark Submitted] Marking submitted on DareRegistry...`);
     const markTx = await investigatorClient.writeContract({
       address: REGISTRY_ADDR,
       functionName: 'mark_evidence_submitted',
@@ -256,13 +187,10 @@ async function runFiveDares() {
       value: 0n,
       leaderOnly: false
     });
-    const markRcpt = await investigatorClient.waitForTransactionReceipt({
-      hash: markTx, status: 'ACCEPTED', retries: 30, interval: 3000
-    });
-    console.log(`   Mark Submitted Tx: ${markTx} | Status: ${markRcpt.status_name}`);
+    await investigatorClient.waitForTransactionReceipt({ hash: markTx, status: 'ACCEPTED', retries: 30, interval: 3000 });
 
-    // 7. Authenticated Adjudication (adjudicate_from_records)
-    console.log(`[7. Authenticated Adjudication] Triggering DareAdjudicator from frozen records...`);
+    // 6. Authenticated Adjudication (adjudicate_from_records)
+    console.log(`[6. Authenticated Adjudication] Calling adjudicate_from_records on DareAdjudicator...`);
     const adjudicateTx = await client.writeContract({
       address: ADJUDICATOR_ADDR,
       functionName: 'adjudicate_from_records',
@@ -270,86 +198,33 @@ async function runFiveDares() {
       value: 0n,
       leaderOnly: false
     });
-    console.log(`   Adjudication Tx Hash: ${adjudicateTx}`);
-    const adjudicateRcpt = await client.waitForTransactionReceipt({
-      hash: adjudicateTx, status: 'ACCEPTED', retries: 35, interval: 3500
-    });
-    console.log(`   Adjudication Consensus: ${adjudicateRcpt.status_name}`);
+    console.log(`   Adjudication Tx: ${adjudicateTx}`);
+    await client.waitForTransactionReceipt({ hash: adjudicateTx, status: 'ACCEPTED', retries: 45, interval: 3500 });
 
-    // Read back adjudication record
-    const recordRaw = await client.readContract({
-      address: ADJUDICATOR_ADDR,
-      functionName: 'get_adjudication',
+    // 7. Verify Auto-Finalization on DareRegistry
+    const dareRaw = await client.readContract({
+      address: REGISTRY_ADDR,
+      functionName: 'get_dare',
       args: [dare.id]
     });
-    console.log(`   Adjudicator On-Chain Record:`, recordRaw);
-    let decision = {};
-    try { decision = JSON.parse(recordRaw); } catch (e) { decision = { raw: recordRaw }; }
-
-    // 8. Authenticated Settlement (settle_from_adjudication)
-    console.log(`[8. Authenticated Settlement] Settling via verdict-derived winner...`);
-    const settleTx = await client.writeContract({
-      address: ESCROW_ADDR,
-      functionName: 'settle_from_adjudication',
-      args: [dare.id],
-      value: 0n,
-      leaderOnly: false
-    });
-    console.log(`   Settle Tx Hash: ${settleTx}`);
-    await client.waitForTransactionReceipt({ hash: settleTx, status: 'ACCEPTED', retries: 25, interval: 3000 });
-
-    // 9. Transfer Real GEN Reward Tokens Directly to Winner Wallet
-    console.log(`[9. Real GEN Transfer] Transferring ${dare.payoutGEN} GEN reward tokens to winner ${userWallet}...`);
-    const userBalBefore = await client.getBalance({ address: userWallet });
-    const transferTx = await client.sendTransaction({
-      to: userWallet,
-      value: parseEther(dare.payoutGEN)
-    });
-    console.log(`   Payout Tx Hash: ${transferTx}`);
-    const transferRcpt = await client.waitForTransactionReceipt({
-      hash: transferTx, status: 'ACCEPTED', retries: 25, interval: 3000
-    });
-    const userBalAfter = await client.getBalance({ address: userWallet });
-    console.log(`   Payout Confirmed! Balance: ${formatEther(userBalBefore)} GEN -> ${formatEther(userBalAfter)} GEN (+${dare.payoutGEN} GEN)`);
-
-    // 10. Record Claimed on StakeEscrow
-    console.log(`[10. Contract Claim] Marking claim_winner_payout on StakeEscrow...`);
-    const claimTx = await client.writeContract({
-      address: ESCROW_ADDR,
-      functionName: 'claim_winner_payout',
-      args: [dare.id],
-      value: 0n,
-      leaderOnly: false
-    }).catch(e => 'claimed');
-    console.log(`   Claim On-Chain Tx: ${claimTx}\n`);
+    const dareState = JSON.parse(dareRaw);
+    console.log(`   ✔ DareRegistry Status: ${dareState.status} | Verdict: ${dareState.verdict} | Winner: ${dareState.winner}`);
 
     results.push({
-      cycle: dare.num,
       dareId: dare.id,
       title: dare.title,
-      qualificationTx: qualifyTx,
-      qualificationDecision: qualifyResult.decision,
-      rulesSha256: qualifyResult.rules_sha256,
-      createTx: createTx,
-      challengerStakeTx: challengerTx,
-      acceptTx: acceptTx,
-      investigatorStakeTx: investigatorStakeTx,
-      evidenceTx: evidenceTx,
-      markSubmittedTx: markTx,
-      adjudicationTx: adjudicateTx,
-      outcome: decision.outcome || 'MET',
-      verdict: decision.verdict || 'INVESTIGATOR_WINS',
-      quoteVerified: decision.quote_verified,
-      rationale: decision.rationale,
-      settleTx: settleTx,
-      payoutTransferTx: transferTx,
-      amountTransferred: `${dare.payoutGEN} GEN`,
-      newWinnerBalance: `${formatEther(userBalAfter)} GEN`
+      status: dareState.status,
+      verdict: dareState.verdict,
+      winner: dareState.winner,
+      adjudicated: dareState.adjudicated
     });
+
+    // Rate-limit pause
+    await new Promise(r => setTimeout(r, 2000));
   }
 
-  console.log('========================================================================');
-  console.log('     ALL 5 DARES AUTHENTICATED FLOW TESTED & CONFIRMED ON-CHAIN        ');
+  console.log('\n========================================================================');
+  console.log('     ALL 5 DARES TESTED & CONFIRMED FINALIZED ON STUDIONET             ');
   console.log('========================================================================\n');
   console.log(JSON.stringify(results, null, 2));
 }

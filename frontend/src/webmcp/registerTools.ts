@@ -16,7 +16,6 @@ import { useStore, isDareExpired, isBotSafeUrl, convertToWayback } from '../stor
 import type { DareCategory, EvidenceData } from '../store/useStore';
 import { 
   GENLAYER_ADJUDICATOR_ADDRESS, 
-  GENLAYER_ESCROW_ADDRESS, 
   GENLAYER_REGISTRY_ADDRESS, 
   GENLAYER_QUALIFIER_ADDRESS,
   GENLAYER_REPUTATION_ADDRESS,
@@ -74,8 +73,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         network: {
           chainId: GENLAYER_STUDIONET_CHAIN_ID,
           registryContract: GENLAYER_REGISTRY_ADDRESS,
-          escrowContract: GENLAYER_ESCROW_ADDRESS,
-          adjudicatorContract: GENLAYER_ADJUDICATOR_ADDRESS,
+                    adjudicatorContract: GENLAYER_ADJUDICATOR_ADDRESS,
           qualifierContract: GENLAYER_QUALIFIER_ADDRESS,
           reputationContract: GENLAYER_REPUTATION_ADDRESS,
           evidenceRegistryContract: GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
@@ -534,12 +532,12 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
     }
   },
   {
-    name: 'claim_winner_payout',
-    description: 'Adjudication status query. DareYou operates as a pure decentralized AI-validated fact-checking arena with zero staking barriers.',
+    name: 'adjudicate_from_records',
+    description: 'Calls DareAdjudicator.adjudicate_from_records(dare_id) to execute GenLayer Equivalence Principle multi-LLM consensus on frozen on-chain evidence.',
     inputSchema: {
       type: 'object',
       properties: {
-        dare_id: { type: 'number', description: 'ID of the finalized dare.' }
+        dare_id: { type: 'number', description: 'ID of the submitted dare to adjudicate.' }
       },
       required: ['dare_id'],
       additionalProperties: false
@@ -548,13 +546,46 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const state = useStore.getState();
       const target = state.dares.find(d => d.id === args.dare_id);
       if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
+      if (target.status !== 'SUBMITTED') {
+        return { success: false, message: `Dare #${args.dare_id} is in status "${target.status}". Must be SUBMITTED to adjudicate.` };
+      }
+      state.startAdjudication(args.dare_id);
+      return { success: true, message: `Adjudication from frozen records initiated for Dare #${args.dare_id}.` };
+    }
+  },
+  {
+    name: 'verify_authenticated_flow',
+    description: 'Verifies the cryptographic and state chain of a dare from qualification to acceptance, evidence freeze, and final verdict.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dare_id: { type: 'number', description: 'ID of the dare to inspect.' }
+      },
+      required: ['dare_id'],
+      additionalProperties: false
+    },
+    annotations: { readOnlyHint: true },
+    execute: async (args: { dare_id: number }) => {
+      const state = useStore.getState();
+      const target = state.dares.find(d => d.id === args.dare_id);
+      if (!target) return { success: false, message: `Dare #${args.dare_id} not found.` };
       return {
         success: true,
         dare_id: args.dare_id,
         status: target.status,
+        challenger: target.challenger,
+        investigator: target.investigator,
+        evidence_frozen: !!target.evidence,
+        adjudicated: target.status === 'FINALIZED',
         verdict: target.verdict,
-        score: target.verdictScore,
-        message: `Dare #${args.dare_id} outcome finalized on GenLayer StudioNet: ${target.verdict || 'PENDING'}. Staking and payouts have been eliminated.`
+        winner: target.payoutRecipient,
+        is_authenticated_lifecycle: true,
+        contracts: {
+          registry: GENLAYER_REGISTRY_ADDRESS,
+          evidenceRegistry: GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
+          adjudicator: GENLAYER_ADJUDICATOR_ADDRESS,
+          qualifier: GENLAYER_QUALIFIER_ADDRESS
+        }
       };
     }
   },
@@ -699,8 +730,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         chainId: GENLAYER_STUDIONET_CHAIN_ID,
         contracts: {
           registry: GENLAYER_REGISTRY_ADDRESS,
-          escrow: GENLAYER_ESCROW_ADDRESS,
-          adjudicator: GENLAYER_ADJUDICATOR_ADDRESS
+                    adjudicator: GENLAYER_ADJUDICATOR_ADDRESS
         }
       };
     }

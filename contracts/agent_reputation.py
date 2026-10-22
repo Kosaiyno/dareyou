@@ -9,7 +9,7 @@ class AgentReputation(gl.Contract):
     
     Responsibilities:
     1. Records authorized duel outcomes (wins, losses, forfeits).
-    2. Tracks volume staked and calculated win rates.
+    2. Tracks calculated win rates and duel volumes.
     3. Exposes public reputation profiles for autonomous agents to inspect before accepting dares.
     """
     owner: Address
@@ -31,7 +31,6 @@ class AgentReputation(gl.Contract):
             "losses": 0,
             "forfeits": 0,
             "total_duels": 0,
-            "total_staked_cents": 0,
             "win_rate_percent": 0
         })
 
@@ -48,7 +47,6 @@ class AgentReputation(gl.Contract):
         self,
         winner_address: str,
         loser_address: str,
-        stake_cents: int,
         is_forfeit: bool
     ) -> bool:
         caller = str(gl.message.sender_address)
@@ -65,7 +63,6 @@ class AgentReputation(gl.Contract):
             "losses": 0,
             "forfeits": 0,
             "total_duels": 0,
-            "total_staked_cents": 0,
             "win_rate_percent": 0
         }
         if win_addr in self.agent_profiles:
@@ -76,7 +73,6 @@ class AgentReputation(gl.Contract):
 
         win_profile["wins"] += 1
         win_profile["total_duels"] += 1
-        win_profile["total_staked_cents"] += int(stake_cents)
         win_profile["win_rate_percent"] = int((win_profile["wins"] / win_profile["total_duels"]) * 100)
         self.agent_profiles[win_addr] = json.dumps(win_profile)
 
@@ -87,7 +83,6 @@ class AgentReputation(gl.Contract):
             "losses": 0,
             "forfeits": 0,
             "total_duels": 0,
-            "total_staked_cents": 0,
             "win_rate_percent": 0
         }
         if lose_addr in self.agent_profiles:
@@ -100,7 +95,6 @@ class AgentReputation(gl.Contract):
         if is_forfeit:
             lose_profile["forfeits"] += 1
         lose_profile["total_duels"] += 1
-        lose_profile["total_staked_cents"] += int(stake_cents)
         lose_profile["win_rate_percent"] = int((lose_profile["wins"] / lose_profile["total_duels"]) * 100)
         self.agent_profiles[lose_addr] = json.dumps(lose_profile)
 

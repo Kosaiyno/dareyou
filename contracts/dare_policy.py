@@ -13,10 +13,8 @@ class DarePolicy(gl.Contract):
        - CONFLICTING_SOURCE_INVESTIGATION
        - EVIDENCE_SYNTHESIS
     2. Enforces protocol bounds:
-       - Minimum duel stake: 1000 cents ($10.00 / 10 GEN)
-       - Creation bond: 500 cents ($5.00 / 5 GEN)
        - Acceptance window: 3600 to 604800 seconds (1 hour to 7 days)
-       - Research window: 1800 to 259200 seconds (30 mins to 3 days)
+       - Research window: 300 to 259200 seconds (5 mins to 3 days)
     3. Rate limits: Max 3 concurrently open challenges per challenger address.
     4. Deterministic schema integrity checks (mandatory non-empty fields, character minimums).
     """
@@ -39,6 +37,64 @@ class DarePolicy(gl.Contract):
             return self.active_dares_per_challenger[clean_addr]
         return u256(0)
 
+    @gl.public.view
+    def validate_proposal(
+        self,
+        category: str,
+        title: str,
+        claim_statement: str,
+        required_sources_desc: str,
+        evaluation_criteria: str,
+        acceptance_window_seconds: int,
+        research_window_seconds: int
+    ) -> bool:
+        clean_category = str(category).upper().strip()
+        clean_dare = str(title).strip()
+        clean_claim = str(claim_statement).strip()
+        clean_sources = str(required_sources_desc).strip()
+        clean_criteria = str(evaluation_criteria).strip()
+
+        # 1. Format Requirement: Must begin with 'Dare you to '
+        if not clean_dare.lower().startswith("dare you to "):
+            raise ValueError(
+                "Format Error: Every dare MUST begin with 'Dare you to...' as a single complete instruction."
+            )
+        if len(clean_dare) < 40:
+            raise ValueError(
+                "Format Error: Dare instruction must be a complete, substantive task of at least 40 characters."
+            )
+
+        # 2. Supported Category Check
+        valid_categories = [
+            "INVESTIGATIVE_FACT_FINDING",
+            "CONFLICTING_SOURCE_INVESTIGATION",
+            "EVIDENCE_SYNTHESIS",
+            "MATCH_FACTS",
+            "HISTORICAL_RECORDS",
+            "DISCIPLINARY",
+            "AWARDS_STATISTICS"
+        ]
+        if clean_category not in valid_categories:
+            raise ValueError(
+                f"Unsupported category '{clean_category}'. Must be one of: {', '.join(valid_categories)}"
+            )
+
+        # 3. Mandatory Field Completeness & Quality Floors
+        if len(clean_claim) < 25:
+            raise ValueError("Claim statement must be at least 25 characters with verifiable detail")
+        if len(clean_sources) < 20:
+            raise ValueError("Required sources description must specify mandatory primary/secondary archives")
+        if len(clean_criteria) < 30:
+            raise ValueError("Evaluation criteria must explicitly define observable success/failure rubrics")
+
+        # 4. Timer Bounds
+        if acceptance_window_seconds < 3600 or acceptance_window_seconds > 604800:
+            raise ValueError("Acceptance window must be between 1 hour (3600s) and 7 days (604800s)")
+        if research_window_seconds < 300 or research_window_seconds > 259200:
+            raise ValueError("Research window must be between 5 minutes (300s) and 3 days (259200s)")
+
+        return True
+
     @gl.public.write
     def validate_and_record_proposal(
         self,
@@ -48,11 +104,18 @@ class DarePolicy(gl.Contract):
         claim_statement: str,
         required_sources_desc: str,
         evaluation_criteria: str,
-        stake_amount_cents: int,
-        creation_bond_cents: int,
         acceptance_window_seconds: int,
         research_window_seconds: int
     ) -> bool:
+        self.validate_proposal(
+            category=category,
+            title=title,
+            claim_statement=claim_statement,
+            required_sources_desc=required_sources_desc,
+            evaluation_criteria=evaluation_criteria,
+            acceptance_window_seconds=acceptance_window_seconds,
+            research_window_seconds=research_window_seconds
+        )
         clean_challenger = str(challenger).strip()
         clean_category = str(category).upper().strip()
         clean_dare = str(title).strip()
@@ -70,7 +133,7 @@ class DarePolicy(gl.Contract):
                 "Format Error: Dare instruction must be a complete, substantive task of at least 40 characters."
             )
 
-        # 1. Supported Category Check
+        # 2. Supported Category Check
         valid_categories = [
             "INVESTIGATIVE_FACT_FINDING",
             "CONFLICTING_SOURCE_INVESTIGATION",
@@ -81,7 +144,7 @@ class DarePolicy(gl.Contract):
                 f"Unsupported category '{clean_category}'. Must be one of: {', '.join(valid_categories)}"
             )
 
-        # 2. Mandatory Field Completeness & Quality Floors
+        # 3. Mandatory Field Completeness & Quality Floors
         if len(clean_dare) < 40:
             raise ValueError("Challenge dare instruction must be at least 40 characters describing the specific inquiry")
         if len(clean_claim) < 25:
@@ -91,17 +154,11 @@ class DarePolicy(gl.Contract):
         if len(clean_criteria) < 30:
             raise ValueError("Evaluation criteria must explicitly define observable success/failure rubrics")
 
-        # 3. Stake and Bond Bounds
-        if stake_amount_cents < 1000:
-            raise ValueError("Minimum challenge duel stake is 1000 cents ($10.00 / 10 GEN)")
-        if creation_bond_cents < 500:
-            raise ValueError("Minimum anti-spam creation bond is 500 cents ($5.00 / 5 GEN)")
-
         # 4. Timer Bounds
         if acceptance_window_seconds < 3600 or acceptance_window_seconds > 604800:
             raise ValueError("Acceptance window must be between 1 hour (3600s) and 7 days (604800s)")
-        if research_window_seconds < 1800 or research_window_seconds > 259200:
-            raise ValueError("Research window must be between 30 minutes (1800s) and 3 days (259200s)")
+        if research_window_seconds < 300 or research_window_seconds > 259200:
+            raise ValueError("Research window must be between 5 minutes (300s) and 3 days (259200s)")
 
         # 5. Rate Limiting: Max 3 open challenges per agent
         current_active = int(self.get_active_dares_count(clean_challenger))

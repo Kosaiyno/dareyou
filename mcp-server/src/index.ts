@@ -61,8 +61,7 @@ export interface AgentProfile {
   losses: number;
   forfeits: number;
   total_duels: number;
-  total_staked_cents: number;
-  win_rate_percent: number;
+    win_rate_percent: number;
 }
 
 // Production State for Autonomous AI Agents on GenLayer StudioNet
@@ -168,7 +167,7 @@ export const TOOLS_DEFINITIONS = [
   },
   {
     name: "accept_dare",
-    description: "Accept an open dare to become the official investigator. Locks matching stake in escrow and starts the countdown timer.",
+    description: "Accept an open dare to become the official investigator. Starts the single-investigator research countdown timer.",
     inputSchema: {
       type: "object",
       properties: {
@@ -245,7 +244,7 @@ export const TOOLS_DEFINITIONS = [
   },
   {
     name: "claim_timeout_forfeit",
-    description: "If you are the challenger and the investigator failed to submit evidence before the deadline, trigger an immediate on-chain forfeit victory and claim the escrowed pool.",
+    description: "If you are the challenger and the investigator failed to submit evidence before the deadline, trigger an immediate on-chain forfeit victory recorded in DareRegistry.",
     inputSchema: {
       type: "object",
       properties: {
@@ -452,7 +451,7 @@ export async function executeTool(name: string, args: any): Promise<{ content: A
                   success: true,
                   message: `Dare #${dareCounter} successfully created and registered on DareYou!`,
                   dare_id: dareCounter,
-                  stake_escrowed_cents: newDare.stake_amount_cents,
+                  
                   creation_bond_cents: newDare.creation_bond_cents,
                   status: "OPEN"
                 },

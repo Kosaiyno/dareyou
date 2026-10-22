@@ -2,7 +2,7 @@
 
 This step-by-step tutorial walks through how **DareYou** is architected on **GenLayer StudioNet (Chain ID 61999)** using Python Intelligent Contracts (`py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6`), why ordinary smart contracts cannot solve adversarial evidentiary disputes, and how we enforce the core GenLayer steward design principles:
 
-1. **The model judges; deterministic code moves money.**
+1. **The model judges; deterministic code moves state (pure epistemic protocol, zero-staking).**
 2. **One narrow judgment per transaction with a strict categorical JSON schema.**
 3. **Validators fetch immutable evidence themselves, bound the HTML/text in Python, compare SHA-256 digests, and verify verbatim quotes.**
 4. **Untrusted content sandboxing & prompt-injection defense.**
@@ -108,40 +108,37 @@ else:
 digest = hashlib.sha256(bounded_excerpt.encode("utf-8")).hexdigest()[:16]
 ```
 
-### 3. The Model Judges Fixed Outcomes; Deterministic Code Maps Consequences
+### 3. The Model Judges Fixed Outcomes; Deterministic Code Maps Verdict
 The LLM prompt sandboxes all untrusted inputs inside `<untrusted_fetched_page>`, `<untrusted_quotes>`, and `<untrusted_reasoning>` tags and requires a fixed categorical JSON response (`outcome`: `"MET"` | `"NOT_MET"` | `"INSUFFICIENT_EVIDENCE"`, `quote_verified`: `bool`, `extracted_quote`: `str`, `rationale`: `str`).
 
-Deterministic Python code then maps that fixed outcome to the exact financial consequence:
+Deterministic Python code then maps that fixed outcome to the exact on-chain verdict:
 
 ```python
 if raw_outcome == "MET" and quote_ok:
     outcome = "MET"
     verdict = "INVESTIGATOR_WINS"
-    consequence = "RELEASE_ESCROW_TO_INVESTIGATOR"
 elif raw_outcome == "NOT_MET" or (raw_outcome == "MET" and not quote_ok):
     outcome = "NOT_MET"
     verdict = "CHALLENGER_WINS"
-    consequence = "FORFEIT_ESCROW_TO_CHALLENGER"
 else:
     outcome = "INSUFFICIENT_EVIDENCE"
     verdict = "INCONCLUSIVE"
-    consequence = "SPLIT_REFUND"
 ```
 
 ---
 
 ## Step 4: Deadlines & Deterministic Fallbacks (`DareRegistry`)
 
-To ensure funds never lock forever if a participant disappears or an adjudication stalls, [`contracts/dare_registry.py`](../contracts/dare_registry.py) enforces three deterministic timeout handlers:
-1. **`claim_acceptance_expiry_refund(dare_id)`**: If no investigator accepts before `acceptance_deadline_ts`, the challenger reclaims their full deposit.
+To ensure challenges never lock forever if a participant disappears or an adjudication stalls, [`contracts/dare_registry.py`](../contracts/dare_registry.py) enforces three deterministic timeout handlers:
+1. **`claim_acceptance_expiry_refund(dare_id)`**: If no investigator accepts before `acceptance_deadline_ts`, the dare transitions to `EXPIRED`.
 2. **`claim_research_timeout_forfeit(dare_id)`**: If an investigator accepts a duel but fails to submit evidence before `research_deadline_ts`, the challenger wins by forfeit.
-3. **`claim_stuck_adjudication_fallback(dare_id)`**: If a submitted dare remains unfinalized past `adjudication_grace_deadline_ts` (`submitted_at + 3600s`), it deterministically resolves to `INCONCLUSIVE` (`SPLIT_REFUND`).
+3. **`claim_stuck_adjudication_fallback(dare_id)`**: If a submitted dare remains unfinalized past `adjudication_grace_deadline_ts` (`submitted_at + 3600s`), it deterministically resolves to `INCONCLUSIVE`.
 
 ---
 
 ## Step 5: Verifying Live On-Chain Proofs
 
-Run the read-only verifier from the repository root to re-verify all 8 deployed contracts and all finalized StudioNet proof transactions:
+Run the read-only verifier from the repository root to re-verify all 7 deployed contracts and all finalized StudioNet proof transactions:
 
 ```bash
 npm run verify:proof
