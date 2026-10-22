@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { 
   submitRealGenLayerAdjudication, 
   formatRealValidatorVotes, 
-  GENLAYER_ADJUDICATOR_ADDRESS,
+  GENLAYER_EVIDENCE_REGISTRY_ADDRESS,
   createDareOnChain,
   acceptDareOnChain,
   fetchOnChainDares,
@@ -268,23 +268,24 @@ export interface AppState {
   setLastActionMessage: (msg: string | null) => void;
 
   // Core Mutation Workflows
-  addDare: (item: {
+  createDare: (item: {
     title: string;
     category: DareCategory;
     domain?: string;
     claim: string;
     requiredSources: string;
     criteria: string;
-    stakeCents: number;
+    stakeCents?: number;
     durationSeconds: number;
     challenger?: string;
     txHash?: string;
-  }) => number;
+  }, onProgress?: (step: number, msg: string) => void) => Promise<number>;
+  addDare: (item: any) => Promise<number>;
 
   updateDare: (id: number, updates: Partial<Dare>) => boolean;
   deleteDare: (id: number) => boolean;
-  acceptDare: (id: number, investigatorAddress: string) => boolean;
-  submitEvidence: (id: number, evidence: EvidenceData) => boolean;
+  acceptDare: (id: number, investigatorAddress: string) => Promise<string>;
+  submitEvidence: (id: number, evidence: EvidenceData, onProgress?: (msg: string) => void) => Promise<boolean>;
   startAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
@@ -414,55 +415,56 @@ export const useStore = create<AppState>((set, get) => ({
   setActiveRole: (role) => set({ activeRole: role }),
   setLastActionMessage: (msg) => set({ lastActionMessage: msg }),
 
-  addDare: (item) => {
+  createDare: async (item: any, onProgress?: (step: number, msg: string) => void) => {
     const state = get();
-    const nextId = Math.max(1003, state.dares.reduce((max, d) => Math.max(max, d.id), 0) + 1);
+    const challenger = item.challenger || state.walletAddress || '0xChallenger';
+
+    const result = await createDareOnChain({
+      title: item.title,
+      category: item.category,
+      domain: item.domain,
+      claim: item.claim,
+      requiredSources: item.requiredSources,
+      criteria: item.criteria,
+      durationSeconds: item.durationSeconds,
+      challenger
+    }, onProgress);
+
+    const onChainId = result.onChainId;
     const newDare: Dare = {
-      id: nextId,
+      id: onChainId,
+      onChainId: onChainId,
       isBenchmark: false,
       title: item.title.trim(),
       category: item.category,
-      domain: item.domain || 'Entertainment',
+      domain: item.domain || 'Science',
       claim: item.claim.trim(),
       requiredSources: item.requiredSources.trim(),
       criteria: item.criteria.trim(),
-      stakeCents: item.stakeCents || 0,
+      stakeCents: 0,
       creationBondCents: 0,
-      durationSeconds: item.durationSeconds || 1800,
+      durationSeconds: item.durationSeconds || 600,
       acceptanceDeadlineTs: Date.now() + 86400000,
       researchDeadlineTs: 0,
       status: "OPEN",
-      challenger: item.challenger || state.walletAddress,
-      txHash: item.txHash
+      challenger,
+      txHash: result.txHash
     };
 
-    const newDares = [newDare, ...state.dares];
+    const currentDares = get().dares.filter(d => d.id !== onChainId);
+    const updatedDares = [newDare, ...currentDares];
     set({
-      ...pushSnapshot(state, newDares),
-      selectedDareId: nextId,
-      lastActionMessage: `Created Dare #${nextId} "${newDare.title.substring(0, 40)}..."`
+      ...pushSnapshot(get(), updatedDares),
+      selectedDareId: onChainId,
+      lastActionMessage: `Created Dare #${onChainId} on StudioNet! (Rules Hash: ${result.contentHash.slice(0, 10)}...)`
     });
 
-    // Immediately broadcast new dare to canonical cross-browser API (/api/dares)
     syncDareToCanonicalApi(newDare).catch(() => {});
+    return onChainId;
+  },
 
-    createDareOnChain({
-      title: newDare.title,
-      category: newDare.category,
-      domain: newDare.domain,
-      claim: newDare.claim,
-      requiredSources: newDare.requiredSources,
-      criteria: newDare.criteria,
-      durationSeconds: newDare.durationSeconds,
-      challenger: newDare.challenger,
-      txHash: newDare.txHash
-    }).then(() => {
-      get().loadOnChainDares();
-    }).catch((err) => {
-      console.warn('[DareRegistry] create_dare on-chain fallback:', err);
-    });
-
-    return nextId;
+  addDare: async (item) => {
+    return get().createDare(item);
   },
 
   updateDare: (id, updates) => {
@@ -499,67 +501,50 @@ export const useStore = create<AppState>((set, get) => ({
     return true;
   },
 
-  acceptDare: (id, investigatorAddress) => {
+  acceptDare: async (id, investigatorAddress) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    if (!target || target.status !== "OPEN") return false;
+    if (!target || target.status !== "OPEN") {
+      throw new Error("Challenge is not OPEN for acceptance");
+    }
+
+    const onChainId = target.onChainId || target.id;
+    const txHash = await acceptDareOnChain(onChainId);
 
     const acceptedDare: Dare = {
       ...target,
       status: "ACCEPTED" as DareStatus,
       investigator: investigatorAddress,
-      researchDeadlineTs: Date.now() + (target.durationSeconds * 1000)
+      researchDeadlineTs: Date.now() + (target.durationSeconds * 1000),
+      txHash: txHash || target.txHash
     };
 
-    const newDares = state.dares.map(d => d.id === id ? acceptedDare : d);
-
+    const newDares = get().dares.map(d => d.id === id ? acceptedDare : d);
     set({
-      ...pushSnapshot(state, newDares),
+      ...pushSnapshot(get(), newDares),
       selectedDareId: id,
-      lastActionMessage: `Investigator ${investigatorAddress.substring(0, 10)} accepted Dare #${id}. Research countdown started.`
+      lastActionMessage: `Challenge #${id} accepted on StudioNet. Tx: ${txHash.slice(0, 10)}...`
     });
 
-    // Immediately sync ACCEPTED status and exact researchDeadlineTs across all browsers
     syncDareToCanonicalApi(acceptedDare).catch(() => {});
-
-    const onChainId = target.onChainId || (id >= 1000 ? id - 1000 : undefined);
-    if (onChainId) {
-      acceptDareOnChain(onChainId).catch((err) => {
-        console.warn('[DareRegistry] accept_dare fallback:', err);
-      });
-    }
-
-    return true;
+    return txHash;
   },
 
-  submitEvidence: (id, evidence) => {
+  submitEvidence: async (id, evidence, onProgress) => {
     const state = get();
     const target = state.dares.find(d => d.id === id);
-    // ANTI-CHEAT LOCK: Only an ACCEPTED dare before its researchDeadlineTs can ever accept evidence!
-    if (!target || target.status !== "ACCEPTED") return false;
-    if (target.researchDeadlineTs > 0 && Date.now() > target.researchDeadlineTs) {
-      get().processAllExpiredDares();
-      return false;
+    if (!target || target.status !== "ACCEPTED") {
+      throw new Error(`Dare #${id} is not in ACCEPTED state`);
     }
 
-    // Enforce URL health check: only OPTIMAL or SAFE URLs allowed
-    const primaryHealth = evaluateEvidenceUrlHealth(evidence.primaryUrl);
-    if (primaryHealth.status === 'WARNING') {
-      console.warn('[submitEvidence] Primary URL health check failed:', primaryHealth);
-      // Don't block, but warn - validator nodes may still fail
-    }
-    if (evidence.secondaryUrl && evidence.secondaryUrl !== 'N/A') {
-      const secondaryHealth = evaluateEvidenceUrlHealth(evidence.secondaryUrl);
-      if (secondaryHealth.status === 'WARNING') {
-        console.warn('[submitEvidence] Secondary URL health check failed:', secondaryHealth);
-      }
-    }
+    const onChainId = target.onChainId || target.id;
+    const investigatorAddr = target.investigator || get().walletAddress || '0xInvestigator';
 
     const session: AdjudicationSession = {
       dareId: id,
       status: "VOTING_IN_PROGRESS",
       progressPercent: 20,
-      currentStage: `Broadcasting transaction to GenLayer StudioNet contract (${GENLAYER_ADJUDICATOR_ADDRESS.slice(0, 10)}...)...`,
+      currentStage: `Broadcasting evidence to EvidenceRegistry contract (${GENLAYER_EVIDENCE_REGISTRY_ADDRESS.slice(0, 10)}...)... `,
       startedAt: Date.now(),
       etaSeconds: 30,
       votes: [],
@@ -575,145 +560,114 @@ export const useStore = create<AppState>((set, get) => ({
       adjudicationSession: session
     };
 
-    const newDares = state.dares.map(d => d.id === id ? submittedDare : d);
-
     set({
-      ...pushSnapshot(state, newDares),
+      ...pushSnapshot(get(), get().dares.map(d => d.id === id ? submittedDare : d)),
       selectedDareId: id,
-      lastActionMessage: `Broadcasting Dare #${id} evidence to GenLayer StudioNet Intelligent Contract...`
+      lastActionMessage: `Broadcasting Dare #${id} evidence to EvidenceRegistry on StudioNet...`
     });
-
-    // Lock SUBMITTED state across all browsers so duplicate submissions are blocked
     syncDareToCanonicalApi(submittedDare).catch(() => {});
 
-        // EXCLUSIVE AUTHENTICATED LIFECYCLE:
-    // Await evidence freeze -> Await adjudication consensus -> Await escrow settlement
-    (async () => {
-      try {
-        // Step 1: Submit & FREEZE evidence on-chain FIRST and AWAIT finalization
-        console.log(`[Lifecycle Step 1/3] Freezing evidence dossier for Dare #${id} on EvidenceRegistry...`);
-        const freezeTx = await submitEvidenceOnChain({
-          dareId: id,
-          investigator: target.investigator || get().walletAddress || '',
-          conclusion: evidence.conclusion,
-          primaryUrl: evidence.primaryUrl,
-          secondaryUrl: evidence.secondaryUrl,
-          quotes: evidence.quotes,
-          reasoning: evidence.reasoning
-        });
+    // Step 1: Submit & FREEZE evidence on-chain FIRST and AWAIT finalization
+    if (onProgress) onProgress("Stage 1/2: Freezing evidence dossier on EvidenceRegistry on StudioNet...");
+    console.log(`[Lifecycle Step 1/3] Freezing evidence dossier for Dare #${onChainId} on EvidenceRegistry...`);
+    const freezeTx = await submitEvidenceOnChain({
+      dareId: onChainId,
+      investigator: investigatorAddr,
+      conclusion: evidence.conclusion,
+      primaryUrl: evidence.primaryUrl,
+      secondaryUrl: evidence.secondaryUrl,
+      quotes: evidence.quotes,
+      reasoning: evidence.reasoning
+    });
 
-        // Update UI stage: evidence freeze confirmed, moving to adjudication
-        const curAfterFreeze = get().dares.find(d => d.id === id);
-        if (curAfterFreeze && curAfterFreeze.adjudicationSession) {
-          const updatedStageSession: AdjudicationSession = {
-            ...curAfterFreeze.adjudicationSession,
-            isLiveOnChain: true,
-            txHash: freezeTx,
-            currentStage: `Stage 1 Confirmed: Evidence frozen on EvidenceRegistry (Tx: ${freezeTx.slice(0, 10)}...). Initiating multi-LLM consensus on DareAdjudicator...`,
-            progressPercent: 35,
-            etaSeconds: 30
-          };
-          set({
-            dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updatedStageSession } : d)
-          });
-        }
+    const curAfterFreeze = get().dares.find(d => d.id === id);
+    if (curAfterFreeze && curAfterFreeze.adjudicationSession) {
+      const updatedStageSession: AdjudicationSession = {
+        ...curAfterFreeze.adjudicationSession,
+        isLiveOnChain: true,
+        txHash: freezeTx,
+        currentStage: `Stage 1 Confirmed: Evidence frozen on EvidenceRegistry (Tx: ${freezeTx.slice(0, 10)}...). Initiating multi-LLM consensus on DareAdjudicator...`,
+        progressPercent: 40,
+        etaSeconds: 25
+      };
+      set({
+        dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updatedStageSession } : d)
+      });
+    }
 
-        // Step 2: Trigger real on-chain GenLayer Intelligent Contract adjudication (adjudicate_from_records)
-        console.log(`[Lifecycle Step 2/3] Calling adjudicate_from_records for Dare #${id} on DareAdjudicator...`);
-        const onChainResult = await submitRealGenLayerAdjudication(target, evidence, (adjTxHash) => {
-          const cur = get().dares.find(d => d.id === id);
-          if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
-            const updatedSession: AdjudicationSession = {
-              ...cur.adjudicationSession,
-              isLiveOnChain: true,
-              txHash: adjTxHash,
-              currentStage: `Stage 2 In-Progress: Adjudication Tx ${adjTxHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle consensus on StudioNet...`,
-              progressPercent: 65,
-              etaSeconds: 20
-            };
-            set({
-              dares: get().dares.map(d => d.id === id ? { ...d, txHash: adjTxHash, adjudicationSession: updatedSession } : d)
-            });
-          }
-        });
-
-        const cur = get().dares.find(d => d.id === id);
-        if (!cur || cur.status === "FINALIZED") return;
-
-        const realVotes = formatRealValidatorVotes(
-          onChainResult.validators,
-          onChainResult.validatorVotes,
-          onChainResult.verdict,
-          onChainResult.score,
-          onChainResult.rationale
-        );
-
-        const winnerLabel = onChainResult.verdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
-        const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
-          ? (cur.investigator || get().walletAddress)
-          : cur.challenger;
-
-        // Step 3: DareRegistry auto-finalized via DareAdjudicator callback
-        console.log(`[Lifecycle Step 3/3] DareRegistry auto-finalized via DareAdjudicator callback for Dare #${id}...`);
-
-        const finalizedSession: AdjudicationSession = {
-          dareId: id,
-          status: "FINALIZED",
-          progressPercent: 100,
-          currentStage: `Consensus & Auto-Finalization Confirmed on GenLayer StudioNet: ${onChainResult.receiptStatus}`,
-          startedAt: cur.adjudicationSession?.startedAt || Date.now() - 30000,
-          etaSeconds: 0,
-          votes: realVotes,
-          requiredVotes: onChainResult.validators.length || 5,
-          consensusThreshold: "Majority Quorum on StudioNet",
-          finalVerdict: onChainResult.verdict as any,
-          averageScore: onChainResult.score,
-          consensusRationale: onChainResult.rationale,
+    // Step 2: Trigger real on-chain GenLayer Intelligent Contract adjudication (adjudicate_from_records)
+    if (onProgress) onProgress("Stage 2/2: GenLayer validators executing Equivalence Principle consensus on StudioNet...");
+    console.log(`[Lifecycle Step 2/3] Calling adjudicate_from_records for Dare #${onChainId} on DareAdjudicator...`);
+    const onChainResult = await submitRealGenLayerAdjudication(target, evidence, (adjTxHash: string) => {
+      const cur = get().dares.find(d => d.id === id);
+      if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
+        const updatedSession: AdjudicationSession = {
+          ...cur.adjudicationSession,
           isLiveOnChain: true,
-          txHash: onChainResult.txHash,
-          onChainValidators: onChainResult.validators,
-          receiptStatus: onChainResult.receiptStatus
+          txHash: adjTxHash,
+          currentStage: `Stage 2 In-Progress: Adjudication Tx ${adjTxHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle consensus on StudioNet...`,
+          progressPercent: 70,
+          etaSeconds: 15
         };
-
-        const finalizedDare: Dare = {
-          ...cur,
-          status: "FINALIZED" as DareStatus,
-          verdict: onChainResult.verdict as any,
-          verdictScore: onChainResult.score,
-          verdictRationale: onChainResult.rationale,
-          txHash: onChainResult.txHash,
-          payoutRecipient: winnerAddress,
-          adjudicationSession: finalizedSession
-        };
-
-        const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
-
         set({
-          ...pushSnapshot(get(), updatedDares),
-          selectedDareId: id,
-          lastActionMessage: `On-chain GenLayer consensus finalized for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). Winner recorded in protocol: ${winnerLabel}.`
+          dares: get().dares.map(d => d.id === id ? { ...d, txHash: adjTxHash, adjudicationSession: updatedSession } : d)
         });
-
-        syncDareToCanonicalApi(finalizedDare).catch(() => {});
-      } catch (err: any) {
-        console.warn('[GenLayer Authenticated Sequence Error]', err);
-        const cur = get().dares.find(d => d.id === id);
-        if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
-          const errorSession: AdjudicationSession = {
-            ...cur.adjudicationSession,
-            status: "FAILED" as any,
-            progressPercent: 100,
-            currentStage: `StudioNet Execution Failed: ${err.message || String(err)}`,
-            consensusRationale: `Transaction or consensus failed on GenLayer StudioNet: ${err.message || String(err)}`
-          };
-          set({
-            dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: errorSession } : d),
-            lastActionMessage: `StudioNet Execution error for Dare #${id}: ${err.message || String(err)}`
-          });
-        }
       }
-    })();
+    });
 
+    const cur = get().dares.find(d => d.id === id);
+    if (!cur) return true;
+
+    const realVotes = formatRealValidatorVotes(
+      onChainResult.validators,
+      onChainResult.validatorVotes,
+      onChainResult.verdict,
+      onChainResult.score,
+      onChainResult.rationale
+    );
+
+    const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
+      ? (cur.investigator || investigatorAddr)
+      : cur.challenger;
+
+    const finalizedSession: AdjudicationSession = {
+      dareId: id,
+      status: "FINALIZED",
+      progressPercent: 100,
+      currentStage: `Consensus & Auto-Finalization Confirmed on GenLayer StudioNet: ${onChainResult.receiptStatus}`,
+      startedAt: cur.adjudicationSession?.startedAt || Date.now() - 30000,
+      etaSeconds: 0,
+      votes: realVotes,
+      requiredVotes: onChainResult.validators.length || 5,
+      consensusThreshold: "Majority Quorum on StudioNet",
+      finalVerdict: onChainResult.verdict as any,
+      averageScore: onChainResult.score,
+      consensusRationale: onChainResult.rationale,
+      isLiveOnChain: true,
+      txHash: onChainResult.txHash,
+      onChainValidators: onChainResult.validators,
+      receiptStatus: onChainResult.receiptStatus
+    };
+
+    const finalizedDare: Dare = {
+      ...cur,
+      status: "FINALIZED" as DareStatus,
+      verdict: onChainResult.verdict as any,
+      verdictScore: onChainResult.score,
+      verdictRationale: onChainResult.rationale,
+      txHash: onChainResult.txHash,
+      payoutRecipient: winnerAddress,
+      adjudicationSession: finalizedSession
+    };
+
+    const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
+    set({
+      ...pushSnapshot(get(), updatedDares),
+      selectedDareId: id,
+      lastActionMessage: `On-chain GenLayer consensus finalized for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100).`
+    });
+
+    syncDareToCanonicalApi(finalizedDare).catch(() => {});
     return true;
   },
 

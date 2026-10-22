@@ -241,7 +241,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Selected Dare for Dossier Modal (reactive lookup so status transitions update live)
-  const [selectedDareId, setSelectedDareId] = useState<number | null>(null);
+  const selectedDareId = store.selectedDareId;
+  const setSelectedDareId = store.setSelectedDareId;
   const selectedDare = useMemo(() => {
     return dares.find(d => d.id === selectedDareId) || null;
   }, [dares, selectedDareId]);
@@ -515,14 +516,14 @@ export default function App() {
 
     setTxState({
       active: true,
-      message: "Validating deterministic policy & registering challenge on StudioNet...",
+      message: "Step 1/2: Submitting challenge to DareQualifier AI gate for consensus qualification...",
       step: 1
     });
 
     try {
       const challengerAddr = walletAddress || '0xChallenger';
 
-      const newId = store.addDare({
+      const newId = await store.createDare({
         title: createTitle,
         category: createCategory,
         domain: createDomain,
@@ -532,22 +533,29 @@ export default function App() {
         stakeCents: 0,
         durationSeconds: computedDurationSeconds,
         challenger: challengerAddr
+      }, (step: number, msg: string) => {
+        setTxState({
+          active: true,
+          message: msg,
+          step
+        });
       });
 
       setTxState({
         active: true,
-        message: `Challenge #${newId} successfully published!`,
+        message: `Challenge #${newId} successfully published and confirmed on StudioNet!`,
         step: 2
       });
 
       setTimeout(() => {
         setTxState({ active: false, message: '', step: 0 });
         setActiveTab('arena');
+        setSelectedDareId(newId);
         setCreateTitle('');
         setCreateClaim('');
         setCreateSources('');
         setCreateCriteria('');
-      }, 1000);
+      }, 1200);
     } catch (err: any) {
       setTxState({ active: false, message: '', step: 0 });
       alert("Failed to publish challenge: " + (err.message || String(err)));
@@ -578,18 +586,29 @@ export default function App() {
 
     const investigatorAddr = walletAddress || '0xInvestigator';
 
-    store.acceptDare(dareId, investigatorAddr);
     setTxState({
       active: true,
-      message: `Challenge accepted! Research countdown timer activated.`,
+      message: `Broadcasting accept_dare transaction to DareRegistry on StudioNet...`,
       step: 1
     });
-    setTimeout(() => {
+
+    try {
+      await store.acceptDare(dareId, investigatorAddr);
+      setTxState({
+        active: true,
+        message: `Challenge #${dareId} accepted on StudioNet! Research countdown timer started.`,
+        step: 2
+      });
+      setTimeout(() => {
+        setTxState({ active: false, message: '', step: 0 });
+      }, 1200);
+    } catch (err: any) {
       setTxState({ active: false, message: '', step: 0 });
-    }, 1200);
+      alert("Failed to accept challenge: " + (err.message || String(err)));
+    }
   };
 
-  const handleSubmitEvidence = (e: React.FormEvent) => {
+  const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDare) return;
 
@@ -632,23 +651,34 @@ export default function App() {
     // CRITICAL: Synchronously freeze the research countdown timer on LINE 1.
     // Transitioning status to "SUBMITTED" permanently disarms processAllExpiredDares()
     // so no consensus or network delay can ever forfeit the investigator.
-    store.submitEvidence(selectedDare.id, {
-      conclusion: evidenceConclusion,
-      primaryUrl: finalPrimaryUrl,
-      secondaryUrl: finalSecondaryString,
-      quotes: finalQuotes,
-      reasoning: finalReasoning
-    });
-
     setTxState({
       active: true,
-      message: "Evidence submitted! Research timer stopped. Broadcasting to GenLayer validators...",
+      message: "Stage 1/2: Freezing evidence dossier on EvidenceRegistry on StudioNet...",
       step: 1
     });
 
-    setTimeout(() => {
+    try {
+      await store.submitEvidence(selectedDare.id, {
+        conclusion: evidenceConclusion,
+        primaryUrl: finalPrimaryUrl,
+        secondaryUrl: finalSecondaryString,
+        quotes: finalQuotes,
+        reasoning: finalReasoning
+      }, (msg) => {
+        setTxState({
+          active: true,
+          message: msg,
+          step: 2
+        });
+      });
+
+      setTimeout(() => {
+        setTxState({ active: false, message: '', step: 0 });
+      }, 1000);
+    } catch (err: any) {
       setTxState({ active: false, message: '', step: 0 });
-    }, 1200);
+      alert("Evidence submission or consensus failed: " + (err.message || String(err)));
+    }
   };
 
   // Filter logic

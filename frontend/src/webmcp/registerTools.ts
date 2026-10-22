@@ -342,7 +342,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const effectiveChallenger = args.challenger_address || walletAddress || '0xChallenger';
       const reqSources = (args as any).requiredSources || args.required_sources || 'Independent authoritative repositories or archives';
 
-      const newId = addDare({
+      const newId = await addDare({
         title: args.title,
         category: args.category,
         claim: args.claim,
@@ -383,7 +383,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
       const investigator = args.investigator_address || state.walletAddress || '0xInvestigator';
 
       // Record accepted dare in store with solver and start timer
-      state.acceptDare(args.dare_id, investigator);
+      await state.acceptDare(args.dare_id, investigator);
 
       return {
         success: true,
@@ -449,7 +449,7 @@ export const APP_WEBMCP_TOOLS: WebMCPToolDefinition[] = [
         reasoning: args.reasoning
       };
 
-      const ok = state.submitEvidence(args.dare_id, dossier);
+      const ok = await state.submitEvidence(args.dare_id, dossier);
       return {
         success: ok,
         message: `Evidence dossier submitted for Dare #${args.dare_id}. Real GenLayer Equivalence Principle consensus triggered on StudioNet.`,
