@@ -168,61 +168,26 @@ class StakeEscrow(gl.Contract):
         record["settled_at"] = settle_ts
 
         self.dare_stakes[d_key] = json.dumps(record)
+
+        # Notify DareRegistry of authenticated settlement
+        try:
+            reg_contract.finalize_settlement(dare_id, verdict, winner)
+        except Exception:
+            pass
+
         return True
 
     @gl.public.write
     def settle_winner_payout(self, dare_id: int, winner_address: str) -> bool:
         """
-        LEGACY METHOD - DEPRECATED.
-        Use settle_from_adjudication() which derives winner from authenticated DareAdjudicator verdict
-        and DareRegistry participant records. This method is kept only for backward compatibility
-        but will reject calls if adjudication record exists (enforcing authenticated flow).
+        LEGACY METHOD - PERMANENTLY DISABLED.
+        Exclusive authenticated lifecycle strictly required: callers MUST use settle_from_adjudication().
         """
-        caller = str(gl.message.sender_address)
-        if caller != str(self.authorized_registry) and caller != str(self.owner):
-            raise Exception("Unauthorized: Only authorized registry or owner can settle payouts")
-
-        d_key = u256(dare_id)
-        if d_key not in self.dare_stakes:
-            raise ValueError(f"Stake record not found for dare {dare_id}")
-
-        record = json.loads(self.dare_stakes[d_key])
-        if record.get("settled"):
-            raise ValueError(f"Dare {dare_id} is already settled")
-
-        # Check if authenticated adjudication exists - if so, force authenticated path
-        try:
-            adj_contract = gl.get_contract_at(self.authorized_adjudicator)
-            raw_adj = adj_contract.get_adjudication(dare_id)
-            if raw_adj and str(raw_adj).startswith("{"):
-                adj_data = json.loads(str(raw_adj))
-                if adj_data.get("verdict") in ["INVESTIGATOR_WINS", "CHALLENGER_WINS", "INCONCLUSIVE"]:
-                    raise ValueError(
-                        f"Dare {dare_id} has authenticated adjudication verdict. "
-                        f"Must use settle_from_adjudication() which derives winner from on-chain verdict."
-                    )
-        except ValueError:
-            raise
-        except Exception:
-            pass  # Adjudicator not set or no verdict, allow legacy path for old dares
-
-        total_pool = record.get("total_escrowed_cents", 0)
-        if total_pool <= 0:
-            raise ValueError("No funds escrowed to settle")
-
-        clean_winner = str(winner_address)
-        record["settled"] = True
-        record["settlement_type"] = "WINNER_PAYOUT_LEGACY"
-        record["recipient"] = clean_winner
-        settle_ts = 0
-        try:
-            settle_ts = int(gl.block.timestamp)
-        except Exception:
-            pass
-        record["settled_at"] = settle_ts
-
-        self.dare_stakes[d_key] = json.dumps(record)
-        return True
+        raise ValueError(
+            "Legacy caller-supplied winner settlement is permanently disabled. "
+            "You MUST use settle_from_adjudication(dare_id), which derives the winner "
+            "strictly from the authenticated on-chain verdict in DareAdjudicator."
+        )
 
     @gl.public.write
     def claim_winner_payout(self, dare_id: int) -> bool:

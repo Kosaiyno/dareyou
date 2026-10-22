@@ -572,109 +572,134 @@ export const useStore = create<AppState>((set, get) => ({
     // Lock SUBMITTED state across all browsers so duplicate submissions are blocked
     syncDareToCanonicalApi(submittedDare).catch(() => {});
 
-    // Step 1: Submit & FREEZE evidence on-chain FIRST (authenticated investigator)
-    submitEvidenceOnChain({
-      dareId: id,
-      investigator: target.investigator || get().walletAddress || '',
-      conclusion: evidence.conclusion,
-      primaryUrl: evidence.primaryUrl,
-      secondaryUrl: evidence.secondaryUrl,
-      quotes: evidence.quotes,
-      reasoning: evidence.reasoning
-    }).catch(err => console.warn('[EvidenceRegistry] Early freeze notice:', err));
-
-    // Step 2: Trigger real on-chain GenLayer Intelligent Contract adjudication (adjudicate_from_records)
-    submitRealGenLayerAdjudication(target, evidence, (txHash) => {
-      const cur = get().dares.find(d => d.id === id);
-      if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
-        const updatedSession: AdjudicationSession = {
-          ...cur.adjudicationSession,
-          isLiveOnChain: true,
-          txHash,
-          currentStage: `Tx ${txHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle consensus on StudioNet...`,
-          progressPercent: 55,
-          etaSeconds: 20
-        };
-        set({
-          dares: get().dares.map(d => d.id === id ? { ...d, txHash, adjudicationSession: updatedSession } : d)
+        // EXCLUSIVE AUTHENTICATED LIFECYCLE:
+    // Await evidence freeze -> Await adjudication consensus -> Await escrow settlement
+    (async () => {
+      try {
+        // Step 1: Submit & FREEZE evidence on-chain FIRST and AWAIT finalization
+        console.log(`[Lifecycle Step 1/3] Freezing evidence dossier for Dare #${id} on EvidenceRegistry...`);
+        const freezeTx = await submitEvidenceOnChain({
+          dareId: id,
+          investigator: target.investigator || get().walletAddress || '',
+          conclusion: evidence.conclusion,
+          primaryUrl: evidence.primaryUrl,
+          secondaryUrl: evidence.secondaryUrl,
+          quotes: evidence.quotes,
+          reasoning: evidence.reasoning
         });
-      }
-    }).then((onChainResult) => {
-      const cur = get().dares.find(d => d.id === id);
-      if (!cur || cur.status === "FINALIZED") return;
 
-      const realVotes = formatRealValidatorVotes(
-        onChainResult.validators,
-        onChainResult.validatorVotes,
-        onChainResult.verdict,
-        onChainResult.score,
-        onChainResult.rationale
-      );
+        // Update UI stage: evidence freeze confirmed, moving to adjudication
+        const curAfterFreeze = get().dares.find(d => d.id === id);
+        if (curAfterFreeze && curAfterFreeze.adjudicationSession) {
+          const updatedStageSession: AdjudicationSession = {
+            ...curAfterFreeze.adjudicationSession,
+            isLiveOnChain: true,
+            txHash: freezeTx,
+            currentStage: `Stage 1 Confirmed: Evidence frozen on EvidenceRegistry (Tx: ${freezeTx.slice(0, 10)}...). Initiating multi-LLM consensus on DareAdjudicator...`,
+            progressPercent: 35,
+            etaSeconds: 30
+          };
+          set({
+            dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: updatedStageSession } : d)
+          });
+        }
 
-      const finalizedSession: AdjudicationSession = {
-        dareId: id,
-        status: "FINALIZED",
-        progressPercent: 100,
-        currentStage: `Consensus Finalized on GenLayer StudioNet: ${onChainResult.receiptStatus}`,
-        startedAt: cur.adjudicationSession?.startedAt || Date.now() - 30000,
-        etaSeconds: 0,
-        votes: realVotes,
-        requiredVotes: onChainResult.validators.length || 5,
-        consensusThreshold: "Majority Quorum on StudioNet",
-        finalVerdict: onChainResult.verdict as any,
-        averageScore: onChainResult.score,
-        consensusRationale: onChainResult.rationale,
-        isLiveOnChain: true,
-        txHash: onChainResult.txHash,
-        onChainValidators: onChainResult.validators,
-        receiptStatus: onChainResult.receiptStatus
-      };
+        // Step 2: Trigger real on-chain GenLayer Intelligent Contract adjudication (adjudicate_from_records)
+        console.log(`[Lifecycle Step 2/3] Calling adjudicate_from_records for Dare #${id} on DareAdjudicator...`);
+        const onChainResult = await submitRealGenLayerAdjudication(target, evidence, (adjTxHash) => {
+          const cur = get().dares.find(d => d.id === id);
+          if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
+            const updatedSession: AdjudicationSession = {
+              ...cur.adjudicationSession,
+              isLiveOnChain: true,
+              txHash: adjTxHash,
+              currentStage: `Stage 2 In-Progress: Adjudication Tx ${adjTxHash.slice(0, 10)}... broadcast! GenLayer validators executing Equivalence Principle consensus on StudioNet...`,
+              progressPercent: 65,
+              etaSeconds: 20
+            };
+            set({
+              dares: get().dares.map(d => d.id === id ? { ...d, txHash: adjTxHash, adjudicationSession: updatedSession } : d)
+            });
+          }
+        });
 
-      const winnerLabel = onChainResult.verdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
-      const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
-        ? (cur.investigator || get().walletAddress)
-        : cur.challenger;
+        const cur = get().dares.find(d => d.id === id);
+        if (!cur || cur.status === "FINALIZED") return;
 
-      const finalizedDare: Dare = {
-        ...cur,
-        status: "FINALIZED" as DareStatus,
-        verdict: onChainResult.verdict as any,
-        verdictScore: onChainResult.score,
-        verdictRationale: onChainResult.rationale,
-        txHash: onChainResult.txHash,
-        payoutRecipient: winnerAddress,
-        adjudicationSession: finalizedSession
-      };
+        const realVotes = formatRealValidatorVotes(
+          onChainResult.validators,
+          onChainResult.validatorVotes,
+          onChainResult.verdict,
+          onChainResult.score,
+          onChainResult.rationale
+        );
 
-      const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
+        const winnerLabel = onChainResult.verdict === "INVESTIGATOR_WINS" ? "Investigator" : "Challenger";
+        const winnerAddress = onChainResult.verdict === "INVESTIGATOR_WINS"
+          ? (cur.investigator || get().walletAddress)
+          : cur.challenger;
 
-      set({
-        ...pushSnapshot(get(), updatedDares),
-        selectedDareId: id,
-        lastActionMessage: `On-chain GenLayer consensus settled for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). Winner recorded in protocol: ${winnerLabel}.`
-      });
+        // Step 3: Settle escrow pool strictly from authenticated adjudication verdict
+        console.log(`[Lifecycle Step 3/3] Calling settle_from_adjudication for Dare #${id} on StakeEscrow...`);
+        const settleTx = await settleWinnerPayoutOnChain(id, winnerAddress);
 
-      syncDareToCanonicalApi(finalizedDare).catch(() => {});
-      // Step 3: Settle escrow pool via authenticated adjudication verdict
-      settleWinnerPayoutOnChain(id, winnerAddress).catch(err => console.warn('[StakeEscrow] Settle notice:', err));
-
-    }).catch((err) => {
-      console.warn('[GenLayer Live Adjudication Error]', err);
-      const cur = get().dares.find(d => d.id === id);
-      if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
-        const errorSession: AdjudicationSession = {
-          ...cur.adjudicationSession,
-          status: "FAILED" as any,
+        const finalizedSession: AdjudicationSession = {
+          dareId: id,
+          status: "FINALIZED",
           progressPercent: 100,
-          currentStage: `StudioNet Adjudication Failed: ${err.message || String(err)}`,
-          consensusRationale: `Transaction or consensus failed on GenLayer StudioNet: ${err.message || String(err)}`
+          currentStage: `Consensus & Settlement Finalized on GenLayer StudioNet: ${onChainResult.receiptStatus} (Settlement Tx: ${settleTx ? settleTx.slice(0, 10) + '...' : 'Confirmed'})`,
+          startedAt: cur.adjudicationSession?.startedAt || Date.now() - 30000,
+          etaSeconds: 0,
+          votes: realVotes,
+          requiredVotes: onChainResult.validators.length || 5,
+          consensusThreshold: "Majority Quorum on StudioNet",
+          finalVerdict: onChainResult.verdict as any,
+          averageScore: onChainResult.score,
+          consensusRationale: onChainResult.rationale,
+          isLiveOnChain: true,
+          txHash: onChainResult.txHash,
+          onChainValidators: onChainResult.validators,
+          receiptStatus: onChainResult.receiptStatus
         };
+
+        const finalizedDare: Dare = {
+          ...cur,
+          status: "FINALIZED" as DareStatus,
+          verdict: onChainResult.verdict as any,
+          verdictScore: onChainResult.score,
+          verdictRationale: onChainResult.rationale,
+          txHash: onChainResult.txHash,
+          payoutRecipient: winnerAddress,
+          adjudicationSession: finalizedSession
+        };
+
+        const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
+
         set({
-          dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: errorSession } : d),
-          lastActionMessage: `StudioNet Adjudication error for Dare #${id}: ${err.message || String(err)}`
+          ...pushSnapshot(get(), updatedDares),
+          selectedDareId: id,
+          lastActionMessage: `On-chain GenLayer consensus settled for Dare #${id}: ${onChainResult.verdict} (${onChainResult.score}/100). Winner recorded in protocol: ${winnerLabel}. Settlement Tx: ${settleTx || 'Confirmed'}`
         });
+
+        syncDareToCanonicalApi(finalizedDare).catch(() => {});
+      } catch (err: any) {
+        console.warn('[GenLayer Authenticated Sequence Error]', err);
+        const cur = get().dares.find(d => d.id === id);
+        if (cur && cur.status === "SUBMITTED" && cur.adjudicationSession) {
+          const errorSession: AdjudicationSession = {
+            ...cur.adjudicationSession,
+            status: "FAILED" as any,
+            progressPercent: 100,
+            currentStage: `StudioNet Execution Failed: ${err.message || String(err)}`,
+            consensusRationale: `Transaction or consensus failed on GenLayer StudioNet: ${err.message || String(err)}`
+          };
+          set({
+            dares: get().dares.map(d => d.id === id ? { ...d, adjudicationSession: errorSession } : d),
+            lastActionMessage: `StudioNet Execution error for Dare #${id}: ${err.message || String(err)}`
+          });
+        }
       }
-    });
+    })();
 
     return true;
   },

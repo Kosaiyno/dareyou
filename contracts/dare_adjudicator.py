@@ -67,6 +67,8 @@ class DareAdjudicator(gl.Contract):
         dare_data = json.loads(str(raw_dare))
 
         ev_contract = gl.get_contract_at(self.evidence_contract)
+        if not ev_contract.has_evidence(dare_id):
+            raise ValueError(f"Cannot adjudicate: no frozen evidence dossier found for dare {dare_id} in EvidenceRegistry.")
         raw_evidence = ev_contract.get_evidence(dare_id)
         evidence_data = json.loads(str(raw_evidence))
 
@@ -99,44 +101,13 @@ class DareAdjudicator(gl.Contract):
         reasoning_defense: str
     ) -> str:
         """
-        LEGACY METHOD - DEPRECATED.
-        Use adjudicate_from_records() which binds to frozen DareRegistry + EvidenceRegistry state.
-        This method is kept only for backward compatibility with already-deployed contracts
-        but will reject calls if frozen records exist (enforcing authenticated flow).
+        LEGACY METHOD - PERMANENTLY DISABLED.
+        Exclusive authenticated lifecycle strictly required: callers MUST use adjudicate_from_records().
         """
-        d_key = u256(dare_id)
-        
-        # Check if frozen records exist - if so, force authenticated path
-        try:
-            reg_contract = gl.get_contract_at(self.registry_contract)
-            raw_dare = reg_contract.get_dare(dare_id)
-            if raw_dare and str(raw_dare).startswith("{"):
-                dare_data = json.loads(str(raw_dare))
-                if dare_data.get("status") in ["SUBMITTED", "ADJUDICATING", "FINALIZED"]:
-                    raise ValueError(
-                        f"Dare {dare_id} has frozen evidence. Must use adjudicate_from_records() "
-                        f"which binds to authenticated DareRegistry + EvidenceRegistry records."
-                    )
-        except ValueError:
-            raise
-        except Exception:
-            pass  # Registry not set or dare not found, allow legacy path for old dares
-        
-        # Prevent repeat adjudication
-        if d_key in self.adjudication_records:
-            raise ValueError(f"Dare {dare_id} has already been adjudicated. Repeat adjudication is blocked.")
-
-        return self._execute_adjudication(
-            dare_id=dare_id,
-            clean_title=str(title).strip(),
-            clean_claim=str(claim_statement).strip(),
-            clean_req_sources=str(required_sources_desc).strip(),
-            clean_criteria=str(evaluation_criteria).strip(),
-            clean_conclusion=str(conclusion).strip(),
-            clean_url=str(primary_source_url).strip(),
-            clean_sec_url=str(secondary_source_url).strip(),
-            clean_quotes=str(verbatim_quotes).strip(),
-            clean_reasoning=str(reasoning_defense).strip()
+        raise ValueError(
+            "Legacy unauthenticated adjudication is permanently disabled. "
+            "You MUST use adjudicate_from_records(dare_id), which binds directly "
+            "to frozen on-chain evidence in EvidenceRegistry and challenge specs in DareRegistry."
         )
 
     def _execute_adjudication(

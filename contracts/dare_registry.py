@@ -27,6 +27,7 @@ class DareRegistry(gl.Contract):
     dares: TreeMap[u256, str]
     policy_contract: Address
     qualifier_contract: Address
+    adjudicator_contract: Address
     escrow_contract: Address
 
     def __init__(self):
@@ -34,6 +35,7 @@ class DareRegistry(gl.Contract):
         self.dare_counter = u256(0)
         self.policy_contract = gl.message.sender_address
         self.qualifier_contract = gl.message.sender_address
+        self.adjudicator_contract = gl.message.sender_address
         self.escrow_contract = gl.message.sender_address
 
     @gl.public.view
@@ -59,18 +61,25 @@ class DareRegistry(gl.Contract):
         return self.dare_counter
 
     @gl.public.write
-    def set_authorized_contracts(self, policy: str, qualifier: str, escrow: str) -> bool:
+    def set_authorized_contracts(self, policy: str, qualifier: str, escrow: str, adjudicator: str = "") -> bool:
         caller = str(gl.message.sender_address)
         if caller != str(self.owner):
             raise Exception("Unauthorized: Only registry owner can set modules")
         self.policy_contract = Address(policy)
         self.qualifier_contract = Address(qualifier)
         self.escrow_contract = Address(escrow)
+        if adjudicator:
+            self.adjudicator_contract = Address(adjudicator)
         return True
 
     @gl.public.write
     def set_authorized_modules(self, adjudicator: str, escrow: str) -> bool:
-        return self.set_authorized_contracts(str(self.owner), adjudicator, escrow)
+        caller = str(gl.message.sender_address)
+        if caller != str(self.owner):
+            raise Exception("Unauthorized: Only registry owner can set modules")
+        self.adjudicator_contract = Address(adjudicator)
+        self.escrow_contract = Address(escrow)
+        return True
 
     @gl.public.write
     def create_dare(
@@ -368,6 +377,13 @@ class DareRegistry(gl.Contract):
         dare = json.loads(self.dares[d_key])
         if dare.get("status") not in ["SUBMITTED", "ADJUDICATING"]:
             raise ValueError(f"Cannot finalize dare in status '{dare.get('status')}'")
+
+        caller = str(gl.message.sender_address)
+        if caller != str(self.escrow_contract) and caller != str(self.adjudicator_contract) and caller != str(self.owner):
+            raise Exception(
+                f"Unauthorized: Caller {caller} cannot finalize dare. "
+                f"Only authorized escrow ({self.escrow_contract}), adjudicator ({self.adjudicator_contract}), or owner can finalize."
+            )
 
         dare["status"] = "FINALIZED"
         dare["verdict"] = str(verdict).upper().strip()

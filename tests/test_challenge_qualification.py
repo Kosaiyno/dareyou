@@ -199,8 +199,12 @@ class MockGLModule:
         self.eq_principle = MockEqPrinciple()
         self.public = MockPublic()
         self.nondet = MockNonDet()
+        self.deployed_instances = {}
 
     def get_contract_at(self, addr):
+        addr_str = str(addr)
+        if addr_str in self.deployed_instances:
+            return self.deployed_instances[addr_str]
         class MockTarget:
             def emit_transfer(self, value=0, on="accepted"):
                 pass

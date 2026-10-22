@@ -205,6 +205,18 @@ if "genlayer" in sys.modules:
     mock_gl = genlayer_mock.gl
     if not hasattr(mock_gl, "nondet"):
         mock_gl.nondet = MockNonDet()
+    if not hasattr(mock_gl, "deployed_instances"):
+        mock_gl.deployed_instances = {}
+    if not hasattr(mock_gl, "get_contract_at"):
+        def _mock_get_contract(addr):
+            addr_str = str(addr)
+            if addr_str in mock_gl.deployed_instances:
+                return mock_gl.deployed_instances[addr_str]
+            class MockTarget:
+                def emit_transfer(self, value=0, on="accepted"):
+                    pass
+            return MockTarget()
+        mock_gl.get_contract_at = _mock_get_contract
     mock_gl.eq_principle = MockEqPrinciple()
 else:
     mock_gl = MockGLModule()
@@ -440,7 +452,7 @@ class TestDareYouContracts(unittest.TestCase):
                 verbatim_quotes="Different quote",  # Different from frozen!
                 reasoning_defense="Attempt to override frozen evidence"
             )
-        self.assertIn("frozen evidence", str(ctx.exception).lower())
+        self.assertIn("permanently disabled", str(ctx.exception).lower())
         self.assertIn("adjudicate_from_records", str(ctx.exception))
 
     def test_escrow_legacy_rejected_when_adjudication_exists(self):
@@ -469,7 +481,7 @@ class TestDareYouContracts(unittest.TestCase):
         mock_gl.message.sender_address = Address(self.challenger)  # owner
         with self.assertRaises(ValueError) as ctx:
             self.escrow.settle_winner_payout(1, self.intruder)  # Wrong winner!
-        self.assertIn("authenticated adjudication", str(ctx.exception).lower())
+        self.assertIn("permanently disabled", str(ctx.exception).lower())
         self.assertIn("settle_from_adjudication", str(ctx.exception))
 
     def test_adjudicator_repeat_adjudication_blocked(self):
@@ -654,39 +666,110 @@ class TestDareYouContracts(unittest.TestCase):
         self.assertEqual(s_info["recipient"], self.investigator)
         self.assertEqual(s_info["claimant"], self.investigator)
 
-    # ===== LEGACY PATH TESTS (for backward compatibility) =====
+    # ===== REGRESSION TESTS: DEMONSTRATING EVERY UNAUTHORIZED PATH FAILS =====
 
-    def test_legacy_adjudication_still_works_for_old_dares(self):
-        """Legacy adjudicate_evidence should work when no frozen records exist"""
-        res = self.adjudicator.adjudicate_evidence(
-            dare_id=999,
-            title="Dare you to test legacy path",
-            category="MATCH_FACTS",
-            claim_statement="Test claim",
-            required_sources_desc="Test sources",
-            evaluation_criteria="Test criteria",
-            conclusion="CLAIM_VERIFIED_TRUE",
-            primary_source_url="https://uefa.com",
-            secondary_source_url="https://bbc.com",
-            verbatim_quotes="Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji.",
-            reasoning_defense="Reasoning"
-        )
-        parsed = json.loads(res)
-        self.assertEqual(parsed["verdict"], "INVESTIGATOR_WINS")
-        self.assertTrue(parsed["quote_verified"])
+    def test_legacy_adjudication_permanently_disabled_reverts(self):
+        """Demonstrate that legacy unauthenticated adjudication is permanently disabled and reverts"""
+        with self.assertRaises(ValueError) as ctx:
+            self.adjudicator.adjudicate_evidence(
+                dare_id=999,
+                title="Dare you to test legacy bypass",
+                category="MATCH_FACTS",
+                claim_statement="Test claim",
+                required_sources_desc="Test sources",
+                evaluation_criteria="Test criteria",
+                conclusion="CLAIM_VERIFIED_TRUE",
+                primary_source_url="https://uefa.com",
+                secondary_source_url="https://bbc.com",
+                verbatim_quotes="Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji.",
+                reasoning_defense="Reasoning"
+            )
+        self.assertIn("Legacy unauthenticated adjudication is permanently disabled", str(ctx.exception))
 
-    def test_legacy_settlement_still_works_for_old_dares(self):
-        """Legacy settle_winner_payout should work when no authenticated adjudication exists"""
+    def test_legacy_winner_payout_permanently_disabled_reverts(self):
+        """Demonstrate that caller-supplied winner settlement is permanently disabled and reverts"""
         self.escrow.deposit_challenger_stake(999, self.challenger, 1000)
         self.escrow.deposit_investigator_stake(999, self.investigator, 1000)
 
-        mock_gl.message.sender_address = Address(self.challenger)  # owner
-        self.escrow.settle_winner_payout(999, self.investigator)
+        mock_gl.message.sender_address = Address(self.challenger)
+        with self.assertRaises(ValueError) as ctx:
+            self.escrow.settle_winner_payout(999, self.investigator)
+        self.assertIn("Legacy caller-supplied winner settlement is permanently disabled", str(ctx.exception))
 
-        s_info = json.loads(self.escrow.get_stake_info(999))
-        self.assertTrue(s_info["settled"])
-        self.assertEqual(s_info["recipient"], self.investigator)
-        self.assertEqual(s_info["settlement_type"], "WINNER_PAYOUT_LEGACY")
+    def test_unauthorized_registry_finalization_reverts(self):
+        """Demonstrate that arbitrary callers cannot supply finalization to DareRegistry"""
+        mock_gl.message.sender_address = Address(self.challenger)
+        self.registry.create_dare("Dare you to test finalization security", "MATCH_FACTS", "C", "S", "E", 1000, 3600)
+        mock_gl.message.sender_address = Address(self.investigator)
+        self.registry.accept_dare(1)
+        self.registry.mark_submitted(1)
+
+        # Attacker tries to finalize dare with themselves as winner
+        attacker = "0xAttacker99999999999999999999999999999999"
+        mock_gl.message.sender_address = Address(attacker)
+        with self.assertRaises(Exception) as ctx:
+            self.registry.finalize_settlement(1, "CLAIM_VERIFIED_TRUE", attacker)
+        self.assertIn("Unauthorized: Caller", str(ctx.exception))
+
+    def test_unauthenticated_investigator_evidence_reverts(self):
+        """Demonstrate that someone other than the assigned investigator cannot submit evidence"""
+        mock_gl.message.sender_address = Address(self.challenger)
+        self.registry.create_dare("Dare you to test investigator auth", "MATCH_FACTS", "C", "S", "E", 1000, 3600)
+        mock_gl.message.sender_address = Address(self.investigator)
+        self.registry.accept_dare(1)
+
+        # Attacker tries to submit evidence for Dare #1
+        attacker = "0xAttacker99999999999999999999999999999999"
+        mock_gl.message.sender_address = Address(attacker)
+        with self.assertRaises(Exception) as ctx:
+            self.evidence.submit_evidence(
+                dare_id=1,
+                investigator_address=attacker,
+                conclusion="CLAIM_VERIFIED_TRUE",
+                primary_source_url="https://uefa.com",
+                secondary_source_url="",
+                verbatim_quotes="Quotes",
+                reasoning_defense="Defense"
+            )
+        self.assertIn("Unauthorized: Only assigned investigator", str(ctx.exception))
+
+    def test_adjudicate_from_records_without_frozen_evidence_reverts(self):
+        """Demonstrate that adjudication cannot start without finalized frozen evidence"""
+        mock_gl.message.sender_address = Address(self.challenger)
+        self.registry.create_dare("Dare you to test unevidenced adjudication", "MATCH_FACTS", "C", "S", "E", 1000, 3600)
+        mock_gl.message.sender_address = Address(self.investigator)
+        self.registry.accept_dare(1)
+
+        # Attempting to adjudicate Dare #1 before evidence is frozen in EvidenceRegistry
+        with self.assertRaises(ValueError) as ctx:
+            self.adjudicator.adjudicate_from_records(1)
+        self.assertIn("no frozen evidence dossier found", str(ctx.exception))
+
+    def test_repeat_adjudication_blocked_reverts(self):
+        """Demonstrate that an already adjudicated dare cannot be re-adjudicated"""
+        mock_gl.message.sender_address = Address(self.challenger)
+        self.registry.create_dare("Dare you to test repeat adjudication", "MATCH_FACTS", "C", "S", "E", 1000, 3600)
+        mock_gl.message.sender_address = Address(self.investigator)
+        self.registry.accept_dare(1)
+
+        self.evidence.submit_evidence(
+            dare_id=1,
+            investigator_address=self.investigator,
+            conclusion="CLAIM_VERIFIED_TRUE",
+            primary_source_url="https://uefa.com",
+            secondary_source_url="",
+            verbatim_quotes="Official UEFA match report confirms goals were scored by Bernardo Silva and Akanji.",
+            reasoning_defense="Reasoning"
+        )
+        self.registry.mark_submitted(1)
+
+        # First adjudication succeeds
+        self.adjudicator.adjudicate_from_records(1)
+
+        # Second adjudication MUST revert
+        with self.assertRaises(ValueError) as ctx:
+            self.adjudicator.adjudicate_from_records(1)
+        self.assertIn("already been adjudicated. Repeat adjudication is blocked", str(ctx.exception))
 
 
 if __name__ == "__main__":

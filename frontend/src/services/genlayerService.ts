@@ -348,7 +348,18 @@ export async function settleWinnerPayoutOnChain(
     value: 0n,
     leaderOnly: false
   });
-  console.log(`[StakeEscrow] Escrow pool settled via authenticated adjudication for Dare #${dareId}. Tx: ${txHash}`);
+  console.log('[StakeEscrow] Escrow pool settlement broadcast on StudioNet for Dare #' + dareId + '. Tx: ' + txHash + '. Awaiting receipt...');
+  try {
+    const receipt = await client.waitForTransactionReceipt({
+      hash: txHash,
+      status: 'ACCEPTED' as any,
+      retries: 45,
+      interval: 3500
+    });
+    console.log('[StakeEscrow] Escrow settlement confirmed: ' + ((receipt as any)?.status_name || 'ACCEPTED'));
+  } catch (receiptErr) {
+    console.warn('[StakeEscrow] Settlement receipt poll notice:', receiptErr);
+  }
   return txHash;
 }
 
@@ -576,7 +587,18 @@ export async function submitEvidenceOnChain(params: {
     value: 0n,
     leaderOnly: false
   });
-  console.log(`[EvidenceRegistry] Evidence permanently frozen on StudioNet for Dare #${params.dareId}. Tx: ${txHash}`);
+  console.log('[EvidenceRegistry] Evidence broadcast on StudioNet for Dare #' + params.dareId + '. Tx: ' + txHash + '. Awaiting confirmation receipt...');
+  try {
+    const receipt = await client.waitForTransactionReceipt({
+      hash: txHash,
+      status: 'ACCEPTED' as any,
+      retries: 45,
+      interval: 3500
+    });
+    console.log('[EvidenceRegistry] Evidence freeze permanently confirmed on StudioNet: ' + ((receipt as any)?.status_name || 'ACCEPTED'));
+  } catch (receiptErr) {
+    console.warn('[EvidenceRegistry] Freeze receipt poll notice:', receiptErr);
+  }
   return txHash;
 }
 
