@@ -5,6 +5,39 @@ import tailwindcss from '@tailwindcss/vite';
 
 function apiDaresDevPlugin(): Plugin {
   const sharedDares = new Map();
+  sharedDares.set(1, {
+    id: 1,
+    onChainId: 1,
+    isBenchmark: false,
+    title: "Dare you to verify Apollo 11 lunar module landing coordinates on Sea of Tranquility",
+    category: "INVESTIGATIVE_FACT_FINDING",
+    domain: "Science",
+    claim: "Apollo 11 Lunar Module touched down on the Moon at coordinates 0.67416° N, 23.47314° E on the Sea of Tranquility.",
+    requiredSources: "NASA Apollo 11 Lunar Surface Journal mission transcripts",
+    criteria: "Quote must confirm Lunar Module coordinates 0.67416 23.47314 from primary archival records.",
+    stakeCents: 500,
+    creationBondCents: 500,
+    durationSeconds: 600,
+    acceptanceDeadlineTs: Date.now() + 86400000,
+    researchDeadlineTs: 0,
+    status: "FINALIZED",
+    isLocked: true,
+    verdict: "INVESTIGATOR_WINS",
+    verdictScore: 100,
+    verdictRationale: "The archive lists Apollo 11 Lunar Module coordinates as 0.67416 N, 23.47314 E, matching the submitted quote and satisfying the required precision.",
+    challenger: "0xBbb414E6867d8bb1c81b169AE53Dc453945e19f4",
+    investigator: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    payoutRecipient: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    payoutClaimed: true,
+    settlementTxHash: "0xa024e96ac80a5fd5605d63d7b8be46c93dbf11d1980426756b7769209d425ae1",
+    txHash: "0x8e7c444e21021b13c2fd3d006e54aad27bcdd34d4754df09df915fa8c9888256",
+    evidence: {
+      conclusion: "CLAIM_VERIFIED_TRUE",
+      primaryUrl: "https://www.hq.nasa.gov/alsj/a11/a11.landing.html",
+      quotes: "Lunar Module 0.67416 23.47314",
+      reasoning: "The Apollo 11 Lunar Surface Journal records the landing site of the Eagle Lunar Module at 0.67416° N, 23.47314° E."
+    }
+  });
   sharedDares.set(2, {
     id: 2,
     onChainId: 2,

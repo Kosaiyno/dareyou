@@ -10,6 +10,7 @@ export const GENLAYER_REPUTATION_ADDRESS = "0x683846ADB2529d5a7a82e1939be4b29Ac8
 export const GENLAYER_EVIDENCE_REGISTRY_ADDRESS = "0xB873C3f021FFEF68cAb3C06b9E16F459Ee909e3c";
 export const GENLAYER_POLICY_ADDRESS = "0xc8388c07545710d95552bB975B321b94B429EfE3";
 export const GENLAYER_PROBE_NETWORK_ADDRESS = "0x20c419AAf7d54352CfF369B4113e5E92eBB97e0C";
+export const GENLAYER_STAKE_ESCROW_ADDRESS = "0xE82729980699b0f0F6dca041946488E319e3f675";
 
 export const GENLAYER_CHAIN_ID = 61999;
 export const GENLAYER_CHAIN_ID_HEX = "0xf22f";
@@ -83,6 +84,14 @@ export const GENLAYER_INTELLIGENT_CONTRACTS: IntelligentContractMetadata[] = [
     type: "GenLayer Intelligent Contract (Python · gl.Contract)",
     executionEngine: "GenLayer Equivalence Principle (Multi-LLM Consensus)",
     description: "Pre-execution validator connectivity probe verifying permanent archive sources (Archive.org, Wikipedia oldid)."
+  },
+  {
+    name: "StakeEscrow",
+    filename: "contracts/stake_escrow.py",
+    address: GENLAYER_STAKE_ESCROW_ADDRESS,
+    type: "GenLayer Intelligent Contract (Python · gl.Contract)",
+    executionEngine: "Deterministic State Machine",
+    description: "Non-custodial stake deposits, consensus-derived automated settlement, double-spend protection, and winner payout claim router."
   }
 ];
 
@@ -711,6 +720,22 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
               };
             }
 
+            // Fetch on-chain stake and claim record from StakeEscrow
+            let stakeCents = Number(meta.stakeCents) || existingCanonical?.stakeCents || 500;
+            let payoutClaimed = existingCanonical?.payoutClaimed || false;
+            try {
+              const stakeRaw = await client.readContract({
+                address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+                functionName: 'get_stake_info',
+                args: [onChainNum]
+              });
+              if (stakeRaw && !String(stakeRaw).includes('not found')) {
+                const sObj = typeof stakeRaw === 'string' ? JSON.parse(stakeRaw) : stakeRaw;
+                if (sObj.required_stake_cents) stakeCents = Number(sObj.required_stake_cents);
+                if (sObj.claimed !== undefined) payoutClaimed = Boolean(sObj.claimed);
+              }
+            } catch {}
+
             const rpcDare = {
               id: onChainNum,
               onChainId: onChainNum,
@@ -721,8 +746,8 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
               claim: parsed.claim_statement,
               requiredSources: cleanSources,
               criteria: parsed.evaluation_criteria,
-              stakeCents: 0,
-              creationBondCents: 0,
+              stakeCents,
+              creationBondCents: stakeCents,
               durationSeconds,
               acceptanceDeadlineTs: createdAtMs + 86400000,
               researchDeadlineTs,
@@ -735,7 +760,8 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
               verdictScore,
               verdictRationale,
               txHash: txHash || session?.txHash,
-              payoutRecipient: winner
+              payoutRecipient: winner,
+              payoutClaimed
             };
 
             freshRpcDares.push(rpcDare);
@@ -839,3 +865,115 @@ export async function getOnChainAdjudication(dareId: number): Promise<any> {
     return null;
   }
 }
+
+/**
+ * StakeEscrow: Challenger deposits initial stake for a dare.
+ */
+export async function depositChallengerStakeOnChain(
+  dareId: number,
+  challengerAddress: string,
+  amountCents: number,
+  valueWei: bigint = 0n
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'deposit_challenger_stake',
+    args: [dareId, challengerAddress, amountCents],
+    value: valueWei,
+    leaderOnly: false
+  });
+  await client.waitForTransactionReceipt({
+    hash: txHash,
+    status: 'ACCEPTED' as any,
+    retries: 30,
+    interval: 3000
+  });
+  return txHash;
+}
+
+/**
+ * StakeEscrow: Investigator deposits matching stake upon challenge acceptance.
+ */
+export async function depositInvestigatorStakeOnChain(
+  dareId: number,
+  investigatorAddress: string,
+  amountCents: number,
+  valueWei: bigint = 0n
+): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'deposit_investigator_stake',
+    args: [dareId, investigatorAddress, amountCents],
+    value: valueWei,
+    leaderOnly: false
+  });
+  await client.waitForTransactionReceipt({
+    hash: txHash,
+    status: 'ACCEPTED' as any,
+    retries: 30,
+    interval: 3000
+  });
+  return txHash;
+}
+
+/**
+ * StakeEscrow: Triggers consensus-derived settlement.
+ */
+export async function settleStakeFromAdjudicationOnChain(dareId: number): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'settle_from_adjudication',
+    args: [dareId],
+    value: 0n,
+    leaderOnly: false
+  });
+  await client.waitForTransactionReceipt({
+    hash: txHash,
+    status: 'ACCEPTED' as any,
+    retries: 30,
+    interval: 3000
+  });
+  return txHash;
+}
+
+/**
+ * StakeEscrow: Verified winner claims their payout withdrawal.
+ */
+export async function claimWinnerPayoutOnChain(dareId: number): Promise<string> {
+  const client = getGenLayerClient();
+  const txHash = await client.writeContract({
+    address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+    functionName: 'claim_winner_payout',
+    args: [dareId],
+    value: 0n,
+    leaderOnly: false
+  });
+  await client.waitForTransactionReceipt({
+    hash: txHash,
+    status: 'ACCEPTED' as any,
+    retries: 30,
+    interval: 3000
+  });
+  return txHash;
+}
+
+/**
+ * Reads on-chain stake record from StakeEscrow contract.
+ */
+export async function fetchOnChainStakeInfo(dareId: number): Promise<any> {
+  try {
+    const client = getGenLayerClient();
+    const raw = await client.readContract({
+      address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
+      functionName: 'get_stake_info',
+      args: [dareId]
+    });
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  } catch (err) {
+    return null;
+  }
+}
+

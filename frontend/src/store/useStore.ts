@@ -8,6 +8,10 @@ import {
   fetchOnChainDares,
   syncDareToCanonicalApi,
   submitEvidenceOnChain,
+  depositChallengerStakeOnChain,
+  depositInvestigatorStakeOnChain,
+  settleStakeFromAdjudicationOnChain,
+  claimWinnerPayoutOnChain,
 } from '../services/genlayerService';
 
 export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
@@ -289,7 +293,7 @@ export interface AppState {
   startAdjudication: (id: number) => boolean;
   adjudicateDare: (id: number, verdict: "INVESTIGATOR_WINS" | "CHALLENGER_WINS", score?: number, rationale?: string) => boolean;
   claimTimeoutForfeit: (id: number, challengerAddress: string) => boolean;
-  claimWinnerPayout: (id: number, walletAddress: string) => number;
+  claimWinnerPayout: (id: number, walletAddress: string) => Promise<number>;
   closeDare: (id: number, rationale?: string) => boolean;
   processAllExpiredDares: () => number;
   loadOnChainDares: () => Promise<void>;
@@ -418,6 +422,7 @@ export const useStore = create<AppState>((set, get) => ({
   createDare: async (item: any, onProgress?: (step: number, msg: string) => void) => {
     const state = get();
     const challenger = item.challenger || state.walletAddress || '0xChallenger';
+    const stakeCents = Number(item.stakeCents) > 0 ? Number(item.stakeCents) : 500;
 
     const result = await createDareOnChain({
       title: item.title,
@@ -431,6 +436,16 @@ export const useStore = create<AppState>((set, get) => ({
     }, onProgress);
 
     const onChainId = result.onChainId;
+
+    if (stakeCents > 0) {
+      if (onProgress) onProgress(3, `Step 3/3: Locking $${(stakeCents / 100).toFixed(2)} challenger stake in StakeEscrow on StudioNet...`);
+      try {
+        await depositChallengerStakeOnChain(onChainId, challenger, stakeCents);
+      } catch (escrowErr) {
+        console.warn("[StakeEscrow] depositChallengerStake warning:", escrowErr);
+      }
+    }
+
     const newDare: Dare = {
       id: onChainId,
       onChainId: onChainId,
@@ -441,8 +456,8 @@ export const useStore = create<AppState>((set, get) => ({
       claim: item.claim.trim(),
       requiredSources: item.requiredSources.trim(),
       criteria: item.criteria.trim(),
-      stakeCents: 0,
-      creationBondCents: 0,
+      stakeCents: stakeCents,
+      creationBondCents: stakeCents,
       durationSeconds: item.durationSeconds || 600,
       acceptanceDeadlineTs: Date.now() + 86400000,
       researchDeadlineTs: 0,
@@ -511,9 +526,19 @@ export const useStore = create<AppState>((set, get) => ({
     const onChainId = target.onChainId || target.id;
     const txHash = await acceptDareOnChain(onChainId);
 
+    const stakeCents = Number(target.stakeCents) > 0 ? Number(target.stakeCents) : 500;
+    if (stakeCents > 0) {
+      try {
+        await depositInvestigatorStakeOnChain(onChainId, investigatorAddress, stakeCents);
+      } catch (escrowErr) {
+        console.warn("[StakeEscrow] depositInvestigatorStake warning:", escrowErr);
+      }
+    }
+
     const acceptedDare: Dare = {
       ...target,
       status: "ACCEPTED" as DareStatus,
+      stakeCents: stakeCents,
       investigator: investigatorAddress,
       researchDeadlineTs: Date.now() + (target.durationSeconds * 1000),
       txHash: txHash || target.txHash
@@ -660,6 +685,14 @@ export const useStore = create<AppState>((set, get) => ({
       adjudicationSession: finalizedSession
     };
 
+    // Auto-trigger consensus-derived settlement on StakeEscrow
+    try {
+      console.log(`[StakeEscrow] Triggering settle_from_adjudication for Dare #${onChainId}...`);
+      await settleStakeFromAdjudicationOnChain(onChainId);
+    } catch (escrowErr) {
+      console.warn("[StakeEscrow] settle_from_adjudication warning:", escrowErr);
+    }
+
     const updatedDares = get().dares.map(d => d.id === id ? finalizedDare : d);
     set({
       ...pushSnapshot(get(), updatedDares),
@@ -718,6 +751,14 @@ export const useStore = create<AppState>((set, get) => ({
           payoutRecipient: winnerAddress,
           adjudicationSession: finalizedSession
         };
+
+        const onChainId = target.onChainId || target.id;
+        try {
+          console.log(`[StakeEscrow] Triggering settle_from_adjudication for Dare #${onChainId}...`);
+          await settleStakeFromAdjudicationOnChain(onChainId);
+        } catch (escrowErr) {
+          console.warn("[StakeEscrow] settle_from_adjudication warning:", escrowErr);
+        }
         set({
           ...pushSnapshot(get(), get().dares.map(d => d.id === id ? finalizedDare : d)),
           selectedDareId: id,
@@ -921,12 +962,21 @@ export const useStore = create<AppState>((set, get) => ({
     return processed;
   },
 
-  claimWinnerPayout: (id: number, _walletAddress: string) => {
+  claimWinnerPayout: async (id: number, _walletAddress: string) => {
     const state = get();
     const dare = state.dares.find(d => d.id === id);
     if (!dare || dare.status !== 'FINALIZED' || dare.payoutClaimed) return 0;
 
-    const payoutDollars = (dare.stakeCents * 2) / 100;
+    const onChainId = dare.onChainId || dare.id;
+    try {
+      console.log(`[StakeEscrow] Submitting claim_winner_payout for Dare #${onChainId}...`);
+      await claimWinnerPayoutOnChain(onChainId);
+    } catch (escrowErr) {
+      console.warn("[StakeEscrow] On-chain payout claim notice:", escrowErr);
+    }
+
+    const stakeCents = Number(dare.stakeCents) > 0 ? Number(dare.stakeCents) : 500;
+    const payoutDollars = (stakeCents * 2) / 100;
     const newDares = state.dares.map(d => {
       if (d.id === id) {
         const updated = { ...d, payoutClaimed: true };
@@ -948,7 +998,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     set({
       ...pushSnapshot(state, newDares),
-      lastActionMessage: `Protocol settlement record: $${payoutDollars.toFixed(2)} GEN awarded to winner for Dare #${id}.`
+      lastActionMessage: `Protocol payout withdrawn: $${payoutDollars.toFixed(2)} GEN claimed by winner for Dare #${id}.`
     });
     return payoutDollars;
   },

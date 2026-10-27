@@ -117,5 +117,25 @@
     ],
     "explorerUrl": "https://explorer-studio.genlayer.com/address/0x8efFAccAf2E060111d27ea9B52499F40304828cE",
     "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x6824216f1258bc4568adbc48dda200a16393c215254b0422a1f05d7879d70eed"
+  },
+  "StakeEscrow": {
+    "name": "StakeEscrow",
+    "file": "stake_escrow.py",
+    "address": "0xE82729980699b0f0F6dca041946488E319e3f675",
+    "txHash": "0x05908695a57319ba74990135b67b7b6de021903abe927252fc361bb32ce5f9dc",
+    "wireTxHash": "0x77875016f0012ffeaaa4c8bcb2ab5f11ebfd17dfbf1db424d1b668cdec5d15df",
+    "status": "ACCEPTED",
+    "consensus": "MAJORITY_AGREE",
+    "validators": [
+      "0x9C182DE7F93AdbE8ee3D62570613eC23c5683cAc",
+      "0x4868b172ddEBC18b5219aaCeAB77ae0Df330c83A",
+      "0xb04cdDC4a6Ff6A0aDF715cfe00Fa307b901cebD4",
+      "0xF7D08d12dB37D3e02D1833b5cB7e56B07F114186",
+      "0xcab45E3fe9cC9592B5C378E47734E022b7Df80c9"
+    ],
+    "registryAddress": "0x5717f1fc8286d1e4d79F93e857068Cb121678D47",
+    "adjudicatorAddress": "0x8efFAccAf2E060111d27ea9B52499F40304828cE",
+    "explorerUrl": "https://explorer-studio.genlayer.com/address/0xE82729980699b0f0F6dca041946488E319e3f675",
+    "txExplorerUrl": "https://explorer-studio.genlayer.com/tx/0x05908695a57319ba74990135b67b7b6de021903abe927252fc361bb32ce5f9dc"
   }
 }

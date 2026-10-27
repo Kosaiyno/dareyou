@@ -301,6 +301,7 @@ export default function App() {
   const [createCriteria, setCreateCriteria] = useState('');
   const [createDurationValue, setCreateDurationValue] = useState('30');
   const [createDurationUnit, setCreateDurationUnit] = useState<'SECONDS' | 'MINUTES' | 'HOURS' | 'DAYS'>('SECONDS');
+  const [createStakeValue, setCreateStakeValue] = useState('5');
 
   const computedDurationSeconds = Math.max(1, Math.round(
     createDurationUnit === 'SECONDS' ? (parseFloat(createDurationValue) || 1) :
@@ -522,6 +523,7 @@ export default function App() {
 
     try {
       const challengerAddr = walletAddress || '0xChallenger';
+      const stakeCents = Math.round((parseFloat(createStakeValue) || 5) * 100);
 
       const newId = await store.createDare({
         title: createTitle,
@@ -530,7 +532,7 @@ export default function App() {
         claim: createClaim,
         requiredSources: createSources,
         criteria: createCriteria,
-        stakeCents: 0,
+        stakeCents: stakeCents,
         durationSeconds: computedDurationSeconds,
         challenger: challengerAddr
       }, (step: number, msg: string) => {
@@ -605,6 +607,34 @@ export default function App() {
     } catch (err: any) {
       setTxState({ active: false, message: '', step: 0 });
       alert("Failed to accept challenge: " + (err.message || String(err)));
+    }
+  };
+
+  const handleClaimPayout = async (dareId: number) => {
+    const dare = dares.find(d => d.id === dareId);
+    if (!dare) return;
+
+    const winnerAddr = walletAddress || (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || '';
+
+    setTxState({
+      active: true,
+      message: `Broadcasting claim_winner_payout to StakeEscrow on StudioNet...`,
+      step: 1
+    });
+
+    try {
+      const payoutDollars = await store.claimWinnerPayout(dareId, winnerAddr);
+      setTxState({
+        active: true,
+        message: `Winner payout of $${payoutDollars.toFixed(2)} GEN successfully claimed & withdrawn on StudioNet!`,
+        step: 2
+      });
+      setTimeout(() => {
+        setTxState({ active: false, message: '', step: 0 });
+      }, 1500);
+    } catch (err: any) {
+      setTxState({ active: false, message: '', step: 0 });
+      alert("Failed to claim payout: " + (err.message || String(err)));
     }
   };
 
@@ -1226,6 +1256,10 @@ export default function App() {
                                 <span className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider">
                                   {domainLabel}
                                 </span>
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
+                                  <Coins className="w-2.5 h-2.5 text-amber-500" />
+                                  ${((dare.stakeCents || 500) * 2 / 100).toFixed(2)} Pot
+                                </span>
 
                                 {/* Mobile-only Action Button placed at top-right of card */}
                                 <div className="block md:hidden">
@@ -1707,6 +1741,51 @@ export default function App() {
                         placeholder="Specify exact condition required to claim the reward without speculative bias..."
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-[#EF4444]"
                       />
+                    </div>
+
+                    {/* Challenger Initial Stake & Prize Pot */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                          <Coins className="w-3.5 h-3.5 text-amber-500" />
+                          Challenger Initial Stake
+                        </label>
+                        <span className="text-[10px] font-bold text-emerald-600 font-mono">
+                          Prize Pool: ${(Math.max(1, parseFloat(createStakeValue) || 5) * 2).toFixed(2)} (Matched 1:1)
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <span className="text-slate-400 font-mono text-xs absolute left-3 top-1/2 -translate-y-1/2 font-bold">$</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="5"
+                          value={createStakeValue}
+                          onChange={(e) => setCreateStakeValue(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-7 pr-3 py-2.5 text-xs text-slate-900 font-mono focus:outline-none focus:border-[#EF4444]"
+                        />
+                      </div>
+                      {/* Quick Stake Preset Pills */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                        {['1', '5', '10', '25', '50'].map((amt) => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setCreateStakeValue(amt)}
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold transition-all cursor-pointer ${
+                              createStakeValue === amt
+                                ? 'bg-amber-500 text-white shadow-xs'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            ${amt}.00
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        Escrowed in <code className="font-mono text-slate-600">StakeEscrow</code> contract. Matched by investigator upon acceptance. Winner claims 100% of pot upon consensus finalization.
+                      </p>
                     </div>
 
                     {/* Research Window Duration */}
@@ -2948,6 +3027,71 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Escrow Prize Settlement & Winner Payout Withdrawal */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-slate-900 border border-amber-500/30 text-white space-y-3.5 shadow-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                          <Coins className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-extrabold uppercase tracking-wider text-amber-300 block">
+                            Non-Custodial Stake Escrow
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Contract: 0xE827...f675 · StudioNet
+                          </span>
+                        </div>
+                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-mono font-black bg-amber-400 text-slate-950 shadow-sm">
+                        ${((selectedDare.stakeCents || 500) * 2 / 100).toFixed(2)} TOTAL POT
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Challenger Stake</span>
+                        <span className="font-bold font-mono text-amber-200 text-xs">
+                          ${((selectedDare.stakeCents || 500) / 100).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Investigator Stake</span>
+                        <span className="font-bold font-mono text-amber-200 text-xs">
+                          ${((selectedDare.stakeCents || 500) / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Claim Payout Action */}
+                    {selectedDare.payoutClaimed ? (
+                      <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center justify-between text-xs font-bold">
+                        <span className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          Prize pot successfully claimed and withdrawn
+                        </span>
+                        <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 uppercase font-bold">
+                          WITHDRAWN
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleClaimPayout(selectedDare.id)}
+                          disabled={txState.active}
+                          className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer"
+                        >
+                          <Trophy className="w-4 h-4 text-amber-300" />
+                          <span>Claim & Withdraw Winner Payout (${((selectedDare.stakeCents || 500) * 2 / 100).toFixed(2)} GEN)</span>
+                        </button>
+                        <p className="text-[10px] text-slate-400 text-center font-mono">
+                          Executes authenticated <code className="text-amber-300">claim_winner_payout</code> on <code className="text-amber-300">StakeEscrow</code> for winner: <code className="text-slate-200">{winnerAddress.slice(0, 10)}...{winnerAddress.slice(-6)}</code>
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                 {/* Evidence Archive Record */}
