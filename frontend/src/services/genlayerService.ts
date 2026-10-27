@@ -1,6 +1,5 @@
-import { createClient, createAccount, chains } from 'genlayer-js';
-import { generatePrivateKey } from 'viem/accounts';
-import { formatEther } from 'viem';
+import { createClient, chains } from 'genlayer-js';
+import { formatEther, parseEther } from 'viem';
 import type { ValidatorVote } from '../store/useStore';
 
 export const GENLAYER_ADJUDICATOR_ADDRESS = "0x8efFAccAf2E060111d27ea9B52499F40304828cE";
@@ -95,63 +94,84 @@ export const GENLAYER_INTELLIGENT_CONTRACTS: IntelligentContractMetadata[] = [
   }
 ];
 
-// Persistent or ephemeral client account for interacting with StudioNet
-// Ephemeral account cache
-let cachedAccount: any = null;
+// Connected MetaMask Web3 wallet address
+let activeConnectedWalletAddress: `0x${string}` | null = null;
 
-export function getOrCreateBrowserAccount() {
-  if (cachedAccount) return cachedAccount;
-  if (typeof window !== 'undefined' && window.localStorage) {
-    const stored = window.localStorage.getItem('dareyou_ephemeral_pk');
-    if (stored && stored.startsWith('0x') && stored.length === 66) {
-      void stored;
-      cachedAccount = createAccount(stored as `0x${string}`);
-      return cachedAccount;
+export function setActiveConnectedWallet(address: string | null) {
+  if (address && address.startsWith('0x')) {
+    activeConnectedWalletAddress = address.toLowerCase() as `0x${string}`;
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem('dareyou_wallet_connected', 'true');
+      window.localStorage?.setItem('dareyou_connected_address', address);
+      // Clean up any old in-browser session keys
+      window.localStorage?.removeItem('dareyou_ephemeral_pk');
+      window.localStorage?.removeItem('dareyou_investigator_pk');
     }
-    const freshPk = generatePrivateKey();
-    window.localStorage.setItem('dareyou_ephemeral_pk', freshPk);
-    void freshPk;
-    cachedAccount = createAccount(freshPk);
-    return cachedAccount;
+  } else {
+    activeConnectedWalletAddress = null;
+    if (typeof window !== 'undefined') {
+      window.localStorage?.removeItem('dareyou_wallet_connected');
+      window.localStorage?.removeItem('dareyou_connected_address');
+    }
   }
-  const fallbackPk = generatePrivateKey();
-  cachedAccount = createAccount(fallbackPk);
-  return cachedAccount;
 }
 
-export function getGenLayerClient() {
-  const account = getOrCreateBrowserAccount();
+export function getConnectedWalletAddress(): `0x${string}` | null {
+  if (activeConnectedWalletAddress) return activeConnectedWalletAddress;
+  if (typeof window !== 'undefined') {
+    const eth = (window as any).ethereum;
+    if (eth?.selectedAddress) {
+      activeConnectedWalletAddress = eth.selectedAddress.toLowerCase() as `0x${string}`;
+      return activeConnectedWalletAddress;
+    }
+    const stored = window.localStorage?.getItem('dareyou_connected_address');
+    if (stored && stored.startsWith('0x')) {
+      activeConnectedWalletAddress = stored.toLowerCase() as `0x${string}`;
+      return activeConnectedWalletAddress;
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns a read-only GenLayer client for queries and view calls.
+ */
+export function getGenLayerReadClient() {
   return createClient({
-    chain: chains.studionet,
-    account
+    chain: chains.studionet
   });
 }
 
-// Dedicated persistent session account for Investigator to guarantee caller == assigned_investigator
-let cachedInvestigatorAccount: any = null;
-const INVESTIGATOR_STORAGE_KEY = 'dareyou_investigator_pk';
-
-export function getInvestigatorAccount() {
-  if (cachedInvestigatorAccount) return cachedInvestigatorAccount;
-  if (typeof window !== 'undefined' && window.localStorage) {
-    let stored = window.localStorage.getItem(INVESTIGATOR_STORAGE_KEY);
-    if (!stored || !stored.startsWith('0x') || stored.length !== 66) {
-      stored = generatePrivateKey();
-      window.localStorage.setItem(INVESTIGATOR_STORAGE_KEY, stored);
+/**
+ * Returns an authenticated Web3 client bound directly to the user's connected MetaMask.
+ * Every write transaction triggers a native MetaMask signature/approval popup.
+ */
+export function getGenLayerWriteClient(overrideAccount?: string) {
+  if (typeof window !== 'undefined' && (window as any).ethereum) {
+    const eth = (window as any).ethereum;
+    const accountAddr = (overrideAccount || activeConnectedWalletAddress || eth.selectedAddress) as `0x${string}`;
+    if (!accountAddr) {
+      throw new Error("No Web3 wallet connected. Please click 'Connect Wallet' at top right to connect your MetaMask.");
     }
-    cachedInvestigatorAccount = createAccount(stored as `0x${string}`);
-    return cachedInvestigatorAccount;
+    return createClient({
+      chain: chains.studionet,
+      provider: eth,
+      account: accountAddr
+    });
   }
-  cachedInvestigatorAccount = createAccount(generatePrivateKey());
-  return cachedInvestigatorAccount;
+  throw new Error("MetaMask or compatible Web3 provider extension not detected in this browser.");
 }
 
-export function getInvestigatorClient() {
-  const account = getInvestigatorAccount();
-  return createClient({
-    chain: chains.studionet,
-    account
-  });
+export function getGenLayerClient(overrideAccount?: string) {
+  const accountAddr = overrideAccount || getConnectedWalletAddress();
+  if (accountAddr) {
+    return getGenLayerWriteClient(accountAddr);
+  }
+  return getGenLayerReadClient();
+}
+
+export function getInvestigatorClient(overrideAccount?: string) {
+  return getGenLayerWriteClient(overrideAccount);
 }
 
 export async function computeSha256(text: string): Promise<string> {
@@ -481,8 +501,8 @@ export async function submitEvidenceOnChain(params: {
   quotes: string;
   reasoning: string;
 }): Promise<string> {
-  const investigatorClient = getInvestigatorClient();
-  const investigatorAddress = getInvestigatorAccount().address;
+  const investigatorAddress = params.investigator || getConnectedWalletAddress() || '';
+  const investigatorClient = getInvestigatorClient(investigatorAddress);
 
   const txHash = await investigatorClient.writeContract({
     address: GENLAYER_EVIDENCE_REGISTRY_ADDRESS as `0x${string}`,
@@ -867,53 +887,61 @@ export async function getOnChainAdjudication(dareId: number): Promise<any> {
 }
 
 /**
- * StakeEscrow: Challenger deposits initial stake for a dare.
+ * StakeEscrow: Challenger deposits initial real GEN stake for a dare via MetaMask.
  */
 export async function depositChallengerStakeOnChain(
   dareId: number,
   challengerAddress: string,
   amountCents: number,
-  valueWei: bigint = 0n
+  valueWei?: bigint
 ): Promise<string> {
-  const client = getGenLayerClient();
+  const client = getGenLayerWriteClient(challengerAddress);
+  const genAmount = (amountCents / 100).toString();
+  const realWei = (valueWei !== undefined && valueWei > 0n) ? valueWei : parseEther(genAmount);
+
+  console.log(`[StakeEscrow] Depositing REAL GEN stake for Dare #${dareId}: ${amountCents} cents = ${genAmount} GEN (${realWei.toString()} wei) via MetaMask...`);
   const txHash = await client.writeContract({
     address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
     functionName: 'deposit_challenger_stake',
     args: [dareId, challengerAddress, amountCents],
-    value: valueWei,
+    value: realWei,
     leaderOnly: false
   });
   await client.waitForTransactionReceipt({
     hash: txHash,
     status: 'ACCEPTED' as any,
-    retries: 30,
-    interval: 3000
+    retries: 35,
+    interval: 3500
   });
   return txHash;
 }
 
 /**
- * StakeEscrow: Investigator deposits matching stake upon challenge acceptance.
+ * StakeEscrow: Investigator deposits matching real GEN stake upon challenge acceptance via MetaMask.
  */
 export async function depositInvestigatorStakeOnChain(
   dareId: number,
   investigatorAddress: string,
   amountCents: number,
-  valueWei: bigint = 0n
+  valueWei?: bigint
 ): Promise<string> {
-  const client = getGenLayerClient();
+  const client = getGenLayerWriteClient(investigatorAddress);
+  const genAmount = (amountCents / 100).toString();
+  const realWei = (valueWei !== undefined && valueWei > 0n) ? valueWei : parseEther(genAmount);
+
+  console.log(`[StakeEscrow] Depositing REAL GEN matching stake for Dare #${dareId}: ${amountCents} cents = ${genAmount} GEN (${realWei.toString()} wei) via MetaMask...`);
   const txHash = await client.writeContract({
     address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
     functionName: 'deposit_investigator_stake',
     args: [dareId, investigatorAddress, amountCents],
-    value: valueWei,
+    value: realWei,
     leaderOnly: false
   });
   await client.waitForTransactionReceipt({
     hash: txHash,
     status: 'ACCEPTED' as any,
-    retries: 30,
-    interval: 3000
+    retries: 35,
+    interval: 3500
   });
   return txHash;
 }
@@ -933,17 +961,18 @@ export async function settleStakeFromAdjudicationOnChain(dareId: number): Promis
   await client.waitForTransactionReceipt({
     hash: txHash,
     status: 'ACCEPTED' as any,
-    retries: 30,
-    interval: 3000
+    retries: 35,
+    interval: 3500
   });
   return txHash;
 }
 
 /**
- * StakeEscrow: Verified winner claims their payout withdrawal.
+ * StakeEscrow: Verified winner claims their real GEN payout withdrawal via MetaMask.
  */
-export async function claimWinnerPayoutOnChain(dareId: number): Promise<string> {
-  const client = getGenLayerClient();
+export async function claimWinnerPayoutOnChain(dareId: number, recipientAddress?: string): Promise<string> {
+  const client = getGenLayerWriteClient(recipientAddress);
+  console.log(`[StakeEscrow] Broadcasting claim_winner_payout for Dare #${dareId} via MetaMask...`);
   const txHash = await client.writeContract({
     address: GENLAYER_STAKE_ESCROW_ADDRESS as `0x${string}`,
     functionName: 'claim_winner_payout',
@@ -954,8 +983,8 @@ export async function claimWinnerPayoutOnChain(dareId: number): Promise<string> 
   await client.waitForTransactionReceipt({
     hash: txHash,
     status: 'ACCEPTED' as any,
-    retries: 30,
-    interval: 3000
+    retries: 35,
+    interval: 3500
   });
   return txHash;
 }

@@ -44,6 +44,7 @@ import { useStore, isDareExpired, isBotSafeUrl, convertToWayback, evaluateEviden
 import { 
   getGenLayerBalance,
   connectMetaMask,
+  setActiveConnectedWallet,
   GENLAYER_REGISTRY_ADDRESS
 } from './services/genlayerService';
 import type { DareCategory, Dare } from './store/useStore';
@@ -427,11 +428,13 @@ export default function App() {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts && accounts.length > 0) {
           const addr = accounts[0];
+          setActiveConnectedWallet(addr);
           setWalletAddress(addr);
           setWalletConnected(true);
           store.setWallet(true, addr);
           refreshOnChainBalance(addr);
         } else {
+          setActiveConnectedWallet(null);
           setWalletConnected(false);
           setWalletAddress('');
           setWalletBalance('0.00');
@@ -477,6 +480,7 @@ export default function App() {
   const handleConnectMetaMask = async () => {
     try {
       const res = await connectMetaMask();
+      setActiveConnectedWallet(res.address);
       setWalletAddress(res.address);
       setWalletConnected(true);
       store.setWallet(true, res.address);
@@ -492,6 +496,7 @@ export default function App() {
   };
 
   const disconnectWallet = () => {
+    setActiveConnectedWallet(null);
     setWalletConnected(false);
     setWalletAddress('');
     setWalletBalance('0.00');

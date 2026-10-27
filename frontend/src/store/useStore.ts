@@ -969,10 +969,11 @@ export const useStore = create<AppState>((set, get) => ({
 
     const onChainId = dare.onChainId || dare.id;
     try {
-      console.log(`[StakeEscrow] Submitting claim_winner_payout for Dare #${onChainId}...`);
-      await claimWinnerPayoutOnChain(onChainId);
+      console.log(`[StakeEscrow] Submitting claim_winner_payout for Dare #${onChainId} via MetaMask...`);
+      await claimWinnerPayoutOnChain(onChainId, _walletAddress);
     } catch (escrowErr) {
-      console.warn("[StakeEscrow] On-chain payout claim notice:", escrowErr);
+      console.warn("[StakeEscrow] On-chain payout claim error:", escrowErr);
+      throw escrowErr;
     }
 
     const stakeCents = Number(dare.stakeCents) > 0 ? Number(dare.stakeCents) : 500;
