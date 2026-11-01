@@ -155,5 +155,8 @@ function apiDaresDevPlugin(): Plugin {
 }
 
 export default defineConfig({
+  css: {
+    postcss: {}
+  },
   plugins: [react(), tailwindcss(), apiDaresDevPlugin()]
 });
