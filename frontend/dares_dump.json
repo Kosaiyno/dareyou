@@ -202,5 +202,34 @@
     "evaluation_criteria": "Archival citation confirming 30 April 1993 CERN declaration.",
     "research_window_seconds": 600,
     "status": "OPEN"
+  },
+  {
+    "dare_id": 10,
+    "id": 10,
+    "onChainId": 10,
+    "challenger": "0x661E5727fc759650468183BD5B00150bE1d47577",
+    "investigator": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    "category": "CONFLICTING_SOURCE_INVESTIGATION",
+    "domain": "Science",
+    "title": "Dare you to verify the exact date CERN announced the World Wide Web software was placed in the public domain",
+    "claim": "On April 30, 1993, CERN released the World Wide Web source code and client software into the public domain on a royalty-free basis.",
+    "claim_statement": "On April 30, 1993, CERN released the World Wide Web source code and client software into the public domain on a royalty-free basis.",
+    "requiredSources": "https://web.archive.org/web/20210506085536/https://home.cern/science/computing/birth-web/licensing-web",
+    "required_sources_desc": "https://web.archive.org/web/20210506085536/https://home.cern/science/computing/birth-web/licensing-web",
+    "criteria": "The submitted evidence quote must confirm that on 30 April 1993 CERN declared the WWW technology into the public domain free of charge.",
+    "evaluation_criteria": "The submitted evidence quote must confirm that on 30 April 1993 CERN declared the WWW technology into the public domain free of charge.",
+    "stakeCents": 100,
+    "durationSeconds": 300,
+    "status": "FINALIZED",
+    "verdict": "INVESTIGATOR_WINS",
+    "winner": "0x3f0e92e30a4bD1C1851481cdEE3182a314b04B6C",
+    "adjudicated": true,
+    "isLocked": true,
+    "evidence": {
+      "conclusion": "CLAIM_VERIFIED_TRUE",
+      "primaryUrl": "https://web.archive.org/web/20210506085536/https://home.cern/science/computing/birth-web/licensing-web",
+      "quotes": "On 30 April 1993, CERN put the World Wide Web software in the public domain",
+      "reasoning": "Primary archival records from CERN explicitly prove that on 30 April 1993 CERN put WWW into the public domain on an open basis."
+    }
   }
 ]

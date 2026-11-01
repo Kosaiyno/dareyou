@@ -646,7 +646,16 @@ export default function App() {
     const dare = dares.find(d => d.id === dareId);
     if (!dare) return;
 
-    const winnerAddr = walletAddress || (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || '';
+    const winnerAddr = (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || '';
+    if (!walletAddress) {
+      setShowConnectModal(true);
+      return;
+    }
+
+    if (winnerAddr && walletAddress.toLowerCase() !== winnerAddr.toLowerCase()) {
+      alert(`Unauthorized: Only the designated winner (${winnerAddr.slice(0, 10)}...) can claim this payout.`);
+      return;
+    }
 
     setTxState({
       active: true,
@@ -655,12 +664,13 @@ export default function App() {
     });
 
     try {
-      const payoutDollars = await store.claimWinnerPayout(dareId, winnerAddr);
+      const payoutDollars = await store.claimWinnerPayout(dareId, walletAddress);
       setTxState({
         active: true,
-        message: `Winner payout of $${payoutDollars.toFixed(2)} GEN successfully claimed & withdrawn on StudioNet!`,
+        message: `Winner payout of $${payoutDollars.toFixed(2)} GEN successfully claimed & deposited to your wallet!`,
         step: 2
       });
+      await refreshOnChainBalance(walletAddress);
       setTimeout(() => {
         setTxState({ active: false, message: '', step: 0 });
       }, 1500);
@@ -3125,16 +3135,40 @@ export default function App() {
 
                     {/* Claim Payout Action */}
                     {selectedDare.payoutClaimed ? (
-                      <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex items-center justify-between text-xs font-bold">
-                        <span className="flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          Prize pot successfully claimed and withdrawn
-                        </span>
-                        <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-200 uppercase font-bold">
-                          WITHDRAWN
-                        </span>
+                      <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs space-y-1.5">
+                        <div className="flex items-center justify-between font-bold">
+                          <span className="flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            <span>
+                              {isUserWinner 
+                                ? "You have claimed and received your prize payout!" 
+                                : "Prize pot claimed and withdrawn by winner"}
+                            </span>
+                          </span>
+                          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 uppercase font-bold">
+                            PAID OUT
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-300 font-mono flex items-center justify-between pt-0.5 border-t border-emerald-500/20">
+                          <span className="text-slate-400">Winner Recipient:</span>
+                          <span className="text-emerald-300 font-bold">
+                            {selectedDare.payoutRecipient || winnerAddress ? `${(selectedDare.payoutRecipient || winnerAddress).slice(0, 10)}...${(selectedDare.payoutRecipient || winnerAddress).slice(-6)}` : 'N/A'}
+                            {isUserWinner && " (You)"}
+                          </span>
+                        </div>
+                        {selectedDare.settlementTxHash && (
+                          <a
+                            href={`https://explorer-studio.genlayer.com/tx/${selectedDare.settlementTxHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-emerald-300 hover:text-emerald-200 underline flex items-center gap-1 font-mono pt-0.5"
+                          >
+                            <span>Payout Tx: {selectedDare.settlementTxHash.slice(0, 18)}...</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
                       </div>
-                    ) : (
+                    ) : isUserWinner ? (
                       <div className="space-y-2 pt-1">
                         <button
                           type="button"
@@ -3143,11 +3177,21 @@ export default function App() {
                           className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 active:scale-[0.99] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer"
                         >
                           <Trophy className="w-4 h-4 text-amber-300" />
-                          <span>Claim & Withdraw Winner Payout (${((selectedDare.stakeCents || 500) * 2 / 100).toFixed(2)} GEN)</span>
+                          <span>Claim & Withdraw Your Winner Payout (${((selectedDare.stakeCents || 500) * 2 / 100).toFixed(2)} GEN)</span>
                         </button>
                         <p className="text-[10px] text-slate-400 text-center font-mono">
-                          Executes authenticated <code className="text-amber-300">claim_winner_payout</code> on <code className="text-amber-300">StakeEscrow</code> for winner: <code className="text-slate-200">{winnerAddress.slice(0, 10)}...{winnerAddress.slice(-6)}</code>
+                          Transfers verified native GEN pot to your connected wallet: <code className="text-slate-200">{walletAddress.slice(0, 10)}...{walletAddress.slice(-6)}</code>
                         </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 text-xs flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-amber-400" />
+                          <span>Consensus Finalized — Awaiting winner payout claim</span>
+                        </span>
+                        <span className="font-mono text-[10px] text-amber-300">
+                          Winner: {winnerAddress ? `${winnerAddress.slice(0, 8)}...` : 'N/A'}
+                        </span>
                       </div>
                     )}
                   </div>

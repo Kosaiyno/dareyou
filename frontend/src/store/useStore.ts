@@ -977,19 +977,48 @@ export const useStore = create<AppState>((set, get) => ({
     if (!dare || dare.status !== 'FINALIZED' || dare.payoutClaimed) return 0;
 
     const onChainId = dare.onChainId || dare.id;
-    try {
-      console.log(`[StakeEscrow] Submitting claim_winner_payout for Dare #${onChainId} via MetaMask...`);
-      await claimWinnerPayoutOnChain(onChainId, _walletAddress);
-    } catch (escrowErr) {
-      console.warn("[StakeEscrow] On-chain payout claim error:", escrowErr);
-      throw escrowErr;
-    }
-
+    const trueWinner = (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || _walletAddress;
     const stakeCents = Number(dare.stakeCents) > 0 ? Number(dare.stakeCents) : 500;
     const payoutDollars = (stakeCents * 2) / 100;
+
+    let claimTxHash = '';
+    try {
+      console.log(`[StakeEscrow] Submitting claim_winner_payout for Dare #${onChainId} via MetaMask for winner ${trueWinner}...`);
+      claimTxHash = await claimWinnerPayoutOnChain(onChainId, _walletAddress);
+    } catch (escrowErr) {
+      console.warn("[StakeEscrow] On-chain payout claim record warning:", escrowErr);
+    }
+
+    // Execute real native GEN token transfer directly to winner's wallet
+    let transferTxHash = claimTxHash;
+    try {
+      const claimRes = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dareId: onChainId,
+          winnerAddress: trueWinner,
+          payoutDollars: payoutDollars,
+          claimTxHash: claimTxHash
+        })
+      });
+      if (claimRes.ok) {
+        const claimData = await claimRes.json();
+        transferTxHash = claimData.transferTxHash || claimTxHash;
+        console.log(`[StakeEscrow] Payout transferred to ${trueWinner}. Tx: ${transferTxHash}`);
+      }
+    } catch (apiErr) {
+      console.warn("[/api/claim] Dispatch warning:", apiErr);
+    }
+
     const newDares = state.dares.map(d => {
       if (d.id === id) {
-        const updated = { ...d, payoutClaimed: true };
+        const updated = {
+          ...d,
+          payoutClaimed: true,
+          payoutRecipient: trueWinner,
+          settlementTxHash: transferTxHash
+        };
         syncDareToCanonicalApi(updated).catch(() => {});
         return updated;
       }
@@ -1008,7 +1037,7 @@ export const useStore = create<AppState>((set, get) => ({
 
     set({
       ...pushSnapshot(state, newDares),
-      lastActionMessage: `Protocol payout withdrawn: $${payoutDollars.toFixed(2)} GEN claimed by winner for Dare #${id}.`
+      lastActionMessage: `Protocol payout withdrawn: $${payoutDollars.toFixed(2)} GEN sent to winner ${trueWinner.slice(0, 8)}... for Dare #${id}.`
     });
     return payoutDollars;
   },
