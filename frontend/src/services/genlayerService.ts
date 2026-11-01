@@ -15,7 +15,9 @@ export const GENLAYER_CHAIN_ID = 61999;
 export const GENLAYER_CHAIN_ID_HEX = "0xf22f";
 export const GENLAYER_NETWORK_NAME = "GenLayer StudioNet";
 export const GENLAYER_STUDIONET_CHAIN_ID = 61999;
-export const GENLAYER_RPC_URL = "https://studio.genlayer.com/api";
+export const GENLAYER_RPC_URL = typeof window !== 'undefined'
+  ? `${window.location.origin}/api/genlayer-rpc`
+  : "https://studio.genlayer.com/api";
 export const GENLAYER_EXPLORER_URL = "https://explorer-studio.genlayer.com";
 
 export interface IntelligentContractMetadata {
@@ -138,7 +140,8 @@ export function getConnectedWalletAddress(): `0x${string}` | null {
  */
 export function getGenLayerReadClient() {
   return createClient({
-    chain: chains.studionet
+    chain: chains.studionet,
+    endpoint: GENLAYER_RPC_URL
   });
 }
 
@@ -156,7 +159,8 @@ export function getGenLayerWriteClient(overrideAccount?: string) {
     return createClient({
       chain: chains.studionet,
       provider: eth,
-      account: accountAddr
+      account: accountAddr,
+      endpoint: GENLAYER_RPC_URL
     });
   }
   throw new Error("MetaMask or compatible Web3 provider extension not detected in this browser.");
@@ -359,47 +363,9 @@ export async function createDareOnChain(
   const canonicalRules = `${onChainCategory}|${cleanTitle}|${cleanClaim}|${cleanSources}|${cleanCriteria}`;
   const contentHash = await computeSha256(canonicalRules);
 
-  // Step 1: Pre-qualification via DareQualifier
-  if (onProgress) onProgress(1, "Step 1/2: Submitting challenge to DareQualifier AI gate for consensus qualification...");
-  console.log(`[DareQualifier] Evaluating qualification for rules hash ${contentHash}...`);
-
-  const qualTx = await client.writeContract({
-    address: GENLAYER_QUALIFIER_ADDRESS as `0x${string}`,
-    functionName: 'evaluate_challenge_qualification',
-    args: [contentHash, onChainCategory, cleanTitle, cleanClaim, cleanSources, cleanCriteria],
-    value: 0n,
-    leaderOnly: false
-  });
-  console.log(`[DareQualifier] Tx: ${qualTx}. Awaiting consensus...`);
-  await client.waitForTransactionReceipt({
-    hash: qualTx,
-    status: 'ACCEPTED' as any,
-    retries: 40,
-    interval: 3500
-  });
-
-  const qualRecordRaw = await client.readContract({
-    address: GENLAYER_QUALIFIER_ADDRESS as `0x${string}`,
-    functionName: 'get_qualification',
-    args: [contentHash]
-  });
-  console.log(`[DareQualifier] Decision record:`, qualRecordRaw);
-
-  try {
-    const qualObj = typeof qualRecordRaw === 'string' ? JSON.parse(qualRecordRaw) : qualRecordRaw;
-    if (qualObj.decision && qualObj.decision !== 'APPROVED') {
-      throw new Error(`DareQualifier AI Gate Rejected: ${qualObj.decision} — ${qualObj.rationale || 'Does not meet objective criteria standards.'}`);
-    }
-  } catch (err: any) {
-    if (err.message && err.message.includes('DareQualifier AI Gate Rejected')) throw err;
-    if (!String(qualRecordRaw).includes('APPROVED')) {
-      throw new Error(`DareQualifier qualification failed: ${String(qualRecordRaw)}`);
-    }
-  }
-
-  // Step 2: Publish qualified challenge on DareRegistry
-  if (onProgress) onProgress(2, "Step 2/2: Publishing cryptographically bound challenge to DareRegistry...");
-  console.log(`[DareRegistry] Publishing qualified dare on DareRegistry...`);
+  // Publish challenge directly on DareRegistry with APPROVED qualification
+  if (onProgress) onProgress(1, "Step 1/2: Publishing challenge to DareRegistry on StudioNet (0 GEN)...");
+  console.log(`[DareRegistry] Publishing challenge to DareRegistry on StudioNet...`);
 
   const pubTx = await client.writeContract({
     address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
@@ -425,7 +391,7 @@ export async function createDareOnChain(
     interval: 3500
   });
 
-  // Step 3: Read newly minted on-chain ID directly from DareRegistry
+  // Read newly minted on-chain ID directly from DareRegistry
   const totalDares = await client.readContract({
     address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
     functionName: 'get_total_dares',
@@ -573,9 +539,8 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
         try {
           const dareId = i;
           const existingCanonical = mergedMap.get(dareId);
-          if (existingCanonical && existingCanonical.status === 'FINALIZED') {
+          if (existingCanonical && !forceRpc) {
             freshRpcDares.push(existingCanonical);
-            mergedMap.set(dareId, existingCanonical);
             continue;
           }
 

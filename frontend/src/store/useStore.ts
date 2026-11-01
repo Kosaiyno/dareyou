@@ -438,11 +438,12 @@ export const useStore = create<AppState>((set, get) => ({
     const onChainId = result.onChainId;
 
     if (stakeCents > 0) {
-      if (onProgress) onProgress(3, `Step 3/3: Locking $${(stakeCents / 100).toFixed(2)} challenger stake in StakeEscrow on StudioNet...`);
+      if (onProgress) onProgress(2, `Step 2/2: Confirm in MetaMask to deposit ${(stakeCents / 100).toFixed(2)} GEN stake into StakeEscrow...`);
       try {
         await depositChallengerStakeOnChain(onChainId, challenger, stakeCents);
-      } catch (escrowErr) {
-        console.warn("[StakeEscrow] depositChallengerStake warning:", escrowErr);
+      } catch (escrowErr: any) {
+        console.error("[StakeEscrow] depositChallengerStake error:", escrowErr);
+        throw new Error(`Stake deposit rejected or failed: ${escrowErr?.message || escrowErr}`);
       }
     }
 

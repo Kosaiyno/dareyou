@@ -2,6 +2,14 @@ import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createClient, createAccount, chains } from 'genlayer-js';
+import { parseEther } from 'viem';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function apiDaresDevPlugin(): Plugin {
   const sharedDares = new Map();
@@ -101,6 +109,50 @@ function apiDaresDevPlugin(): Plugin {
             return;
           }
         }
+        if (req.url && req.url.startsWith('/api/faucet')) {
+          if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+              try {
+                const data = JSON.parse(body);
+                const { to, amount = '1.0' } = data;
+                if (!to || !to.startsWith('0x')) {
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: 'Valid 0x address required' }));
+                  return;
+                }
+                const envPath = path.resolve(__dirname, '..', '.env');
+                if (!fs.existsSync(envPath)) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ error: '.env not found' }));
+                  return;
+                }
+                const envContent = fs.readFileSync(envPath, 'utf8');
+                const match = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
+                if (!match) {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({ error: 'DEPLOYER_PRIVATE_KEY not found in .env' }));
+                  return;
+                }
+                const account = createAccount(match[1]);
+                const client = createClient({ chain: chains.studionet, account });
+                const sendTx = await client.sendTransaction({
+                  to: to as `0x${string}`,
+                  value: parseEther(String(amount))
+                });
+                console.log(`[Faucet] Sent ${amount} GEN to ${to}. Tx: ${sendTx}`);
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ success: true, txHash: sendTx, amount }));
+              } catch (e: any) {
+                console.error('[Faucet Error]:', e);
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: e?.message || 'Faucet failed' }));
+              }
+            });
+            return;
+          }
+        }
         if (req.url && req.url.startsWith('/api/claim')) {
           if (req.method === 'POST') {
             let body = '';
@@ -111,15 +163,11 @@ function apiDaresDevPlugin(): Plugin {
                 const { dareId, winnerAddress, payoutDollars, claimTxHash } = data;
                 let transferTxHash = '';
                 try {
-                  const fs = require('fs');
-                  const path = require('path');
                   const envPath = path.resolve(__dirname, '..', '.env');
                   if (fs.existsSync(envPath)) {
                     const envContent = fs.readFileSync(envPath, 'utf8');
                     const match = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
                     if (match && winnerAddress && Number(payoutDollars) > 0) {
-                      const { createClient, createAccount, chains } = require('genlayer-js');
-                      const { parseEther } = require('viem');
                       const account = createAccount(match[1]);
                       const client = createClient({ chain: chains.studionet, account });
                       transferTxHash = await client.sendTransaction({
@@ -157,6 +205,16 @@ function apiDaresDevPlugin(): Plugin {
 export default defineConfig({
   css: {
     postcss: {}
+  },
+  server: {
+    proxy: {
+      '/api/genlayer-rpc': {
+        target: 'https://studio.genlayer.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/genlayer-rpc/, '/api'),
+        secure: false
+      }
+    }
   },
   plugins: [react(), tailwindcss(), apiDaresDevPlugin()]
 });

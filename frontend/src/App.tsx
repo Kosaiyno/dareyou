@@ -293,6 +293,32 @@ export default function App() {
     }
   };
 
+  const [faucetLoading, setFaucetLoading] = useState(false);
+  const handleRequestFaucet = async () => {
+    if (!walletAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setFaucetLoading(true);
+    try {
+      const res = await fetch('/api/faucet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: walletAddress, amount: '1.0' })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Faucet request failed');
+      }
+      alert(`Success! 1.0 GEN sent to ${walletAddress}. Tx: ${data.txHash}`);
+      await refreshOnChainBalance(walletAddress);
+    } catch (err: any) {
+      alert(`Faucet error: ${err.message || String(err)}`);
+    } finally {
+      setFaucetLoading(false);
+    }
+  };
+
   // Create Dare Form State
   const [createTitle, setCreateTitle] = useState('');
   const [createCategory, setCreateCategory] = useState<DareCategory>('CONFLICTING_SOURCE_INVESTIGATION');
@@ -3308,6 +3334,29 @@ export default function App() {
                 </code>
               </div>
 
+              {/* StudioNet Balance & Test Faucet */}
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider block">
+                    StudioNet Balance
+                  </span>
+                  <div className="flex items-baseline gap-1 mt-0.5">
+                    <span className="text-base font-extrabold text-amber-950 font-mono">
+                      {walletBalance}
+                    </span>
+                    <span className="text-[11px] font-bold text-amber-700">GEN</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleRequestFaucet}
+                  disabled={faucetLoading}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5 active:scale-95"
+                >
+                  <Coins className="w-3.5 h-3.5" />
+                  <span>{faucetLoading ? 'Sending...' : 'Request 1 GEN'}</span>
+                </button>
+              </div>
+
               {/* Network Status Card */}
               <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between">
                 <div>
@@ -3322,8 +3371,9 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 font-semibold text-xs">
-                  Zero-Stake Arena
+                <div className="px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-800 text-emerald-300 font-semibold text-xs flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Stake Escrow Active</span>
                 </div>
               </div>
 
