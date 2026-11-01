@@ -646,7 +646,11 @@ export default function App() {
     const dare = dares.find(d => d.id === dareId);
     if (!dare) return;
 
-    const winnerAddr = (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || '';
+    const winnerAddr = (
+      dare.payoutRecipient ||
+      (dare as any).winner ||
+      (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : (dare.challenger || (dare as any).creator))
+    ) || '';
     if (!walletAddress) {
       setShowConnectModal(true);
       return;
@@ -3027,12 +3031,19 @@ export default function App() {
             {selectedDare.status === 'FINALIZED' && (() => {
               const isChallengerWinner = selectedDare.verdict === 'CHALLENGER_WINS';
               const isInvestigatorWinner = selectedDare.verdict === 'INVESTIGATOR_WINS';
-              const winnerAddress = isInvestigatorWinner 
-                ? (selectedDare.investigator || '') 
-                : (isChallengerWinner ? (selectedDare.challenger || '') : '');
+              const winnerAddress = (
+                selectedDare.payoutRecipient ||
+                (selectedDare as any).winner ||
+                (isInvestigatorWinner 
+                  ? (selectedDare.investigator || '') 
+                  : (isChallengerWinner ? (selectedDare.challenger || (selectedDare as any).creator || '') : ''))
+              );
               const isUserWinner = Boolean(
-                walletAddress && winnerAddress &&
-                walletAddress.toLowerCase() === winnerAddress.toLowerCase()
+                walletAddress && (
+                  (winnerAddress && walletAddress.toLowerCase() === winnerAddress.toLowerCase()) ||
+                  (isChallengerWinner && selectedDare.challenger && walletAddress.toLowerCase() === selectedDare.challenger.toLowerCase()) ||
+                  (isInvestigatorWinner && selectedDare.investigator && walletAddress.toLowerCase() === selectedDare.investigator.toLowerCase())
+                )
               );
               const categoricalOutcome = selectedDare.verdict === 'INVESTIGATOR_WINS' ? 'MET' : selectedDare.verdict === 'CHALLENGER_WINS' ? 'NOT_MET' : 'INSUFFICIENT_EVIDENCE';
 
@@ -3086,7 +3097,11 @@ export default function App() {
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="text-slate-500 font-semibold">Winner:</span>
                         <div className="flex items-center gap-1.5 font-mono font-semibold text-slate-800">
-                          <span>{winnerAddress.slice(0, 10)}...{winnerAddress.slice(-6)}</span>
+                          <span>
+                            {winnerAddress 
+                              ? `${winnerAddress.slice(0, 10)}...${winnerAddress.slice(-6)}` 
+                              : (isChallengerWinner ? 'Challenger' : 'Investigator')}
+                          </span>
                           {isUserWinner && (
                             <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 text-[9px] font-extrabold uppercase">
                               Your Address
@@ -3190,7 +3205,7 @@ export default function App() {
                           <span>Consensus Finalized — Awaiting winner payout claim</span>
                         </span>
                         <span className="font-mono text-[10px] text-amber-300">
-                          Winner: {winnerAddress ? `${winnerAddress.slice(0, 8)}...` : 'N/A'}
+                          Winner: {winnerAddress ? `${winnerAddress.slice(0, 8)}...` : (isChallengerWinner ? 'Challenger' : 'Investigator')}
                         </span>
                       </div>
                     )}

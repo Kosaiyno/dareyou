@@ -977,7 +977,11 @@ export const useStore = create<AppState>((set, get) => ({
     if (!dare || dare.status !== 'FINALIZED' || dare.payoutClaimed) return 0;
 
     const onChainId = dare.onChainId || dare.id;
-    const trueWinner = (dare.verdict === 'INVESTIGATOR_WINS' ? dare.investigator : dare.challenger) || _walletAddress;
+    const trueWinner = dare.payoutRecipient || (dare as any).winner || (
+      dare.verdict === 'INVESTIGATOR_WINS' 
+        ? dare.investigator 
+        : (dare.challenger || (dare as any).creator)
+    ) || _walletAddress;
     const stakeCents = Number(dare.stakeCents) > 0 ? Number(dare.stakeCents) : 500;
     const payoutDollars = (stakeCents * 2) / 100;
 
