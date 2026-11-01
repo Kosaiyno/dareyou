@@ -316,18 +316,21 @@ export function formatRealValidatorVotes(
 }
 
 export async function getNextOnChainDareId(): Promise<number> {
-  try {
-    const client = getGenLayerReadClient();
-    const totalBig = await client.readContract({
-      address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
-      functionName: 'get_total_dares',
-      args: []
-    });
-    return Number(totalBig || 0) + 1;
-  } catch (err) {
-    console.warn("[getNextOnChainDareId] Error querying get_total_dares, falling back:", err);
-    return 10;
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/dares', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.dares) && data.dares.length > 0) {
+          const maxId = Math.max(...data.dares.map((d: any) => Number(d.id || 0)));
+          if (maxId > 0) return maxId + 1;
+        }
+      }
+    } catch (e) {
+      console.warn("[getNextOnChainDareId] Error reading /api/dares:", e);
+    }
   }
+  return 10;
 }
 
 /**

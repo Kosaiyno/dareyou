@@ -190,5 +190,17 @@
     "verdict": null,
     "winner": null,
     "adjudicated": false
+  },
+  {
+    "dare_id": 9,
+    "challenger": "0xFb8790FF34f60FbF0fD8cdcED0Ee614B4D7377e5",
+    "investigator": null,
+    "category": "INVESTIGATIVE_FACT_FINDING",
+    "title": "Dare you to verify the exact date CERN placed WWW in public domain",
+    "claim_statement": "On April 30, 1993, CERN released WWW software into the public domain.",
+    "required_sources_desc": "https://web.archive.org/web/20210506085536/https://home.cern/science/computing/birth-web/licensing-web",
+    "evaluation_criteria": "Archival citation confirming 30 April 1993 CERN declaration.",
+    "research_window_seconds": 600,
+    "status": "OPEN"
   }
 ]
