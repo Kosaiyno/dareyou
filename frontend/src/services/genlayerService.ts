@@ -315,6 +315,21 @@ export function formatRealValidatorVotes(
   });
 }
 
+export async function getNextOnChainDareId(): Promise<number> {
+  try {
+    const client = getGenLayerReadClient();
+    const totalBig = await client.readContract({
+      address: GENLAYER_REGISTRY_ADDRESS as `0x${string}`,
+      functionName: 'get_total_dares',
+      args: []
+    });
+    return Number(totalBig || 0) + 1;
+  } catch (err) {
+    console.warn("[getNextOnChainDareId] Error querying get_total_dares, falling back:", err);
+    return 10;
+  }
+}
+
 /**
  * Publishes a qualified challenge to the DareRegistry contract on GenLayer StudioNet.
  * Zero-Staking Pure Epistemic Protocol.
@@ -521,9 +536,9 @@ export async function fetchOnChainDares(forceRpc = false): Promise<any[]> {
     }
   }
 
-  // 2. Throttle direct StudioNet RPC reads to once every 90s
+  // 2. Only query direct StudioNet RPC if /api/dares was empty or forceRpc is explicitly requested
   const now = Date.now();
-  if (forceRpc || (now - lastRpcFetchAt > 90000 && cachedOnChainDares.length > 0) || (cachedOnChainDares.length === 0 && now - lastRpcFetchAt > 15000)) {
+  if (forceRpc || (mergedMap.size === 0 && now - lastRpcFetchAt > 15000)) {
     lastRpcFetchAt = now;
     try {
       const client = getGenLayerClient();

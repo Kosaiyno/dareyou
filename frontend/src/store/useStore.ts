@@ -12,6 +12,7 @@ import {
   depositInvestigatorStakeOnChain,
   settleStakeFromAdjudicationOnChain,
   claimWinnerPayoutOnChain,
+  getNextOnChainDareId,
 } from '../services/genlayerService';
 
 export function isDareExpired(dare: Dare, now: number = Date.now()): boolean {
@@ -422,8 +423,25 @@ export const useStore = create<AppState>((set, get) => ({
   createDare: async (item: any, onProgress?: (step: number, msg: string) => void) => {
     const state = get();
     const challenger = item.challenger || state.walletAddress || '0xChallenger';
-    const stakeCents = Number(item.stakeCents) > 0 ? Number(item.stakeCents) : 500;
+    const stakeCents = Number(item.stakeCents) > 0 ? Number(item.stakeCents) : 100;
 
+    // Step 0: Determine the next on-chain dare ID
+    const nextDareId = await getNextOnChainDareId();
+    console.log(`[createDare] Next target on-chain ID is #${nextDareId}. Initiating stake deposit first.`);
+
+    // Step 1: Deposit REAL GEN Stake First via MetaMask so user is immediately prompted for real GEN
+    if (stakeCents > 0) {
+      if (onProgress) onProgress(1, `Step 1/2: Please confirm in MetaMask to deposit ${(stakeCents / 100).toFixed(2)} GEN stake into StakeEscrow...`);
+      try {
+        await depositChallengerStakeOnChain(nextDareId, challenger, stakeCents);
+      } catch (escrowErr: any) {
+        console.error("[StakeEscrow] depositChallengerStake error:", escrowErr);
+        throw new Error(`MetaMask stake deposit was rejected or failed: ${escrowErr?.message || escrowErr}`);
+      }
+    }
+
+    // Step 2: Register the Dare metadata on DareRegistry (0 GEN gas-only)
+    if (onProgress) onProgress(2, `Step 2/2: Challenge funded! Now confirm registration on DareRegistry (0 GEN gas)...`);
     const result = await createDareOnChain({
       title: item.title,
       category: item.category,
@@ -435,17 +453,7 @@ export const useStore = create<AppState>((set, get) => ({
       challenger
     }, onProgress);
 
-    const onChainId = result.onChainId;
-
-    if (stakeCents > 0) {
-      if (onProgress) onProgress(2, `Step 2/2: Confirm in MetaMask to deposit ${(stakeCents / 100).toFixed(2)} GEN stake into StakeEscrow...`);
-      try {
-        await depositChallengerStakeOnChain(onChainId, challenger, stakeCents);
-      } catch (escrowErr: any) {
-        console.error("[StakeEscrow] depositChallengerStake error:", escrowErr);
-        throw new Error(`Stake deposit rejected or failed: ${escrowErr?.message || escrowErr}`);
-      }
-    }
+    const onChainId = result.onChainId || nextDareId;
 
     const newDare: Dare = {
       id: onChainId,

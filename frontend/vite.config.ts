@@ -80,6 +80,40 @@ function apiDaresDevPlugin(): Plugin {
       reasoning: "The primary NASA Jet Propulsion Laboratory mission release (Release 2013-278) and Donald Gurnett et al. (Science 2013) confirm that the Voyager 1 Plasma Wave Science (PWS) instrument detected plasma oscillations indicating an electron density of approximately 0.08 electrons per cubic centimeter (0.08 cm⁻³). This sudden increase above the solar wind density (~0.002 cm⁻³) provided direct empirical proof that Voyager 1 had crossed into dense interstellar plasma."
     }
   });
+
+  try {
+    const dumpPath = path.resolve(__dirname, 'dares_dump.json');
+    if (fs.existsSync(dumpPath)) {
+      const dumped = JSON.parse(fs.readFileSync(dumpPath, 'utf8'));
+      if (Array.isArray(dumped)) {
+        for (const item of dumped) {
+          if (item && item.dare_id && !sharedDares.has(Number(item.dare_id))) {
+            sharedDares.set(Number(item.dare_id), {
+              id: Number(item.dare_id),
+              onChainId: Number(item.dare_id),
+              title: item.title,
+              category: item.category,
+              domain: 'Science',
+              claim: item.claim_statement,
+              requiredSources: item.required_sources_desc,
+              criteria: item.evaluation_criteria,
+              stakeCents: 500,
+              creationBondCents: 500,
+              durationSeconds: item.research_window_seconds || 600,
+              status: item.status,
+              challenger: item.challenger,
+              investigator: item.investigator,
+              verdict: item.verdict,
+              winner: item.winner
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[apiDaresDevPlugin] Could not load dares_dump.json:", err);
+  }
+
   return {
     name: 'api-dares-dev-plugin',
     configureServer(server) {
@@ -135,9 +169,10 @@ function apiDaresDevPlugin(): Plugin {
                   res.end(JSON.stringify({ error: 'DEPLOYER_PRIVATE_KEY not found in .env' }));
                   return;
                 }
-                const account = createAccount(match[1]);
+                const account = createAccount(match[1] as `0x${string}`);
                 const client = createClient({ chain: chains.studionet, account });
                 const sendTx = await client.sendTransaction({
+                  account,
                   to: to as `0x${string}`,
                   value: parseEther(String(amount))
                 });
@@ -168,10 +203,11 @@ function apiDaresDevPlugin(): Plugin {
                     const envContent = fs.readFileSync(envPath, 'utf8');
                     const match = envContent.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(0x[a-fA-F0-9]{64})/m);
                     if (match && winnerAddress && Number(payoutDollars) > 0) {
-                      const account = createAccount(match[1]);
+                      const account = createAccount(match[1] as `0x${string}`);
                       const client = createClient({ chain: chains.studionet, account });
                       transferTxHash = await client.sendTransaction({
-                        to: winnerAddress,
+                        account,
+                        to: winnerAddress as `0x${string}`,
                         value: parseEther(String(payoutDollars))
                       });
                       console.log(`[Dev Claim] Transferred ${payoutDollars} GEN to ${winnerAddress}. Tx: ${transferTxHash}`);

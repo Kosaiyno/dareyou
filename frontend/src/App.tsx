@@ -328,7 +328,7 @@ export default function App() {
   const [createCriteria, setCreateCriteria] = useState('');
   const [createDurationValue, setCreateDurationValue] = useState('30');
   const [createDurationUnit, setCreateDurationUnit] = useState<'SECONDS' | 'MINUTES' | 'HOURS' | 'DAYS'>('SECONDS');
-  const [createStakeValue, setCreateStakeValue] = useState('5');
+  const [createStakeValue, setCreateStakeValue] = useState('1');
 
   const computedDurationSeconds = Math.max(1, Math.round(
     createDurationUnit === 'SECONDS' ? (parseFloat(createDurationValue) || 1) :
@@ -546,16 +546,17 @@ export default function App() {
       return;
     }
 
+    const challengerAddr = walletAddress || '0xChallenger';
+    const stakeCents = Math.round((parseFloat(createStakeValue) || 1) * 100);
+    const stakeGen = (stakeCents / 100).toFixed(2);
+
     setTxState({
       active: true,
-      message: "Step 1/2: Submitting challenge to DareQualifier AI gate for consensus qualification...",
+      message: `Step 1/2: Please confirm in MetaMask to deposit ${stakeGen} GEN stake into StakeEscrow...`,
       step: 1
     });
 
     try {
-      const challengerAddr = walletAddress || '0xChallenger';
-      const stakeCents = Math.round((parseFloat(createStakeValue) || 5) * 100);
-
       const newId = await store.createDare({
         title: createTitle,
         category: createCategory,
@@ -1814,9 +1815,35 @@ export default function App() {
                           </button>
                         ))}
                       </div>
-                      <p className="text-[10px] text-slate-400 leading-tight">
-                        Escrowed in <code className="font-mono text-slate-600">StakeEscrow</code> contract. Matched by investigator upon acceptance. Winner claims 100% of pot upon consensus finalization.
-                      </p>
+
+                      {/* StudioNet Balance & Faucet Helper */}
+                      <div className="bg-amber-50/80 border border-amber-200/70 rounded-xl p-2.5 flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5">
+                          <Wallet className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="text-slate-600 font-medium">Your StudioNet Balance:</span>
+                          <span className="font-mono font-bold text-amber-950">{walletBalance} GEN</span>
+                        </div>
+                        {parseFloat(walletBalance || '0') < (parseFloat(createStakeValue) || 1) && (
+                          <button
+                            type="button"
+                            onClick={handleRequestFaucet}
+                            disabled={faucetLoading}
+                            className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] shadow-xs cursor-pointer flex items-center gap-1"
+                          >
+                            <Coins className="w-3 h-3" />
+                            <span>{faucetLoading ? 'Sending...' : 'Get 1 GEN Faucet'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] text-slate-500 space-y-1">
+                        <div className="font-bold text-slate-700 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                          <span>MetaMask Transaction Sequence:</span>
+                        </div>
+                        <div>• <strong>Step 1:</strong> Deposit ${(parseFloat(createStakeValue) || 1).toFixed(2)} GEN stake into StakeEscrow (<span className="text-emerald-700 font-bold">Debits ${(parseFloat(createStakeValue) || 1).toFixed(2)} GEN from your wallet</span>)</div>
+                        <div>• <strong>Step 2:</strong> Register challenge metadata on DareRegistry (0 GEN gas-only)</div>
+                      </div>
                     </div>
 
                     {/* Research Window Duration */}
